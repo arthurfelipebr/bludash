@@ -1,0 +1,6 @@
+{
+  "name": "Blu Imports Dashboard",
+  "description": "An internal dashboard for Blu Imports to manage orders, track deliveries via a calendar, and analyze supplier price lists using Gemini AI.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
