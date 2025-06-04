@@ -64,7 +64,7 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
         *   `PORT`: Port for the backend server (e.g., 3001).
         *   `DATABASE_PATH`: Path to your SQLite database file (e.g., `./bluimports.db` or an absolute path on your VPS).
         *   `JWT_SECRET`: **CRITICAL!** Generate a strong, random secret key for JWTs.
-        *   `API_KEY`: Your Google Gemini API key. This is now used securely by the backend.
+        *   `GEMINI_API_KEY`: Your Google Gemini API key. This is now used securely by the backend.
 
 4.  **Initialize Database (First time):**
     The `server/database.js` script attempts to create tables if they don't exist when the server starts or when run directly. You can also run it manually:
@@ -93,7 +93,7 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
     ```bash
     npm install 
     ```
-    If not, set up `esbuild` as per prior README instructions (install `esbuild`, add build script to root `package.json`). The build script **no longer needs to inject the API_KEY**, as it's handled by the backend.
+    If not, set up `esbuild` as per prior README instructions (install `esbuild`, add build script to root `package.json`). The build script **no longer needs to inject the `GEMINI_API_KEY`**, as it's handled by the backend.
     Modify the frontend `package.json` build script:
     ```json
     "scripts": {
