@@ -10,7 +10,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
 export const APP_NAME = "Blu Imports Dashboard";
-// API_KEY is no longer client-side
+// GEMINI_API_KEY is no longer client-side
 
 export const ORDER_STATUS_OPTIONS: OrderStatus[] = Object.values(OrderStatus);
 export const PRODUCT_CONDITION_OPTIONS: ProductCondition[] = Object.values(ProductCondition);

@@ -10,7 +10,7 @@ const db = require('./database'); // Your SQLite database connection
 const app =express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
-// const GEMINI_API_KEY = process.env.API_KEY; // For backend Gemini calls
+// const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // For backend Gemini calls
 
 // if (GEMINI_API_KEY) {
 //   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });

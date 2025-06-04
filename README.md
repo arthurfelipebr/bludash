@@ -69,7 +69,7 @@ uma VPS do zero. Consulte a seção seguinte para detalhes adicionais.
    - `PORT` - porta do backend (ex.: 3001)
    - `DATABASE_PATH` - caminho do arquivo SQLite (ex.: `./bluimports.db`)
    - `JWT_SECRET` - chave secreta para gerar tokens
-   - `API_KEY` - chave da API Gemini
+   - `GEMINI_API_KEY` - chave da API Gemini
 
    ```bash
    cp .env.example .env
@@ -122,7 +122,7 @@ Após esses passos, a aplicação deve estar acessível via navegador.
         *   `PORT`: Port for the backend server (e.g., 3001).
         *   `DATABASE_PATH`: Path to your SQLite database file (e.g., `./bluimports.db` or an absolute path on your VPS).
         *   `JWT_SECRET`: **CRITICAL!** Generate a strong, random secret key for JWTs.
-        *   `API_KEY`: Your Google Gemini API key. This is now used securely by the backend.
+        *   `GEMINI_API_KEY`: Your Google Gemini API key. This is now used securely by the backend.
 
 4.  **Initialize Database (First time):**
     The `server/database.js` script attempts to create tables if they don't exist when the server starts or when run directly. You can also run it manually:
