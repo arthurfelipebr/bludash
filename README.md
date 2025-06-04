@@ -37,8 +37,66 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
 *   **`/server`:** Contains the new Node.js backend application.
     *   `server.js`: Main Express server file.
     *   `database.js`: SQLite database setup and schema initialization.
-    *   `package.json`: Backend dependencies and scripts.
+*   `package.json`: Backend dependencies and scripts.
 *   `.env`: (Create this file from `.env.example`) For backend environment variables.
+
+## Guia rápido: instalar e rodar (VPS)
+
+Este é um resumo em português dos passos para colocar o projeto para funcionar em
+uma VPS do zero. Consulte a seção seguinte para detalhes adicionais.
+
+1. **Instale o Node.js** (exemplo para distribuições Ubuntu/Debian)
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   ```
+
+2. **Clone o repositório e entre na pasta**
+   ```bash
+   git clone <URL_DO_REPOSITORIO> bluimports
+   cd bluimports
+   ```
+
+3. **Instale as dependências**
+   ```bash
+   npm install                # dependências do frontend
+   cd server && npm install   # dependências do backend (inclui sqlite3)
+   cd ..
+   ```
+
+4. **Crie o arquivo `.env`** a partir de `.env.example` e ajuste os valores
+   conforme sua necessidade:
+   - `PORT` - porta do backend (ex.: 3001)
+   - `DATABASE_PATH` - caminho do arquivo SQLite (ex.: `./bluimports.db`)
+   - `JWT_SECRET` - chave secreta para gerar tokens
+   - `API_KEY` - chave da API Gemini
+
+   ```bash
+   cp .env.example .env
+   ```
+
+5. **Inicialize o banco de dados**
+   ```bash
+   cd server
+   node database.js
+   cd ..
+   ```
+
+6. **Construa o frontend**
+   ```bash
+   npm run build
+   ```
+
+7. **Inicie o backend** (para produção recomenda-se usar um gerenciador como PM2)
+   ```bash
+   cd server
+   npm start
+   ```
+
+8. **Configure seu servidor web** (Nginx/Apache) para servir os arquivos de
+   `dist` e encaminhar as rotas `/api` para `localhost:PORT`.
+
+Após esses passos, a aplicação deve estar acessível via navegador.
 
 ## Setup & Deployment Steps
 
