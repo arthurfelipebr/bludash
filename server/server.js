@@ -41,7 +41,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // --- Authentication Routes ---
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { email, password, name } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required.' });
@@ -50,7 +50,13 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
   }
 
-  const hashedPassword = bcrypt.hashSync(password, 8);
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(password, 8);
+  } catch (hashErr) {
+    console.error('Password hashing error:', hashErr.message);
+    return res.status(500).json({ message: 'Falha ao processar senha.' });
+  }
   const userId = uuidv4();
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
@@ -73,13 +79,19 @@ app.post('/api/auth/register', (req, res) => {
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
+  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
     if (err) return res.status(500).json({ message: 'Server error during login.' });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
 
-    const passwordIsValid = bcrypt.compareSync(password, user.password);
+    let passwordIsValid;
+    try {
+      passwordIsValid = await bcrypt.compare(password, user.password);
+    } catch (compareErr) {
+      console.error('Password compare error:', compareErr.message);
+      return res.status(500).json({ message: 'Falha ao verificar senha.' });
+    }
     if (!passwordIsValid) return res.status(401).json({ message: 'Usuário não encontrado ou senha incorreta.' });
-    
+
     const userPayload = { id: user.id, email: user.email, name: user.name, registrationDate: user.registrationDate };
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
     res.status(200).json({ token, user: userPayload });
