@@ -27,7 +27,7 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
 
 ### Development/Build:
 *   Node.js and npm (or yarn)
-*   `esbuild` (for frontend bundling, as per example)
+*   Vite (frontend bundler and dev server)
 *   `nodemon` (for backend development, optional)
 
 ## Project Structure Overview
@@ -87,26 +87,16 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
     cd .. 
     ```
 
-2.  **Install Frontend Build Tool (if not already done):**
-    (Assuming `esbuild` as per previous `package.json` in root)
-    If you have a `package.json` in the root for frontend:
+2.  **Install Frontend Dependencies:**
     ```bash
-    npm install 
-    ```
-    If not, set up `esbuild` as per prior README instructions (install `esbuild`, add build script to root `package.json`). The build script **no longer needs to inject the API_KEY**, as it's handled by the backend.
-    Modify the frontend `package.json` build script:
-    ```json
-    "scripts": {
-      "build": "esbuild index.tsx --bundle --outfile=dist/bundle.js --format=esm --platform=browser --jsx=automatic --loader:.ts=tsx --sourcemap",
-      "start": "esbuild index.tsx --bundle --outfile=dist/bundle.js --servedir=dist --format=esm --platform=browser --jsx=automatic --loader:.ts=tsx --sourcemap"
-    },
+    npm install
     ```
 
 3.  **Build the Frontend:**
     ```bash
     npm run build
     ```
-    This creates/updates the `/dist` directory with `index.html` and `bundle.js`. Ensure your `index.html` (the one that gets copied or is in `dist`) correctly references `./bundle.js`.
+    This uses Vite to create/update the `dist` directory.
 
 ### 3. Deployment to VPS
 
