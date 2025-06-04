@@ -14,7 +14,16 @@ import {
 } from '../services/AppService';
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon } from '../components/SharedComponents';
 import { v4 as uuidv4 } from 'uuid';
-import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App'; 
+import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
+
+// Utility to escape HTML special characters
+const escapeHtml = (unsafe: string): string =>
+  unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 
 // Icons
@@ -386,10 +395,68 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     const whatsappUrl = `https://wa.me/${cleanPhoneNumberForWhatsApp(supplier.phone)}?text=${message}`; window.open(whatsappUrl, '_blank'); 
   };
 
-  const generateNotaFiscalDescription = () => { const { productName, model, capacity, color, condition } = formData; const marcaModelo = `${productName || "PRODUTO"} ${model || "MODELO"}`; const armazenamento = capacity || "ARMAZENAMENTO"; const cor = color || "COR"; const estado = condition || "ESTADO"; const desc = `Serviço de intermediação para a compra do seguinte produto: ${marcaModelo} com ${armazenamento} de armazenamento na cor ${cor}, ${estado}.
+  const generateNotaFiscalDescription = () => {
+    const { productName, model, capacity, color, condition } = formData;
+    const sanitizedProduct = escapeHtml(productName || 'PRODUTO');
+    const sanitizedModel = escapeHtml(model || 'MODELO');
+    const sanitizedCapacity = escapeHtml(capacity || 'ARMAZENAMENTO');
+    const sanitizedColor = escapeHtml(color || 'COR');
+    const sanitizedCondition = escapeHtml(condition || 'ESTADO');
+
+    const marcaModelo = `${sanitizedProduct} ${sanitizedModel}`;
+    const desc = `Serviço de intermediação para a compra do seguinte produto: ${marcaModelo} com ${sanitizedCapacity} de armazenamento na cor ${sanitizedColor}, ${sanitizedCondition}.
 
 Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de intermediação prestado pela Blu Imports. Trabalhamos sob encomenda, intermediando ou importando produtos conforme solicitado pelo cliente, sem manter estoque próprio. A transação foi realizada com base em contrato assinado e autenticado por meio da plataforma Autentique.`;
-    navigator.clipboard.writeText(desc).then(() => { alert("Descrição da Nota Fiscal copiada para a área de transferência!"); }).catch(err => { console.error('Erro ao copiar descrição: ', err); alert('Erro ao copiar descrição. Veja o console.'); const modal = document.createElement('div'); modal.innerHTML = `<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;"> <div style="background:white;padding:20px;border-radius:8px;max-width:500px;white-space:pre-wrap;"> <h3>Descrição para Nota Fiscal:</h3> <textarea rows="10" style="width:100%;margin-top:10px;" readonly>${desc}</textarea> <button onclick="this.parentElement.parentElement.remove()" style="margin-top:10px;">Fechar</button> </div> </div>`; document.body.appendChild(modal); }); };
+
+    navigator.clipboard.writeText(desc)
+      .then(() => {
+        alert('Descrição da Nota Fiscal copiada para a área de transferência!');
+      })
+      .catch(err => {
+        console.error('Erro ao copiar descrição: ', err);
+        alert('Erro ao copiar descrição. Veja o console.');
+
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.background = 'rgba(0,0,0,0.5)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '1000';
+
+        const modalContent = document.createElement('div');
+        modalContent.style.background = 'white';
+        modalContent.style.padding = '20px';
+        modalContent.style.borderRadius = '8px';
+        modalContent.style.maxWidth = '500px';
+        modalContent.style.whiteSpace = 'pre-wrap';
+
+        const title = document.createElement('h3');
+        title.textContent = 'Descrição para Nota Fiscal:';
+
+        const textarea = document.createElement('textarea');
+        textarea.rows = 10;
+        textarea.readOnly = true;
+        textarea.style.width = '100%';
+        textarea.style.marginTop = '10px';
+        textarea.textContent = desc;
+
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Fechar';
+        closeButton.style.marginTop = '10px';
+        closeButton.onclick = () => modal.remove();
+
+        modalContent.appendChild(title);
+        modalContent.appendChild(textarea);
+        modalContent.appendChild(closeButton);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+      });
+  };
   
   const selectedClientDetails = formData.clientId ? clients.find(c => c.id === formData.clientId) : null;
 
