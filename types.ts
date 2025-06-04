@@ -1,7 +1,3 @@
-
-
-// No longer importing FirebaseUserType: import type { User as FirebaseUserType } from 'firebase/auth'; 
-
 export enum OrderStatus {
   PEDIDO_REALIZADO = 'Pedido Realizado',
   PAGAMENTO_CONFIRMADO = 'Pagamento Confirmado',
@@ -174,7 +170,6 @@ export interface Client {
     defaulterNotes?: string; 
 }
 
-// Replaces FirebaseUser
 export interface User {
   id: string; // Typically the same as userId from backend
   email: string;
