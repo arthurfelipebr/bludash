@@ -115,6 +115,11 @@ function initializeDatabase() {
       whatsAppHistorySummary TEXT,
       bluFacilitaUsesSpecialRate INTEGER DEFAULT 0,
       bluFacilitaSpecialAnnualRate REAL,
+      documents TEXT,
+      trackingHistory TEXT,
+      bluFacilitaInstallments TEXT,
+      internalNotes TEXT,
+      arrivalPhotos TEXT,
       FOREIGN KEY (userId) REFERENCES users(id),
       FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE SET NULL,
       FOREIGN KEY (supplierId) REFERENCES suppliers(id) ON DELETE SET NULL
