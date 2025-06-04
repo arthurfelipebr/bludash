@@ -8,10 +8,6 @@ import {
     ClientPayment, User, HistoricalParsedProduct 
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
-// Firebase imports are removed: import { db, auth } from '../firebase';
-// Firestore specific imports are removed
-
-
 // --- CONSTANTS ---
 export const APP_NAME = "Blu Imports Dashboard";
 // API_KEY is no longer client-side
