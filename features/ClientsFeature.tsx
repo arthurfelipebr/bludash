@@ -1,391 +1,514 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+const express = require('express');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+const db = require('./database'); // PostgreSQL database connection
+// const { GoogleGenAI } = require('@google/genai'); // For backend Gemini calls
 
-import React, { useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Client, ClientType, Order, PaymentMethod, OrderStatus } from '../types';
-import { 
-  saveClient, getClients, deleteClient, getClientById,
-  getOrders, 
-  CLIENT_TYPE_OPTIONS, formatCPFOrCNPJ, formatDateBR, formatCurrencyBRL, exportToCSV
-} from '../services/AppService';
-import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner } from '../components/SharedComponents';
-import { v4 as uuidv4 } from 'uuid';
+const app =express();
+const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
+// const GEMINI_API_KEY = process.env.API_KEY; // For backend Gemini calls
 
-const initialFormData: Omit<Client, 'id' | 'registrationDate'> = {
-  fullName: '',
-  cpfOrCnpj: '',
-  email: '',
-  phone: '',
-  city: '',
-  state: '',
-  clientType: ClientType.PESSOA_FISICA,
-  notes: '',
+// if (GEMINI_API_KEY) {
+//   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+//   console.log("Gemini AI Service initialized on backend.");
+// } else {
+//   console.warn("Gemini API Key not found on backend. AI features will be disabled.");
+// }
+
+
+app.use(cors());
+app.use(express.json());
+
+// --- Middleware for Authentication ---
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (token == null) return res.sendStatus(401); // if there isn't any token
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      console.error('JWT Verification Error:', err.message);
+      return res.sendStatus(403); // invalid token
+    }
+    req.user = user; // Add user payload to request
+    next(); // pass the execution off to whatever request the client intended
+  });
 };
 
-interface ClientFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (client: Client) => Promise<void>; // Adjusted to Promise if saveClient is async
-  initialClient?: Client | null;
-}
+// --- Authentication Routes ---
+app.post('/api/auth/register', (req, res) => {
+  const { email, password, name } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+  }
 
-const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initialClient }) => {
-  const [formData, setFormData] = useState<Omit<Client, 'id' | 'registrationDate'>>(initialFormData);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    if (initialClient) {
-      setFormData({
-        fullName: initialClient.fullName,
-        cpfOrCnpj: initialClient.cpfOrCnpj,
-        email: initialClient.email,
-        phone: initialClient.phone,
-        city: initialClient.city,
-        state: initialClient.state,
-        clientType: initialClient.clientType,
-        notes: initialClient.notes || '',
-      });
-    } else {
-      setFormData(initialFormData);
-    }
-  }, [initialClient, isOpen]);
+  const hashedPassword = bcrypt.hashSync(password, 8);
+  const userId = uuidv4();
+  const registrationDate = new Date().toISOString();
+  const displayName = name && name.trim() !== '' ? name.trim() : email;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    
-    if (!formData.fullName || !formData.cpfOrCnpj || !formData.email || !formData.phone) {
-        setError("Nome, CPF/CNPJ, Email e Telefone são obrigatórios.");
-        return;
-    }
-    if (formData.clientType === ClientType.PESSOA_FISICA && formData.cpfOrCnpj.replace(/\D/g, '').length !== 11) {
-        setError("CPF inválido. Deve conter 11 dígitos.");
-        return;
-    }
-    if (formData.clientType === ClientType.PESSOA_JURIDICA && formData.cpfOrCnpj.replace(/\D/g, '').length !== 14) {
-        setError("CNPJ inválido. Deve conter 14 dígitos.");
-        return;
-    }
-    if (!formData.email.includes('@')) {
-        setError("Email inválido.");
-        return;
-    }
-
-    setIsLoading(true);
-    const clientToSave: Client = {
-      ...formData,
-      id: initialClient?.id || uuidv4(),
-      registrationDate: initialClient?.registrationDate || new Date().toISOString(),
-      cpfOrCnpj: formData.cpfOrCnpj.replace(/\D/g, ''), 
-    };
-
-    try {
-      await onSave(clientToSave); 
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar cliente.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={initialClient ? 'Editar Cliente' : 'Adicionar Novo Cliente'} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-        <Input label="Nome Completo" id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} required />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select label="Tipo de Cliente" id="clientType" name="clientType" value={formData.clientType} onChange={handleChange} options={CLIENT_TYPE_OPTIONS.map(c => ({ value: c, label: c }))} />
-            <Input 
-                label={formData.clientType === ClientType.PESSOA_FISICA ? "CPF" : "CNPJ"} 
-                id="cpfOrCnpj" name="cpfOrCnpj" 
-                value={formatCPFOrCNPJ(formData.cpfOrCnpj, formData.clientType)} 
-                onChange={handleChange} required 
-                placeholder={formData.clientType === ClientType.PESSOA_FISICA ? "000.000.000-00" : "00.000.000/0000-00"}
-            />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="E-mail" id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
-            <Input label="Telefone" id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} required placeholder="(00) 90000-0000" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Cidade" id="city" name="city" value={formData.city} onChange={handleChange} />
-            <Input label="Estado (UF)" id="state" name="state" value={formData.state} onChange={handleChange} maxLength={2} placeholder="Ex: SP, RJ" />
-        </div>
-        <Textarea label="Observações" id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} />
-        
-        <div className="flex justify-end space-x-3 pt-4">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button>
-          <Button type="submit" isLoading={isLoading} disabled={isLoading}>
-            {initialClient ? 'Salvar Alterações' : 'Adicionar Cliente'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-};
-
-interface ClientDetailsModalProps {
-    client: Client | null;
-    isOpen: boolean;
-    onClose: () => void;
-    onEdit: (client: Client) => void;
-}
-
-const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen, onClose, onEdit }) => {
-    const [clientOrders, setClientOrders] = useState<Order[]>([]);
-    const [ordersLoading, setOrdersLoading] = useState(false);
-    const [filterBluFacilita, setFilterBluFacilita] = useState(false);
-
-    useEffect(() => {
-        const fetchClientOrders = async () => {
-            if (client && isOpen) {
-                setOrdersLoading(true);
-                try {
-                    const allOrders = await getOrders();
-                    const orders = allOrders.filter(o => o.clientId === client.id)
-                                          .sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
-                    setClientOrders(orders);
-                } catch (error) {
-                    console.error("Failed to fetch client orders:", error);
-                } finally {
-                    setOrdersLoading(false);
-                }
-            }
-        };
-        fetchClientOrders();
-    }, [client, isOpen]);
-
-    const filteredClientOrders = useMemo(() => {
-        if (!filterBluFacilita) return clientOrders;
-        return clientOrders.filter(o => o.paymentMethod === PaymentMethod.BLU_FACILITA);
-    }, [clientOrders, filterBluFacilita]);
-
-    if (!client) return null;
-
-    const orderColumns = [
-        { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model} (${item.capacity})` },
-        { header: 'Data Compra', accessor: (item: Order): ReactNode => formatDateBR(item.orderDate) },
-        { header: 'Valor', accessor: (item: Order): ReactNode => formatCurrencyBRL(item.sellingPrice || item.purchasePrice) },
-        { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order },
-        { header: 'Status', accessor: 'status' as keyof Order},
-    ];
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Detalhes de ${client.fullName}`} size="xl">
-            <div className="space-y-4">
-                <Card title="Informações do Cliente" actions={<Button variant="ghost" onClick={() => onEdit(client)}>Editar Cliente</Button>}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <p><strong>CPF/CNPJ:</strong> {formatCPFOrCNPJ(client.cpfOrCnpj, client.clientType)} ({client.clientType})</p>
-                        <p><strong>Email:</strong> {client.email}</p>
-                        <p><strong>Telefone:</strong> {client.phone}</p>
-                        <p><strong>Endereço:</strong> {client.city ? `${client.city} - ${client.state}` : 'Não informado'}</p>
-                        <p><strong>Cliente Desde:</strong> {formatDateBR(client.registrationDate)}</p>
-                        {client.notes && <p className="md:col-span-2"><strong>Observações:</strong> {client.notes}</p>}
-                    </div>
-                </Card>
-
-                <Card title="Histórico de Encomendas">
-                    <div className="mb-4">
-                        <label className="flex items-center space-x-2">
-                            <input 
-                                type="checkbox" 
-                                checked={filterBluFacilita} 
-                                onChange={(e) => setFilterBluFacilita(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500"
-                            />
-                            <span>Mostrar apenas encomendas via BluFacilita</span>
-                        </label>
-                    </div>
-                    {ordersLoading ? <Spinner /> : (
-                        <ResponsiveTable
-                            columns={orderColumns}
-                            data={filteredClientOrders}
-                            rowKeyAccessor="id"
-                            emptyStateMessage="Nenhuma encomenda encontrada para este cliente."
-                        />
-                    )}
-                </Card>
-                <div className="flex justify-end pt-4">
-                    <Button onClick={onClose}>Fechar</Button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-
-export const ClientsPage: React.FC<{}> = () => {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [viewingClient, setViewingClient] = useState<Client | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const fetchClients = useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const clientsData = await getClients();
-        setClients(clientsData);
-    } catch (error) {
-        console.error("Failed to fetch clients:", error);
-    } finally {
-        setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
-
-  const handleSaveClient = async (client: Client) => {
-  5b9wiq-codex/corrigir-bugs-do-código
-    try {
-      if (editingClient) {
-        await saveClient(client);
-      } else {
-        const { id, ...data } = client;
-        await saveClient(data as Omit<Client, 'id'>);
+  db.run('INSERT INTO users (id, email, password, name, registrationDate) VALUES ($1, $2, $3, $4, $5)',
+    [userId, email, hashedPassword, displayName, registrationDate],
+    function(err) {
+    if (err) {
+      if (err.code === '23505') { // unique_violation
+        return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
       }
-      setIsFormOpen(false);
-      setEditingClient(null);
-      await fetchClients();
-    } catch (error) {
-      console.error("Failed to save client:", error);
+      console.error('Registration error:', err.message);
+      return res.status(500).json({ message: 'Falha ao registrar usuário.' });
     }
+    const user = { id: userId, email: email, name: displayName, registrationDate: registrationDate };
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' }); // Longer expiry for new users
+    res.status(201).json({ token, user });
+  });
+});
 
-    if (editingClient) {
-      await saveClient(client);
-    } else {
-      const { id, ...data } = client;
-      await saveClient(data as Omit<Client, 'id'>);
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  db.get('SELECT * FROM users WHERE email = $1', [email], (err, user) => {
+    if (err) return res.status(500).json({ message: 'Server error during login.' });
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
+
+    const passwordIsValid = bcrypt.compareSync(password, user.password);
+    if (!passwordIsValid) return res.status(401).json({ message: 'Usuário não encontrado ou senha incorreta.' });
+    
+    const userPayload = { id: user.id, email: user.email, name: user.name, registrationDate: user.registrationDate };
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    res.status(200).json({ token, user: userPayload });
+  });
+});
+
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+  db.get('SELECT id, email, name, registrationDate FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
+    if (err) {
+      console.error('Error fetching user for /me:', err.message);
+      return res.status(500).json({ message: 'Error fetching user details.' });
     }
-    await fetchClients();
-    setIsFormOpen(false);
-    setEditingClient(null);
-main
-  };
-
-  const handleOpenForm = (client?: Client) => {
-    setEditingClient(client || null);
-    setIsFormOpen(true);
-  };
-
-  const handleDeleteClient = async (clientId: string) => { // Make async
-    if (window.confirm('Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.')) {
-      await deleteClient(clientId); // Await deleteClient
-      await fetchClients(); // Await fetchClients
+    if (!userRow) {
+      return res.status(404).json({ message: 'User not found.' });
     }
-  };
+    res.json(userRow);
+  });
+});
 
-  const filteredClients = useMemo(() => {
-    return clients.filter(client => {
-      const term = searchTerm.toLowerCase();
-      return client.fullName.toLowerCase().includes(term) ||
-             client.cpfOrCnpj.includes(term) || 
-             client.email.toLowerCase().includes(term);
-    });
-  }, [clients, searchTerm]);
+
+// --- Placeholder API Routes (Protected) ---
+// These should be expanded to implement full CRUD for each resource.
+
+// Orders
+app.get('/api/orders', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM orders WHERE userId = $1 ORDER BY orderDate DESC', [req.user.id], (err, rows) => {
+    if (err) return res.status(500).json({ message: 'Failed to fetch orders.' });
+    // Parse JSON fields if stored as strings
+    const orders = rows.map(order => ({
+        ...order,
+        documents: typeof order.documents === 'string' ? JSON.parse(order.documents || '[]') : order.documents || [],
+        trackingHistory: typeof order.trackingHistory === 'string' ? JSON.parse(order.trackingHistory || '[]') : order.trackingHistory || [],
+        bluFacilitaInstallments: typeof order.bluFacilitaInstallments === 'string' ? JSON.parse(order.bluFacilitaInstallments || '[]') : order.bluFacilitaInstallments || [],
+        internalNotes: typeof order.internalNotes === 'string' ? JSON.parse(order.internalNotes || '[]') : order.internalNotes || [],
+        arrivalPhotos: typeof order.arrivalPhotos === 'string' ? JSON.parse(order.arrivalPhotos || '[]') : order.arrivalPhotos || [],
+        imeiBlocked: Boolean(order.imeiBlocked),
+        readyForDelivery: Boolean(order.readyForDelivery),
+        bluFacilitaUsesSpecialRate: Boolean(order.bluFacilitaUsesSpecialRate),
+    }));
+    res.json(orders);
+  });
+});
+
+app.post('/api/orders', authenticateToken, (req, res) => {
+  const orderData = req.body;
+  const orderId = orderData.id || uuidv4(); // Use provided ID if exists (e.g. from frontend UUID generation)
+
+  // Ensure numeric fields are numbers, text fields are text, boolean are 0/1
+  const purchasePrice = parseFloat(orderData.purchasePrice) || 0;
+  const sellingPrice = orderData.sellingPrice !== undefined ? parseFloat(orderData.sellingPrice) : null;
+  // ... (add similar parsing for all numeric/boolean fields from orderData) ...
+  const downPayment = orderData.downPayment !== undefined ? parseFloat(orderData.downPayment) : null;
+  const installments = orderData.installments !== undefined ? parseInt(orderData.installments, 10) : null;
+
+  // Serialize arrays to JSON strings
+  const documentsJSON = JSON.stringify(orderData.documents || []);
+  const trackingHistoryJSON = JSON.stringify(orderData.trackingHistory || []);
+  const bluFacilitaInstallmentsJSON = JSON.stringify(orderData.bluFacilitaInstallments || []);
+  const internalNotesJSON = JSON.stringify(orderData.internalNotes || []);
+  const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
   
-  const clientTableColumns = [
-    { header: 'Nome Completo', accessor: 'fullName' as keyof Client, className: 'font-medium' },
-    { header: 'CPF/CNPJ', accessor: (item: Client): ReactNode => formatCPFOrCNPJ(item.cpfOrCnpj, item.clientType) },
-    { header: 'Email', accessor: 'email' as keyof Client },
-    { header: 'Telefone', accessor: 'phone' as keyof Client },
-    { header: 'Cidade/UF', accessor: (item: Client): ReactNode => `${item.city || 'N/A'} / ${item.state || 'N/A'}`},
-    { header: 'Tipo', accessor: 'clientType' as keyof Client },
-    { header: 'Ações', accessor: (item: Client): ReactNode => (
-      <div className="space-x-1">
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setViewingClient(item);}} title="Ver Detalhes">
-            <i className="heroicons-outline-eye h-4 w-4"></i>
-        </Button>
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar">
-            <i className="heroicons-outline-pencil-square h-4 w-4"></i>
-        </Button>
-        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteClient(item.id);}} title="Excluir">
-            <i className="heroicons-outline-trash h-4 w-4"></i>
-        </Button>
-      </div>
-    )},
+  const sql = `INSERT INTO orders (
+      id, userId, customerName, clientId, productName, model, capacity, color, condition, 
+      supplierId, supplierName, purchasePrice, sellingPrice, status, estimatedDeliveryDate, 
+      orderDate, notes, paymentMethod, downPayment, installments, financedAmount, 
+      totalWithInterest, installmentValue, bluFacilitaContractStatus, imeiBlocked, 
+      arrivalDate, imei, arrivalNotes, batteryHealth, readyForDelivery, 
+      shippingCostSupplierToBlu, shippingCostBluToClient, whatsAppHistorySummary,
+      bluFacilitaUsesSpecialRate, bluFacilitaSpecialAnnualRate,
+      documents, trackingHistory, bluFacilitaInstallments, internalNotes, arrivalPhotos
+  ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+      $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+      $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
+  )`;
+
+  const params = [
+      orderId, req.user.id, orderData.customerName, orderData.clientId, orderData.productName, 
+      orderData.model, orderData.capacity, orderData.color, orderData.condition,
+      orderData.supplierId, orderData.supplierName, purchasePrice, sellingPrice, orderData.status,
+      orderData.estimatedDeliveryDate, orderData.orderDate || new Date().toISOString(), 
+      orderData.notes, orderData.paymentMethod, downPayment, installments,
+      orderData.financedAmount, orderData.totalWithInterest, orderData.installmentValue,
+      orderData.bluFacilitaContractStatus, orderData.imeiBlocked ? 1 : 0,
+      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
+      orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
+      orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
+      documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON, internalNotesJSON, arrivalPhotosJSON
+  ];
+  
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error("Error saving order:", err.message);
+      return res.status(500).json({ message: 'Failed to save order.' });
+    }
+    // Fetch and return the newly created/updated order to ensure client has the DB version
+     db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+        if (err || !row) {
+            console.error("Error fetching order after save:", err ? err.message : "Row not found");
+            return res.status(500).json({ message: 'Order saved, but failed to retrieve updated record.' });
+        }
+        res.status(201).json({
+            ...row,
+            documents: JSON.parse(row.documents || '[]'),
+            trackingHistory: JSON.parse(row.trackingHistory || '[]'),
+            bluFacilitaInstallments: JSON.parse(row.bluFacilitaInstallments || '[]'),
+            internalNotes: JSON.parse(row.internalNotes || '[]'),
+            arrivalPhotos: JSON.parse(row.arrivalPhotos || '[]'),
+            imeiBlocked: Boolean(row.imeiBlocked),
+            readyForDelivery: Boolean(row.readyForDelivery),
+            bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
+        });
+    });
+  });
+});
+// --- Individual Order Routes ---
+app.get('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+    if (err) return res.status(500).json({ message: 'Failed to fetch order.' });
+    if (!row) return res.status(404).json({ message: 'Order not found.' });
+    res.json({
+      ...row,
+      documents: JSON.parse(row.documents || '[]'),
+      trackingHistory: JSON.parse(row.trackingHistory || '[]'),
+      bluFacilitaInstallments: JSON.parse(row.bluFacilitaInstallments || '[]'),
+      internalNotes: JSON.parse(row.internalNotes || '[]'),
+      arrivalPhotos: JSON.parse(row.arrivalPhotos || '[]'),
+      imeiBlocked: Boolean(row.imeiBlocked),
+      readyForDelivery: Boolean(row.readyForDelivery),
+      bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
+    });
+  });
+});
+
+app.put('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const orderData = req.body;
+
+  const purchasePrice = parseFloat(orderData.purchasePrice) || 0;
+  const sellingPrice = orderData.sellingPrice !== undefined ? parseFloat(orderData.sellingPrice) : null;
+  const downPayment = orderData.downPayment !== undefined ? parseFloat(orderData.downPayment) : null;
+  const installments = orderData.installments !== undefined ? parseInt(orderData.installments, 10) : null;
+
+  const documentsJSON = JSON.stringify(orderData.documents || []);
+  const trackingHistoryJSON = JSON.stringify(orderData.trackingHistory || []);
+  const bluFacilitaInstallmentsJSON = JSON.stringify(orderData.bluFacilitaInstallments || []);
+  const internalNotesJSON = JSON.stringify(orderData.internalNotes || []);
+  const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
+
+  const sql = `UPDATE orders SET
+      customerName=$1, clientId=$2, productName=$3, model=$4, capacity=$5,
+      color=$6, condition=$7, supplierId=$8, supplierName=$9, purchasePrice=$10,
+      sellingPrice=$11, status=$12, estimatedDeliveryDate=$13, orderDate=$14,
+      notes=$15, paymentMethod=$16, downPayment=$17, installments=$18,
+      financedAmount=$19, totalWithInterest=$20, installmentValue=$21,
+      bluFacilitaContractStatus=$22, imeiBlocked=$23, arrivalDate=$24, imei=$25,
+      arrivalNotes=$26, batteryHealth=$27, readyForDelivery=$28,
+      shippingCostSupplierToBlu=$29, shippingCostBluToClient=$30,
+      whatsAppHistorySummary=$31, bluFacilitaUsesSpecialRate=$32,
+      bluFacilitaSpecialAnnualRate=$33, documents=$34, trackingHistory=$35,
+      bluFacilitaInstallments=$36, internalNotes=$37, arrivalPhotos=$38
+      WHERE id=$39 AND userId=$40`;
+
+  const params = [
+      orderData.customerName, orderData.clientId, orderData.productName,
+      orderData.model, orderData.capacity, orderData.color, orderData.condition,
+      orderData.supplierId, orderData.supplierName, purchasePrice, sellingPrice,
+      orderData.status, orderData.estimatedDeliveryDate,
+      orderData.orderDate || new Date().toISOString(), orderData.notes,
+      orderData.paymentMethod, downPayment, installments,
+      orderData.financedAmount, orderData.totalWithInterest, orderData.installmentValue,
+      orderData.bluFacilitaContractStatus, orderData.imeiBlocked ? 1 : 0,
+      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
+      orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
+      orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
+      documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON,
+      internalNotesJSON, arrivalPhotosJSON,
+      orderId, req.user.id
   ];
 
-  const handleExportClients = () => {
-    const dataToExport = filteredClients.map(c => ({
-        ID: c.id,
-        NomeCompleto: c.fullName,
-        CPF_CNPJ: formatCPFOrCNPJ(c.cpfOrCnpj, c.clientType),
-        TipoCliente: c.clientType,
-        Email: c.email,
-        Telefone: c.phone,
-        Cidade: c.city,
-        Estado: c.state,
-        DataCadastro: formatDateBR(c.registrationDate),
-        Observacoes: c.notes,
-    }));
-    exportToCSV(dataToExport, `clientes_blu_imports_${new Date().toISOString().split('T')[0]}.csv`);
-  };
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Error updating order:', err.message);
+      return res.status(500).json({ message: 'Failed to update order.' });
+    }
+    db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+      if (err || !row) {
+        console.error('Error fetching order after update:', err ? err.message : 'Row not found');
+        return res.status(500).json({ message: 'Order updated, but failed to retrieve record.' });
+      }
+      res.json({
+        ...row,
+        documents: JSON.parse(row.documents || '[]'),
+        trackingHistory: JSON.parse(row.trackingHistory || '[]'),
+        bluFacilitaInstallments: JSON.parse(row.bluFacilitaInstallments || '[]'),
+        internalNotes: JSON.parse(row.internalNotes || '[]'),
+        arrivalPhotos: JSON.parse(row.arrivalPhotos || '[]'),
+        imeiBlocked: Boolean(row.imeiBlocked),
+        readyForDelivery: Boolean(row.readyForDelivery),
+        bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
+      });
+    });
+  });
+});
 
-  return (
-    <div>
-      <PageTitle 
-        title="Gerenciamento de Clientes" 
-        subtitle="Cadastre e administre os clientes da Blu Imports."
-        actions={
-            <div className="flex space-x-2">
-                 <Button onClick={handleExportClients} variant="secondary" leftIcon={<i className="heroicons-outline-arrow-down-tray h-5 w-5"></i>}>
-                    Exportar CSV
-                </Button>
-                <Button onClick={() => handleOpenForm()} leftIcon={<i className="heroicons-outline-plus-circle h-5 w-5"></i>}>
-                    Novo Cliente
-                </Button>
-            </div>
+app.delete('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  db.run('DELETE FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], function(err) {
+    if (err) {
+      console.error('Error deleting order:', err.message);
+      return res.status(500).json({ message: 'Failed to delete order.' });
+    }
+    res.sendStatus(204);
+  });
+});
+
+// Clients
+app.get('/api/clients', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM clients WHERE userId = $1 ORDER BY fullName ASC', [req.user.id], (err, rows) => {
+      if (err) return res.status(500).json({ message: 'Failed to fetch clients.' });
+      res.json(rows.map(c => ({...c, isDefaulter: Boolean(c.isDefaulter)})));
+    });
+});
+app.get('/api/clients/:id', authenticateToken, (req, res) => {
+    const clientId = req.params.id;
+    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Failed to fetch client.' });
+        if (!row) return res.status(404).json({ message: 'Client not found.' });
+        res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    });
+});
+
+// START: MODIFIED CLIENTS POST ROUTE
+app.post('/api/clients', authenticateToken, (req, res) => {
+  const data = req.body;
+  const clientId = data.id || uuidv4();
+  const registrationDate = data.registrationDate || new Date().toISOString();
+  
+  const sql = `INSERT INTO clients (
+      id, userId, fullName, cpfOrCnpj, email, phone, city, state, clientType,
+      registrationDate, notes, isDefaulter, defaulterNotes
+  ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+  )`;
+  
+  const params = [
+      clientId, req.user.id, data.fullName, data.cpfOrCnpj, data.email, data.phone,
+      data.city, data.state, data.clientType, registrationDate, data.notes,
+      data.isDefaulter ? 1 : 0, data.defaulterNotes
+  ];
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Error saving client:', err.message);
+      return res.status(500).json({ message: 'Failed to save client.' });
+    }
+    
+    // Fetch the newly created client to return to the frontend
+    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+        if (err || !row) {
+            console.error("Error fetching client after save:", err ? err.message : "Row not found");
+            return res.status(500).json({ message: 'Client saved, but failed to retrieve updated record.' });
         }
-      />
+        res.status(201).json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    });
+  });
+});
+// END: MODIFIED CLIENTS POST ROUTE
 
-      <Card className="mb-6">
-        <Input 
-          id="searchClients" 
-          placeholder="Buscar por nome, CPF/CNPJ ou email..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          inputClassName="h-10"
-        />
-      </Card>
+// START: MODIFIED CLIENTS PUT ROUTE
+app.put('/api/clients/:id', authenticateToken, (req, res) => {
+  const clientId = req.params.id;
+  const data = req.body;
+  
+  const sql = `UPDATE clients SET
+      fullName=$1, cpfOrCnpj=$2, email=$3, phone=$4, city=$5, state=$6,
+      clientType=$7, notes=$8, isDefaulter=$9, defaulterNotes=$10
+      WHERE id=$11 AND userId=$12`;
+      
+  const params = [
+      data.fullName, data.cpfOrCnpj, data.email, data.phone, data.city, data.state,
+      data.clientType, data.notes, data.isDefaulter ? 1 : 0, data.defaulterNotes,
+      clientId, req.user.id
+  ];
 
-      <ResponsiveTable
-        columns={clientTableColumns}
-        data={filteredClients}
-        isLoading={isLoading}
-        emptyStateMessage="Nenhum cliente encontrado. Adicione um novo ou ajuste sua busca."
-        onRowClick={(client) => setViewingClient(client)}
-        rowKeyAccessor="id"
-      />
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Error updating client:', err.message);
+      return res.status(500).json({ message: 'Failed to update client.' });
+    }
 
-      {isFormOpen && (
-        <ClientForm
-          isOpen={isFormOpen}
-          onClose={() => { setIsFormOpen(false); setEditingClient(null); }}
-          onSave={handleSaveClient}
-          initialClient={editingClient}
-        />
-      )}
+    // Fetch the updated client to return to the frontend
+    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+        if (err || !row) {
+            console.error('Error fetching client after update:', err ? err.message : 'Row not found');
+            return res.status(404).json({ message: 'Client not found after update.' });
+        }
+        res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    });
+  });
+});
+// END: MODIFIED CLIENTS PUT ROUTE
 
-      {viewingClient && (
-          <ClientDetailsModal 
-            client={viewingClient}
-            isOpen={!!viewingClient}
-            onClose={() => setViewingClient(null)}
-            onEdit={(clientToEdit) => {
-                setViewingClient(null); 
-                handleOpenForm(clientToEdit); 
-            }}
-          />
-      )}
-    </div>
-  );
-};
+
+app.delete('/api/clients/:id', authenticateToken, (req, res) => {
+    const clientId = req.params.id;
+    db.run('DELETE FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting client:', err.message);
+            return res.status(500).json({ message: 'Failed to delete client.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
+// Suppliers
+app.get('/api/suppliers', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM suppliers WHERE userId = $1 ORDER BY name ASC', [req.user.id], (err, rows) => {
+      if (err) return res.status(500).json({ message: 'Failed to fetch suppliers.' });
+      res.json(rows);
+    });
+});
+app.get('/api/suppliers/:id', authenticateToken, (req, res) => {
+    const supplierId = req.params.id;
+    db.get('SELECT * FROM suppliers WHERE id = $1 AND userId = $2', [supplierId, req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Failed to fetch supplier.' });
+        if (!row) return res.status(404).json({ message: 'Supplier not found.' });
+        res.json(row);
+    });
+});
+
+app.post('/api/suppliers', authenticateToken, (req, res) => {
+    const data = req.body;
+    const supplierId = data.id || uuidv4();
+    const registrationDate = data.registrationDate || new Date().toISOString();
+    const sql = `INSERT INTO suppliers (
+        id, userId, name, contactPerson, phone, email, notes, registrationDate
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8
+    ) RETURNING *`;
+    const params = [
+        supplierId, req.user.id, data.name, data.contactPerson, data.phone,
+        data.email, data.notes, registrationDate
+    ];
+    db.run(sql, params, function(err, result) {
+        if (err) {
+            console.error('Error saving supplier:', err.message);
+            return res.status(500).json({ message: 'Failed to save supplier.' });
+        }
+        const row = result.rows && result.rows[0];
+        if (!row) {
+            return res.status(500).json({ message: 'Supplier saved, but failed to retrieve record.' });
+        }
+        res.status(201).json(row);
+    });
+});
+
+app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
+    const supplierId = req.params.id;
+    const data = req.body;
+    const sql = `UPDATE suppliers SET
+        name=$1, contactPerson=$2, phone=$3, email=$4, notes=$5
+        WHERE id=$6 AND userId=$7 RETURNING *`;
+    const params = [data.name, data.contactPerson, data.phone, data.email, data.notes, supplierId, req.user.id];
+    db.run(sql, params, function(err, result) {
+        if (err) {
+            console.error('Error updating supplier:', err.message);
+            return res.status(500).json({ message: 'Failed to update supplier.' });
+        }
+        if (!result.rows || result.rowCount === 0) {
+            return res.status(404).json({ message: 'Supplier not found.' });
+        }
+        res.json(result.rows[0]);
+    });
+});
+
+app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
+    const supplierId = req.params.id;
+    db.run('DELETE FROM suppliers WHERE id = $1 AND userId = $2', [supplierId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting supplier:', err.message);
+            return res.status(500).json({ message: 'Failed to delete supplier.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
+
+// Gemini AI Proxy (Placeholder)
+app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
+  // const { textList, supplierId, supplierName } = req.body;
+  // if (!GEMINI_API_KEY || !ai) {
+  //   return res.status(500).json({ message: "Gemini AI Service not configured on backend." });
+  // }
+  // try {
+  //   // Construct prompt, call ai.models.generateContent as shown in guidelines
+  //   // Example (very basic, adapt from AppService.tsx):
+  //   // const prompt = `Parse this for ${supplierName}: ${textList} ... return JSON array.`;
+  //   // const response = await ai.models.generateContent({ model: "gemini-2.5-flash-preview-04-17", contents: prompt, config: { responseMimeType: "application/json" }});
+  //   // const parsedData = JSON.parse(response.text); // Simplified, add robust parsing
+  //   // res.json(parsedData);
+  //   res.status(501).json({ message: "Gemini parsing not fully implemented on backend." });
+  // } catch (error) {
+  //   console.error("Backend Gemini Error:", error);
+  //   res.status(500).json({ message: "Error processing list with Gemini on backend." });
+  // }
+  console.warn("/api/gemini/parse-supplier-list called, but backend Gemini integration is a placeholder.");
+  res.status(501).json({ message: "Backend Gemini parsing not fully implemented yet." });
+});
+
+
+// --- Serve Static Frontend ---
+// In production, Nginx or Apache might serve static files directly.
+// For development or simpler setups, Express can serve them.
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../dist'))); // Serve files from frontend build
+
+// All other GET requests not handled before will return the React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+// --- Start Server ---
+app.listen(PORT, () => {
+  console.log(`Backend server running on http://localhost:${PORT}`);
+  console.log(`JWT Secret is ${JWT_SECRET && JWT_SECRET !== 'your-fallback-jwt-secret-key' ? 'set (recommended)' : 'NOT SET (using fallback - NOT SECURE FOR PRODUCTION!)'}`);
+  console.log(`PostgreSQL DB: ${process.env.PGDATABASE || ''} @ ${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || 5432}`);
+});
