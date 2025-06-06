@@ -230,6 +230,8 @@ export const ClientsPage: React.FC<{}> = () => {
     setIsLoading(true);
     try {
         const clientsData = await getClients();
+        // LINHA DE DEPURAÇÃO 1: Ver o que a API retornou
+        console.log('Dados brutos recebidos da API:', clientsData);
         setClients(clientsData);
     } catch (error) {
         console.error("Failed to fetch clients:", error);
@@ -269,9 +271,14 @@ export const ClientsPage: React.FC<{}> = () => {
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
       const term = searchTerm.toLowerCase();
-      return client.fullName.toLowerCase().includes(term) ||
-             client.cpfOrCnpj.includes(term) || 
-             client.email.toLowerCase().includes(term);
+      // Verificação de segurança para evitar erros caso algum campo seja nulo
+      const fullName = client.fullName || '';
+      const cpfOrCnpj = client.cpfOrCnpj || '';
+      const email = client.email || '';
+      
+      return fullName.toLowerCase().includes(term) ||
+             cpfOrCnpj.includes(term) || 
+             email.toLowerCase().includes(term);
     });
   }, [clients, searchTerm]);
   
@@ -312,6 +319,13 @@ export const ClientsPage: React.FC<{}> = () => {
     }));
     exportToCSV(dataToExport, `clientes_blu_imports_${new Date().toISOString().split('T')[0]}.csv`);
   };
+
+  // LINHAS DE DEPURAÇÃO 2: Ver o estado do componente antes de renderizar
+  console.log('--- RENDERIZAÇÃO ClientsPage ---');
+  console.log('Estado isLoading:', isLoading);
+  console.log('Estado clients (array):', clients);
+  console.log('Estado filteredClients (array):', filteredClients);
+  console.log('---------------------------------');
 
   return (
     <div>
