@@ -8,46 +8,52 @@ This project is an internal dashboard for Blu Imports. It is split into a React 
 
 ## Quick Start (Development)
 
+Follow the steps below in order:
+
 1. **Clone the repository**
    ```bash
    git clone <repo-url> bluimports
    cd bluimports
    ```
+
 2. **Install dependencies**
    ```bash
-   npm install            # installs frontend packages
-   cd server && npm install   # installs backend packages (uses pg)
+   npm install                 # frontend packages
+   cd server && npm install    # backend packages
    cd ..
    ```
+
 3. **Configure environment variables**
-   Copy `.env.example` to `.env` and edit it with your PostgreSQL details and a `JWT_SECRET` value.
    ```bash
    cp .env.example .env
    ```
+   Edit `.env` with your PostgreSQL details and a value for `JWT_SECRET`.
    Important keys:
    - `PORT` – backend port (default `3001`)
    - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` – PostgreSQL connection
    - `JWT_SECRET` – any random string used to sign tokens
    - `API_KEY` – optional Gemini API key
+
 4. **Initialize the database**
    ```bash
    cd server
-   npm run init-db        # runs database.js which creates tables
+   npm run init-db            # creates tables
    cd ..
    ```
-5. **Run the application**
-   - In one terminal, start the backend:
-     ```bash
-     cd server
-     npm run dev          # uses nodemon
-     ```
-   - In another terminal, start the frontend:
-     ```bash
-     npm run dev          # Vite dev server on http://localhost:5173
-     ```
-   The frontend proxies API requests to the backend at `/api`.
 
-Visit `http://localhost:5173` in your browser to begin using the dashboard.
+5. **Start the backend**
+   ```bash
+   cd server
+   npm run dev                # uses nodemon
+   ```
+
+6. **Start the frontend** (in a new terminal)
+   ```bash
+   npm run dev                # Vite dev server on http://localhost:5173
+   ```
+   The dev server automatically proxies requests from `/api` to the backend.
+
+After these steps, open `http://localhost:5173` in your browser to use the dashboard.
 
 ## Building for Production
 1. Build the frontend:
