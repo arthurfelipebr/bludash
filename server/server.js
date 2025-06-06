@@ -4,7 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const db = require('./database'); // Your SQLite database connection
+const db = require('./database'); // PostgreSQL database connection
 // const { GoogleGenAI } = require('@google/genai'); // For backend Gemini calls
 
 const app =express();
@@ -134,7 +134,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
   const downPayment = orderData.downPayment !== undefined ? parseFloat(orderData.downPayment) : null;
   const installments = orderData.installments !== undefined ? parseInt(orderData.installments, 10) : null;
 
-  // Serialize arrays to JSON strings for SQLite
+  // Serialize arrays to JSON strings
   const documentsJSON = JSON.stringify(orderData.documents || []);
   const trackingHistoryJSON = JSON.stringify(orderData.trackingHistory || []);
   const bluFacilitaInstallmentsJSON = JSON.stringify(orderData.bluFacilitaInstallments || []);
@@ -251,5 +251,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
   console.log(`JWT Secret is ${JWT_SECRET && JWT_SECRET !== 'your-fallback-jwt-secret-key' ? 'set (recommended)' : 'NOT SET (using fallback - NOT SECURE FOR PRODUCTION!)'}`);
-  console.log(`SQLite DB path: ${process.env.DATABASE_PATH || './bluimports.db'}`);
+  console.log(`PostgreSQL DB: ${process.env.PGDATABASE || ''} @ ${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || 5432}`);
 });
