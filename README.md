@@ -2,7 +2,7 @@
 
 An internal dashboard for Blu Imports to manage orders, track deliveries via a calendar, and analyze supplier price lists using Gemini AI.
 
-**MAJOR ARCHITECTURAL CHANGE: This application now uses a Node.js/Express.js backend with an SQLite database instead of Firebase.**
+**MAJOR ARCHITECTURAL CHANGE: This application now uses a Node.js/Express.js backend with a PostgreSQL database (migrated from SQLite).**
 
 ## Technologies & Libraries Used
 
@@ -18,7 +18,7 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
 ### Backend (New):
 *   Node.js
 *   Express.js (Web framework)
-*   SQLite3 (Database engine, file-based)
+*   PostgreSQL (Database engine)
 *   `bcryptjs` (Password hashing)
 *   `jsonwebtoken` (JWT for authentication)
 *   `cors` (Cross-Origin Resource Sharing middleware)
@@ -36,7 +36,7 @@ An internal dashboard for Blu Imports to manage orders, track deliveries via a c
 *   **`/dist`:** Output directory for the bundled frontend application.
 *   **`/server`:** Contains the new Node.js backend application.
     *   `server.js`: Main Express server file.
-    *   `database.js`: SQLite database setup and schema initialization.
+    *   `database.js`: PostgreSQL database setup and schema initialization.
 *   `package.json`: Backend dependencies and scripts.
 *   `.env`: (Create this file from `.env.example`) For backend environment variables.
 
@@ -60,14 +60,18 @@ uma VPS do zero. Consulte a seção seguinte para detalhes adicionais.
 3. **Instale as dependências**
    ```bash
    npm install                # dependências do frontend
-   cd server && npm install   # dependências do backend (inclui sqlite3)
+   cd server && npm install   # dependências do backend (inclui pg)
    cd ..
    ```
 
 4. **Crie o arquivo `.env`** a partir de `.env.example` e ajuste os valores
    conforme sua necessidade:
    - `PORT` - porta do backend (ex.: 3001)
-   - `DATABASE_PATH` - caminho do arquivo SQLite (ex.: `./bluimports.db`)
+   - `PGHOST` - host do PostgreSQL (ex.: `localhost`)
+   - `PGPORT` - porta do PostgreSQL (ex.: `5432`)
+   - `PGUSER` - usuário do PostgreSQL
+   - `PGPASSWORD` - senha do usuário
+   - `PGDATABASE` - nome do banco de dados
    - `JWT_SECRET` - chave secreta para gerar tokens
    - `API_KEY` - chave da API Gemini
 
@@ -120,7 +124,7 @@ Após esses passos, a aplicação deve estar acessível via navegador.
         ```
     *   Edit the `.env` file and provide your actual values:
         *   `PORT`: Port for the backend server (e.g., 3001).
-        *   `DATABASE_PATH`: Path to your SQLite database file (e.g., `./bluimports.db` or an absolute path on your VPS).
+        *   `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`: Connection details for your PostgreSQL server.
         *   `JWT_SECRET`: **CRITICAL!** Generate a strong, random secret key for JWTs.
         *   `API_KEY`: Your Google Gemini API key. This is now used securely by the backend.
 
@@ -129,7 +133,7 @@ Após esses passos, a aplicação deve estar acessível via navegador.
     ```bash
     node database.js 
     ```
-    This will create the `bluimports.db` (or your configured path) file with the necessary tables.
+    This will ensure the PostgreSQL database has all required tables.
 
 5.  **Run Backend Server (Development):**
     ```bash
@@ -211,14 +215,14 @@ Após esses passos, a aplicação deve estar acessível via navegador.
 ### 4. Access Your Application
 Navigate to `http://your_domain_or_vps_ip`.
 
-## Important Considerations with SQLite & Backend
+## Important Considerations with PostgreSQL & Backend
 
 *   **Security:**
     *   Your Gemini API key is now much more secure on the backend.
     *   Ensure your `JWT_SECRET` is strong and kept private.
     *   Implement proper input validation and sanitization on all backend API endpoints.
-*   **Database Backups:** SQLite is a file. Implement a strategy to regularly back up your `bluimports.db` file (e.g., using cron jobs and `rsync` or `cp`).
-*   **Scalability:** SQLite is excellent for many applications but has limitations for very high-concurrency write scenarios. If your application grows significantly, you might eventually consider a client-server database (like PostgreSQL or MySQL).
+*   **Database Backups:** Use `pg_dump` or similar tools to back up your PostgreSQL database regularly.
+*   **Scalability:** PostgreSQL handles concurrency well but still requires tuning if your application grows significantly.
 *   **Real-time Features:** If real-time updates (like Firestore provided) are critical, you would need to implement WebSockets or similar technologies on your backend and frontend, which adds complexity. The current migration assumes a standard request-response API.
 *   **Error Handling:** Robust error handling is needed on both the backend (sending appropriate HTTP status codes and error messages) and frontend (displaying user-friendly messages).
 *   **Development Workflow:** You'll now typically run both the frontend dev server (e.g., `npm run start` in root) and the backend dev server (e.g., `npm run dev` in `/server`) concurrently. The frontend will make requests to the backend's API.
