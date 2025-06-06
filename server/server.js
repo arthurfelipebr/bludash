@@ -197,7 +197,108 @@ app.post('/api/orders', authenticateToken, (req, res) => {
     });
   });
 });
-// Add GET /api/orders/:id, PUT /api/orders/:id, DELETE /api/orders/:id
+// --- Individual Order Routes ---
+app.get('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+    if (err) return res.status(500).json({ message: 'Failed to fetch order.' });
+    if (!row) return res.status(404).json({ message: 'Order not found.' });
+    res.json({
+      ...row,
+      documents: JSON.parse(row.documents || '[]'),
+      trackingHistory: JSON.parse(row.trackingHistory || '[]'),
+      bluFacilitaInstallments: JSON.parse(row.bluFacilitaInstallments || '[]'),
+      internalNotes: JSON.parse(row.internalNotes || '[]'),
+      arrivalPhotos: JSON.parse(row.arrivalPhotos || '[]'),
+      imeiBlocked: Boolean(row.imeiBlocked),
+      readyForDelivery: Boolean(row.readyForDelivery),
+      bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
+    });
+  });
+});
+
+app.put('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const orderData = req.body;
+
+  const purchasePrice = parseFloat(orderData.purchasePrice) || 0;
+  const sellingPrice = orderData.sellingPrice !== undefined ? parseFloat(orderData.sellingPrice) : null;
+  const downPayment = orderData.downPayment !== undefined ? parseFloat(orderData.downPayment) : null;
+  const installments = orderData.installments !== undefined ? parseInt(orderData.installments, 10) : null;
+
+  const documentsJSON = JSON.stringify(orderData.documents || []);
+  const trackingHistoryJSON = JSON.stringify(orderData.trackingHistory || []);
+  const bluFacilitaInstallmentsJSON = JSON.stringify(orderData.bluFacilitaInstallments || []);
+  const internalNotesJSON = JSON.stringify(orderData.internalNotes || []);
+  const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
+
+  const sql = `UPDATE orders SET
+      customerName=$1, clientId=$2, productName=$3, model=$4, capacity=$5,
+      color=$6, condition=$7, supplierId=$8, supplierName=$9, purchasePrice=$10,
+      sellingPrice=$11, status=$12, estimatedDeliveryDate=$13, orderDate=$14,
+      notes=$15, paymentMethod=$16, downPayment=$17, installments=$18,
+      financedAmount=$19, totalWithInterest=$20, installmentValue=$21,
+      bluFacilitaContractStatus=$22, imeiBlocked=$23, arrivalDate=$24, imei=$25,
+      arrivalNotes=$26, batteryHealth=$27, readyForDelivery=$28,
+      shippingCostSupplierToBlu=$29, shippingCostBluToClient=$30,
+      whatsAppHistorySummary=$31, bluFacilitaUsesSpecialRate=$32,
+      bluFacilitaSpecialAnnualRate=$33, documents=$34, trackingHistory=$35,
+      bluFacilitaInstallments=$36, internalNotes=$37, arrivalPhotos=$38
+      WHERE id=$39 AND userId=$40`;
+
+  const params = [
+      orderData.customerName, orderData.clientId, orderData.productName,
+      orderData.model, orderData.capacity, orderData.color, orderData.condition,
+      orderData.supplierId, orderData.supplierName, purchasePrice, sellingPrice,
+      orderData.status, orderData.estimatedDeliveryDate,
+      orderData.orderDate || new Date().toISOString(), orderData.notes,
+      orderData.paymentMethod, downPayment, installments,
+      orderData.financedAmount, orderData.totalWithInterest, orderData.installmentValue,
+      orderData.bluFacilitaContractStatus, orderData.imeiBlocked ? 1 : 0,
+      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
+      orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
+      orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
+      documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON,
+      internalNotesJSON, arrivalPhotosJSON,
+      orderId, req.user.id
+  ];
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Error updating order:', err.message);
+      return res.status(500).json({ message: 'Failed to update order.' });
+    }
+    db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+      if (err || !row) {
+        console.error('Error fetching order after update:', err ? err.message : 'Row not found');
+        return res.status(500).json({ message: 'Order updated, but failed to retrieve record.' });
+      }
+      res.json({
+        ...row,
+        documents: JSON.parse(row.documents || '[]'),
+        trackingHistory: JSON.parse(row.trackingHistory || '[]'),
+        bluFacilitaInstallments: JSON.parse(row.bluFacilitaInstallments || '[]'),
+        internalNotes: JSON.parse(row.internalNotes || '[]'),
+        arrivalPhotos: JSON.parse(row.arrivalPhotos || '[]'),
+        imeiBlocked: Boolean(row.imeiBlocked),
+        readyForDelivery: Boolean(row.readyForDelivery),
+        bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
+      });
+    });
+  });
+});
+
+app.delete('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  db.run('DELETE FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], function(err) {
+    if (err) {
+      console.error('Error deleting order:', err.message);
+      return res.status(500).json({ message: 'Failed to delete order.' });
+    }
+    res.sendStatus(204);
+  });
+});
 
 // Clients
 app.get('/api/clients', authenticateToken, (req, res) => {
@@ -206,7 +307,78 @@ app.get('/api/clients', authenticateToken, (req, res) => {
       res.json(rows.map(c => ({...c, isDefaulter: Boolean(c.isDefaulter)})));
     });
 });
-// Add POST, PUT, DELETE for clients
+app.get('/api/clients/:id', authenticateToken, (req, res) => {
+    const clientId = req.params.id;
+    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Failed to fetch client.' });
+        if (!row) return res.status(404).json({ message: 'Client not found.' });
+        res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    });
+});
+
+app.post('/api/clients', authenticateToken, (req, res) => {
+  const data = req.body;
+  const clientId = data.id || uuidv4();
+  const registrationDate = data.registrationDate || new Date().toISOString();
+  const sql = `INSERT INTO clients (
+      id, userId, fullName, cpfOrCnpj, email, phone, city, state, clientType,
+      registrationDate, notes, isDefaulter, defaulterNotes
+  ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+  ) RETURNING *`;
+  const params = [
+      clientId, req.user.id, data.fullName, data.cpfOrCnpj, data.email, data.phone,
+      data.city, data.state, data.clientType, registrationDate, data.notes,
+      data.isDefaulter ? 1 : 0, data.defaulterNotes
+  ];
+  db.run(sql, params, function(err, result) {
+    if (err) {
+      console.error('Error saving client:', err.message);
+      return res.status(500).json({ message: 'Failed to save client.' });
+    }
+    const row = result.rows && result.rows[0];
+    if (!row) {
+      return res.status(500).json({ message: 'Client saved, but failed to retrieve record.' });
+    }
+    res.status(201).json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+  });
+});
+
+app.put('/api/clients/:id', authenticateToken, (req, res) => {
+  const clientId = req.params.id;
+  const data = req.body;
+  const sql = `UPDATE clients SET
+      fullName=$1, cpfOrCnpj=$2, email=$3, phone=$4, city=$5, state=$6,
+      clientType=$7, notes=$8, isDefaulter=$9, defaulterNotes=$10
+      WHERE id=$11 AND userId=$12 RETURNING *`;
+  const params = [
+      data.fullName, data.cpfOrCnpj, data.email, data.phone, data.city, data.state,
+      data.clientType, data.notes, data.isDefaulter ? 1 : 0, data.defaulterNotes,
+      clientId, req.user.id
+  ];
+  db.run(sql, params, function(err, result) {
+    if (err) {
+      console.error('Error updating client:', err.message);
+      return res.status(500).json({ message: 'Failed to update client.' });
+    }
+    if (!result.rows || result.rowCount === 0) {
+      return res.status(404).json({ message: 'Client not found.' });
+    }
+    const row = result.rows[0];
+    res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+  });
+});
+
+app.delete('/api/clients/:id', authenticateToken, (req, res) => {
+    const clientId = req.params.id;
+    db.run('DELETE FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting client:', err.message);
+            return res.status(500).json({ message: 'Failed to delete client.' });
+        }
+        res.sendStatus(204);
+    });
+});
 
 // Suppliers
 app.get('/api/suppliers', authenticateToken, (req, res) => {
@@ -215,7 +387,70 @@ app.get('/api/suppliers', authenticateToken, (req, res) => {
       res.json(rows);
     });
 });
-// Add POST, PUT, DELETE for suppliers
+app.get('/api/suppliers/:id', authenticateToken, (req, res) => {
+    const supplierId = req.params.id;
+    db.get('SELECT * FROM suppliers WHERE id = $1 AND userId = $2', [supplierId, req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Failed to fetch supplier.' });
+        if (!row) return res.status(404).json({ message: 'Supplier not found.' });
+        res.json(row);
+    });
+});
+
+app.post('/api/suppliers', authenticateToken, (req, res) => {
+    const data = req.body;
+    const supplierId = data.id || uuidv4();
+    const registrationDate = data.registrationDate || new Date().toISOString();
+    const sql = `INSERT INTO suppliers (
+        id, userId, name, contactPerson, phone, email, notes, registrationDate
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8
+    ) RETURNING *`;
+    const params = [
+        supplierId, req.user.id, data.name, data.contactPerson, data.phone,
+        data.email, data.notes, registrationDate
+    ];
+    db.run(sql, params, function(err, result) {
+        if (err) {
+            console.error('Error saving supplier:', err.message);
+            return res.status(500).json({ message: 'Failed to save supplier.' });
+        }
+        const row = result.rows && result.rows[0];
+        if (!row) {
+            return res.status(500).json({ message: 'Supplier saved, but failed to retrieve record.' });
+        }
+        res.status(201).json(row);
+    });
+});
+
+app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
+    const supplierId = req.params.id;
+    const data = req.body;
+    const sql = `UPDATE suppliers SET
+        name=$1, contactPerson=$2, phone=$3, email=$4, notes=$5
+        WHERE id=$6 AND userId=$7 RETURNING *`;
+    const params = [data.name, data.contactPerson, data.phone, data.email, data.notes, supplierId, req.user.id];
+    db.run(sql, params, function(err, result) {
+        if (err) {
+            console.error('Error updating supplier:', err.message);
+            return res.status(500).json({ message: 'Failed to update supplier.' });
+        }
+        if (!result.rows || result.rowCount === 0) {
+            return res.status(404).json({ message: 'Supplier not found.' });
+        }
+        res.json(result.rows[0]);
+    });
+});
+
+app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
+    const supplierId = req.params.id;
+    db.run('DELETE FROM suppliers WHERE id = $1 AND userId = $2', [supplierId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting supplier:', err.message);
+            return res.status(500).json({ message: 'Failed to delete supplier.' });
+        }
+        res.sendStatus(204);
+    });
+});
 
 
 // Gemini AI Proxy (Placeholder)
