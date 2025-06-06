@@ -243,9 +243,14 @@ export const ClientsPage: React.FC<{}> = () => {
     fetchClients();
   }, [fetchClients]);
 
-  const handleSaveClient = async (client: Client) => { // Make async
-    await saveClient(client); // Await saveClient
-    await fetchClients(); // Await fetchClients (or ensure it handles its own state updates correctly)
+  const handleSaveClient = async (client: Client) => {
+    if (editingClient) {
+      await saveClient(client);
+    } else {
+      const { id, ...data } = client;
+      await saveClient(data as Omit<Client, 'id'>);
+    }
+    await fetchClients();
     setIsFormOpen(false);
     setEditingClient(null);
   };

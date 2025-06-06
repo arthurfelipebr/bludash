@@ -281,8 +281,13 @@ export const SuppliersPage: React.FC<{}> = () => {
   }, [fetchAllSuppliers, fetchAllHistoricalDataAndAggregate]);
 
   const handleSaveSupplier = async (supplier: Supplier) => {
-    await saveSupplier(supplier);
-    await fetchAllSuppliers(); 
+    if (editingSupplier) {
+      await saveSupplier(supplier);
+    } else {
+      const { id, ...data } = supplier;
+      await saveSupplier(data as Omit<Supplier, 'id'>);
+    }
+    await fetchAllSuppliers();
     setIsSupplierFormOpen(false);
     setEditingSupplier(null);
   };
