@@ -316,58 +316,77 @@ app.get('/api/clients/:id', authenticateToken, (req, res) => {
     });
 });
 
+// START: MODIFIED CLIENTS POST ROUTE
 app.post('/api/clients', authenticateToken, (req, res) => {
   const data = req.body;
   const clientId = data.id || uuidv4();
   const registrationDate = data.registrationDate || new Date().toISOString();
+  
   const sql = `INSERT INTO clients (
       id, userId, fullName, cpfOrCnpj, email, phone, city, state, clientType,
       registrationDate, notes, isDefaulter, defaulterNotes
   ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-  ) RETURNING *`;
+  )`;
+  
   const params = [
       clientId, req.user.id, data.fullName, data.cpfOrCnpj, data.email, data.phone,
       data.city, data.state, data.clientType, registrationDate, data.notes,
       data.isDefaulter ? 1 : 0, data.defaulterNotes
   ];
-  db.run(sql, params, function(err, result) {
+
+  db.run(sql, params, function(err) {
     if (err) {
       console.error('Error saving client:', err.message);
       return res.status(500).json({ message: 'Failed to save client.' });
     }
-    const row = result.rows && result.rows[0];
-    if (!row) {
-      return res.status(500).json({ message: 'Client saved, but failed to retrieve record.' });
-    }
-    res.status(201).json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    
+    // Fetch the newly created client to return to the frontend
+    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+        if (err || !row) {
+            console.error("Error fetching client after save:", err ? err.message : "Row not found");
+            return res.status(500).json({ message: 'Client saved, but failed to retrieve updated record.' });
+        }
+        res.status(201).json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    });
   });
 });
+// END: MODIFIED CLIENTS POST ROUTE
 
+// START: MODIFIED CLIENTS PUT ROUTE
 app.put('/api/clients/:id', authenticateToken, (req, res) => {
   const clientId = req.params.id;
   const data = req.body;
+  
   const sql = `UPDATE clients SET
       fullName=$1, cpfOrCnpj=$2, email=$3, phone=$4, city=$5, state=$6,
       clientType=$7, notes=$8, isDefaulter=$9, defaulterNotes=$10
-      WHERE id=$11 AND userId=$12 RETURNING *`;
+      WHERE id=$11 AND userId=$12`;
+      
   const params = [
       data.fullName, data.cpfOrCnpj, data.email, data.phone, data.city, data.state,
       data.clientType, data.notes, data.isDefaulter ? 1 : 0, data.defaulterNotes,
       clientId, req.user.id
   ];
-  db.run(sql, params, function(err, result) {
+
+  db.run(sql, params, function(err) {
     if (err) {
       console.error('Error updating client:', err.message);
       return res.status(500).json({ message: 'Failed to update client.' });
     }
-    if (!result.rows || result.rowCount === 0) {
-      return res.status(404).json({ message: 'Client not found.' });
-    }
-    const row = result.rows[0];
-    res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+
+    // Fetch the updated client to return to the frontend
+    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+        if (err || !row) {
+            console.error('Error fetching client after update:', err ? err.message : 'Row not found');
+            return res.status(404).json({ message: 'Client not found after update.' });
+        }
+        res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
+    });
   });
 });
+// END: MODIFIED CLIENTS PUT ROUTE
+
 
 app.delete('/api/clients/:id', authenticateToken, (req, res) => {
     const clientId = req.params.id;
