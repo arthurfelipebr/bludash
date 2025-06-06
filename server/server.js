@@ -55,11 +55,11 @@ app.post('/api/auth/register', (req, res) => {
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
 
-  db.run('INSERT INTO users (id, email, password, name, registrationDate) VALUES (?, ?, ?, ?, ?)', 
-    [userId, email, hashedPassword, displayName, registrationDate], 
+  db.run('INSERT INTO users (id, email, password, name, registrationDate) VALUES ($1, $2, $3, $4, $5)',
+    [userId, email, hashedPassword, displayName, registrationDate],
     function(err) {
     if (err) {
-      if (err.message.includes('UNIQUE constraint failed: users.email')) {
+      if (err.code === '23505') { // unique_violation
         return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
       }
       console.error('Registration error:', err.message);
@@ -73,7 +73,7 @@ app.post('/api/auth/register', (req, res) => {
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
+  db.get('SELECT * FROM users WHERE email = $1', [email], (err, user) => {
     if (err) return res.status(500).json({ message: 'Server error during login.' });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
 
@@ -87,7 +87,7 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, email, name, registrationDate FROM users WHERE id = ?', [req.user.id], (err, userRow) => {
+  db.get('SELECT id, email, name, registrationDate FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
     if (err) {
       console.error('Error fetching user for /me:', err.message);
       return res.status(500).json({ message: 'Error fetching user details.' });
@@ -105,7 +105,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 
 // Orders
 app.get('/api/orders', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM orders WHERE userId = ? ORDER BY orderDate DESC', [req.user.id], (err, rows) => {
+  db.all('SELECT * FROM orders WHERE userId = $1 ORDER BY orderDate DESC', [req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ message: 'Failed to fetch orders.' });
     // Parse JSON fields if stored as strings
     const orders = rows.map(order => ({
@@ -150,7 +150,12 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       shippingCostSupplierToBlu, shippingCostBluToClient, whatsAppHistorySummary,
       bluFacilitaUsesSpecialRate, bluFacilitaSpecialAnnualRate,
       documents, trackingHistory, bluFacilitaInstallments, internalNotes, arrivalPhotos
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+      $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+      $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
+  )`;
 
   const params = [
       orderId, req.user.id, orderData.customerName, orderData.clientId, orderData.productName, 
@@ -173,7 +178,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to save order.' });
     }
     // Fetch and return the newly created/updated order to ensure client has the DB version
-     db.get('SELECT * FROM orders WHERE id = ? AND userId = ?', [orderId, req.user.id], (err, row) => {
+     db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
         if (err || !row) {
             console.error("Error fetching order after save:", err ? err.message : "Row not found");
             return res.status(500).json({ message: 'Order saved, but failed to retrieve updated record.' });
@@ -196,7 +201,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 
 // Clients
 app.get('/api/clients', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM clients WHERE userId = ? ORDER BY fullName ASC', [req.user.id], (err, rows) => {
+    db.all('SELECT * FROM clients WHERE userId = $1 ORDER BY fullName ASC', [req.user.id], (err, rows) => {
       if (err) return res.status(500).json({ message: 'Failed to fetch clients.' });
       res.json(rows.map(c => ({...c, isDefaulter: Boolean(c.isDefaulter)})));
     });
@@ -205,7 +210,7 @@ app.get('/api/clients', authenticateToken, (req, res) => {
 
 // Suppliers
 app.get('/api/suppliers', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM suppliers WHERE userId = ? ORDER BY name ASC', [req.user.id], (err, rows) => {
+    db.all('SELECT * FROM suppliers WHERE userId = $1 ORDER BY name ASC', [req.user.id], (err, rows) => {
       if (err) return res.status(500).json({ message: 'Failed to fetch suppliers.' });
       res.json(rows);
     });
