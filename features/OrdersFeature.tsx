@@ -200,20 +200,29 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const [bfProductValueForSim, setBfProductValueForSim] = useState(0);
   const [bfDownPaymentInput, setBfDownPaymentInput] = useState('R$ 0,00');
 
-  useEffect(() => {
-    const fetchData = async () => {
-        try {
-            setClients(await getClients());
-            setSuppliers(await getSuppliers());
-        } catch (e) {
-            console.error("Error fetching clients/suppliers for form", e);
-            setError("Falha ao carregar dados de clientes/fornecedores.");
-        }
-    };
-    if (isOpen) {
-        fetchData();
+  const fetchClientsAndSuppliers = useCallback(async () => {
+    try {
+      const [clientsData, suppliersData] = await Promise.all([
+        getClients(),
+        getSuppliers(),
+      ]);
+      setClients(clientsData);
+      setSuppliers(suppliersData);
+    } catch (e) {
+      console.error("Error fetching clients/suppliers for form", e);
+      setError("Falha ao carregar dados de clientes/fornecedores.");
     }
-  }, [isOpen]);
+  }, []);
+
+  useEffect(() => {
+    fetchClientsAndSuppliers();
+  }, [fetchClientsAndSuppliers]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchClientsAndSuppliers();
+    }
+  }, [isOpen, fetchClientsAndSuppliers]);
 
   useEffect(() => {
     const initializeForm = async () => {
