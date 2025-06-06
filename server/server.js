@@ -301,22 +301,48 @@ app.delete('/api/orders/:id', authenticateToken, (req, res) => {
 });
 
 // Clients
+// CORREÇÃO: SQL query para renomear colunas para camelCase
+const CLIENTS_SELECT_QUERY = `
+  SELECT 
+    id,
+    userId,
+    fullName,
+    cpfOrCnpj,
+    email,
+    phone,
+    city,
+    state,
+    clientType,
+    registrationDate,
+    notes,
+    isDefaulter,
+    defaulterNotes
+  FROM clients
+`;
+
 app.get('/api/clients', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM clients WHERE userId = $1 ORDER BY fullName ASC', [req.user.id], (err, rows) => {
-      if (err) return res.status(500).json({ message: 'Failed to fetch clients.' });
+    const query = `${CLIENTS_SELECT_QUERY} WHERE userId = $1 ORDER BY fullName ASC`;
+    db.all(query, [req.user.id], (err, rows) => {
+      if (err) {
+        console.error("Error fetching clients:", err.message);
+        return res.status(500).json({ message: 'Failed to fetch clients.' });
+      }
       res.json(rows.map(c => ({...c, isDefaulter: Boolean(c.isDefaulter)})));
     });
 });
 app.get('/api/clients/:id', authenticateToken, (req, res) => {
     const clientId = req.params.id;
-    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
-        if (err) return res.status(500).json({ message: 'Failed to fetch client.' });
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND userId = $2`;
+    db.get(query, [clientId, req.user.id], (err, row) => {
+        if (err) {
+          console.error(`Error fetching client ${clientId}:`, err.message);
+          return res.status(500).json({ message: 'Failed to fetch client.' });
+        }
         if (!row) return res.status(404).json({ message: 'Client not found.' });
         res.json({ ...row, isDefaulter: Boolean(row.isDefaulter) });
     });
 });
 
-// START: MODIFIED CLIENTS POST ROUTE
 app.post('/api/clients', authenticateToken, (req, res) => {
   const data = req.body;
   const clientId = data.id || uuidv4();
@@ -341,8 +367,8 @@ app.post('/api/clients', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to save client.' });
     }
     
-    // Fetch the newly created client to return to the frontend
-    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND userId = $2`;
+    db.get(query, [clientId, req.user.id], (err, row) => {
         if (err || !row) {
             console.error("Error fetching client after save:", err ? err.message : "Row not found");
             return res.status(500).json({ message: 'Client saved, but failed to retrieve updated record.' });
@@ -351,9 +377,7 @@ app.post('/api/clients', authenticateToken, (req, res) => {
     });
   });
 });
-// END: MODIFIED CLIENTS POST ROUTE
 
-// START: MODIFIED CLIENTS PUT ROUTE
 app.put('/api/clients/:id', authenticateToken, (req, res) => {
   const clientId = req.params.id;
   const data = req.body;
@@ -375,8 +399,8 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to update client.' });
     }
 
-    // Fetch the updated client to return to the frontend
-    db.get('SELECT * FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], (err, row) => {
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND userId = $2`;
+    db.get(query, [clientId, req.user.id], (err, row) => {
         if (err || !row) {
             console.error('Error fetching client after update:', err ? err.message : 'Row not found');
             return res.status(404).json({ message: 'Client not found after update.' });
@@ -385,7 +409,6 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
     });
   });
 });
-// END: MODIFIED CLIENTS PUT ROUTE
 
 
 app.delete('/api/clients/:id', authenticateToken, (req, res) => {
