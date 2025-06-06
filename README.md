@@ -29,6 +29,7 @@ This project is an internal dashboard for Blu Imports. It is split into a React 
    - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` – PostgreSQL connection
    - `JWT_SECRET` – any random string used to sign tokens
    - `API_KEY` – optional Gemini API key
+   - `VITE_API_PROXY` – optional URL for the backend when running `npm run dev`
 4. **Initialize the database**
    ```bash
    cd server
@@ -45,7 +46,8 @@ This project is an internal dashboard for Blu Imports. It is split into a React 
      ```bash
      npm run dev          # Vite dev server on http://localhost:5173
      ```
-   The frontend proxies API requests to the backend at `/api`.
+   The frontend proxies `/api` requests to the URL in `VITE_API_PROXY` (defaults
+   to `http://localhost:3001`).
 
 Visit `http://localhost:5173` in your browser to begin using the dashboard.
 
@@ -77,6 +79,7 @@ PGPASSWORD=sua_senha
 PGDATABASE=bludb
 JWT_SECRET=sua-chave-secreta
 API_KEY=sua-chave-gemini
+VITE_API_PROXY=http://localhost:3001
 ```
 
 After following the steps above you should be able to register a user and start managing orders, clients and suppliers through the web interface.
