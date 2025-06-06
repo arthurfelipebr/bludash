@@ -244,15 +244,19 @@ export const ClientsPage: React.FC<{}> = () => {
   }, [fetchClients]);
 
   const handleSaveClient = async (client: Client) => {
-    if (editingClient) {
-      await saveClient(client);
-    } else {
-      const { id, ...data } = client;
-      await saveClient(data as Omit<Client, 'id'>);
+    try {
+      if (editingClient) {
+        await saveClient(client);
+      } else {
+        const { id, ...data } = client;
+        await saveClient(data as Omit<Client, 'id'>);
+      }
+      setIsFormOpen(false);
+      setEditingClient(null);
+      await fetchClients();
+    } catch (error) {
+      console.error("Failed to save client:", error);
     }
-    await fetchClients();
-    setIsFormOpen(false);
-    setEditingClient(null);
   };
 
   const handleOpenForm = (client?: Client) => {
