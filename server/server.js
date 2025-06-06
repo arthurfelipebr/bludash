@@ -55,7 +55,7 @@ app.post('/api/auth/register', (req, res) => {
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
 
-  db.run('INSERT INTO users (id, email, password, name, registrationDate) VALUES ($1, $2, $3, $4, $5)',
+  db.run('INSERT INTO users (id, email, password, name, "registrationDate") VALUES ($1, $2, $3, $4, $5)',
     [userId, email, hashedPassword, displayName, registrationDate],
     function(err) {
     if (err) {
@@ -73,7 +73,7 @@ app.post('/api/auth/register', (req, res) => {
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  db.get('SELECT * FROM users WHERE email = $1', [email], (err, user) => {
+  db.get('SELECT id, email, password, name, "registrationDate" FROM users WHERE email = $1', [email], (err, user) => {
     if (err) return res.status(500).json({ message: 'Server error during login.' });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
 
@@ -87,7 +87,7 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, email, name, registrationDate FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
+  db.get('SELECT id, email, name, "registrationDate" FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
     if (err) {
       console.error('Error fetching user for /me:', err.message);
       return res.status(500).json({ message: 'Error fetching user details.' });
@@ -105,7 +105,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 
 // Orders
 app.get('/api/orders', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM orders WHERE userId = $1 ORDER BY orderDate DESC', [req.user.id], (err, rows) => {
+  db.all('SELECT * FROM orders WHERE "userId" = $1 ORDER BY "orderDate" DESC', [req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ message: 'Failed to fetch orders.' });
     // Parse JSON fields if stored as strings
     const orders = rows.map(order => ({
@@ -142,14 +142,14 @@ app.post('/api/orders', authenticateToken, (req, res) => {
   const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
   
   const sql = `INSERT INTO orders (
-      id, userId, customerName, clientId, productName, model, capacity, color, condition, 
-      supplierId, supplierName, purchasePrice, sellingPrice, status, estimatedDeliveryDate, 
-      orderDate, notes, paymentMethod, downPayment, installments, financedAmount, 
-      totalWithInterest, installmentValue, bluFacilitaContractStatus, imeiBlocked, 
-      arrivalDate, imei, arrivalNotes, batteryHealth, readyForDelivery, 
-      shippingCostSupplierToBlu, shippingCostBluToClient, whatsAppHistorySummary,
-      bluFacilitaUsesSpecialRate, bluFacilitaSpecialAnnualRate,
-      documents, trackingHistory, bluFacilitaInstallments, internalNotes, arrivalPhotos
+      id, "userId", "customerName", "clientId", "productName", model, capacity, color, condition, 
+      "supplierId", "supplierName", "purchasePrice", "sellingPrice", status, "estimatedDeliveryDate", 
+      "orderDate", notes, "paymentMethod", "downPayment", installments, "financedAmount", 
+      "totalWithInterest", "installmentValue", "bluFacilitaContractStatus", "imeiBlocked", 
+      "arrivalDate", imei, "arrivalNotes", "batteryHealth", "readyForDelivery", 
+      "shippingCostSupplierToBlu", "shippingCostBluToClient", "whatsAppHistorySummary",
+      "bluFacilitaUsesSpecialRate", "bluFacilitaSpecialAnnualRate",
+      documents, "trackingHistory", "bluFacilitaInstallments", "internalNotes", "arrivalPhotos"
   ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -178,7 +178,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to save order.' });
     }
     // Fetch and return the newly created/updated order to ensure client has the DB version
-     db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+     db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
         if (err || !row) {
             console.error("Error fetching order after save:", err ? err.message : "Row not found");
             return res.status(500).json({ message: 'Order saved, but failed to retrieve updated record.' });
@@ -200,7 +200,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 // --- Individual Order Routes ---
 app.get('/api/orders/:id', authenticateToken, (req, res) => {
   const orderId = req.params.id;
-  db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+  db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
     if (err) return res.status(500).json({ message: 'Failed to fetch order.' });
     if (!row) return res.status(404).json({ message: 'Order not found.' });
     res.json({
@@ -233,18 +233,18 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
   const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
 
   const sql = `UPDATE orders SET
-      customerName=$1, clientId=$2, productName=$3, model=$4, capacity=$5,
-      color=$6, condition=$7, supplierId=$8, supplierName=$9, purchasePrice=$10,
-      sellingPrice=$11, status=$12, estimatedDeliveryDate=$13, orderDate=$14,
-      notes=$15, paymentMethod=$16, downPayment=$17, installments=$18,
-      financedAmount=$19, totalWithInterest=$20, installmentValue=$21,
-      bluFacilitaContractStatus=$22, imeiBlocked=$23, arrivalDate=$24, imei=$25,
-      arrivalNotes=$26, batteryHealth=$27, readyForDelivery=$28,
-      shippingCostSupplierToBlu=$29, shippingCostBluToClient=$30,
-      whatsAppHistorySummary=$31, bluFacilitaUsesSpecialRate=$32,
-      bluFacilitaSpecialAnnualRate=$33, documents=$34, trackingHistory=$35,
-      bluFacilitaInstallments=$36, internalNotes=$37, arrivalPhotos=$38
-      WHERE id=$39 AND userId=$40`;
+      "customerName"=$1, "clientId"=$2, "productName"=$3, model=$4, capacity=$5,
+      color=$6, condition=$7, "supplierId"=$8, "supplierName"=$9, "purchasePrice"=$10,
+      "sellingPrice"=$11, status=$12, "estimatedDeliveryDate"=$13, "orderDate"=$14,
+      notes=$15, "paymentMethod"=$16, "downPayment"=$17, installments=$18,
+      "financedAmount"=$19, "totalWithInterest"=$20, "installmentValue"=$21,
+      "bluFacilitaContractStatus"=$22, "imeiBlocked"=$23, "arrivalDate"=$24, imei=$25,
+      "arrivalNotes"=$26, "batteryHealth"=$27, "readyForDelivery"=$28,
+      "shippingCostSupplierToBlu"=$29, "shippingCostBluToClient"=$30,
+      "whatsAppHistorySummary"=$31, "bluFacilitaUsesSpecialRate"=$32,
+      "bluFacilitaSpecialAnnualRate"=$33, documents=$34, "trackingHistory"=$35,
+      "bluFacilitaInstallments"=$36, "internalNotes"=$37, "arrivalPhotos"=$38
+      WHERE id=$39 AND "userId"=$40`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
@@ -269,7 +269,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       console.error('Error updating order:', err.message);
       return res.status(500).json({ message: 'Failed to update order.' });
     }
-    db.get('SELECT * FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], (err, row) => {
+    db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
       if (err || !row) {
         console.error('Error fetching order after update:', err ? err.message : 'Row not found');
         return res.status(500).json({ message: 'Order updated, but failed to retrieve record.' });
@@ -291,7 +291,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/orders/:id', authenticateToken, (req, res) => {
   const orderId = req.params.id;
-  db.run('DELETE FROM orders WHERE id = $1 AND userId = $2', [orderId, req.user.id], function(err) {
+  db.run('DELETE FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], function(err) {
     if (err) {
       console.error('Error deleting order:', err.message);
       return res.status(500).json({ message: 'Failed to delete order.' });
@@ -305,23 +305,23 @@ app.delete('/api/orders/:id', authenticateToken, (req, res) => {
 const CLIENTS_SELECT_QUERY = `
   SELECT 
     id,
-    userId,
-    fullName,
-    cpfOrCnpj,
+    "userId",
+    "fullName",
+    "cpfOrCnpj",
     email,
     phone,
     city,
     state,
-    clientType,
-    registrationDate,
+    "clientType",
+    "registrationDate",
     notes,
-    isDefaulter,
-    defaulterNotes
+    "isDefaulter",
+    "defaulterNotes"
   FROM clients
 `;
 
 app.get('/api/clients', authenticateToken, (req, res) => {
-    const query = `${CLIENTS_SELECT_QUERY} WHERE userId = $1 ORDER BY fullName ASC`;
+    const query = `${CLIENTS_SELECT_QUERY} WHERE "userId" = $1 ORDER BY "fullName" ASC`;
     db.all(query, [req.user.id], (err, rows) => {
       if (err) {
         console.error("Error fetching clients:", err.message);
@@ -332,7 +332,7 @@ app.get('/api/clients', authenticateToken, (req, res) => {
 });
 app.get('/api/clients/:id', authenticateToken, (req, res) => {
     const clientId = req.params.id;
-    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND userId = $2`;
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "userId" = $2`;
     db.get(query, [clientId, req.user.id], (err, row) => {
         if (err) {
           console.error(`Error fetching client ${clientId}:`, err.message);
@@ -349,8 +349,8 @@ app.post('/api/clients', authenticateToken, (req, res) => {
   const registrationDate = data.registrationDate || new Date().toISOString();
   
   const sql = `INSERT INTO clients (
-      id, userId, fullName, cpfOrCnpj, email, phone, city, state, clientType,
-      registrationDate, notes, isDefaulter, defaulterNotes
+      id, "userId", "fullName", "cpfOrCnpj", email, phone, city, state, "clientType",
+      "registrationDate", notes, "isDefaulter", "defaulterNotes"
   ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
   )`;
@@ -367,7 +367,7 @@ app.post('/api/clients', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to save client.' });
     }
     
-    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND userId = $2`;
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "userId" = $2`;
     db.get(query, [clientId, req.user.id], (err, row) => {
         if (err || !row) {
             console.error("Error fetching client after save:", err ? err.message : "Row not found");
@@ -383,9 +383,9 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
   const data = req.body;
   
   const sql = `UPDATE clients SET
-      fullName=$1, cpfOrCnpj=$2, email=$3, phone=$4, city=$5, state=$6,
-      clientType=$7, notes=$8, isDefaulter=$9, defaulterNotes=$10
-      WHERE id=$11 AND userId=$12`;
+      "fullName"=$1, "cpfOrCnpj"=$2, email=$3, phone=$4, city=$5, state=$6,
+      "clientType"=$7, notes=$8, "isDefaulter"=$9, "defaulterNotes"=$10
+      WHERE id=$11 AND "userId"=$12`;
       
   const params = [
       data.fullName, data.cpfOrCnpj, data.email, data.phone, data.city, data.state,
@@ -399,7 +399,7 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to update client.' });
     }
 
-    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND userId = $2`;
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "userId" = $2`;
     db.get(query, [clientId, req.user.id], (err, row) => {
         if (err || !row) {
             console.error('Error fetching client after update:', err ? err.message : 'Row not found');
@@ -413,7 +413,7 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/clients/:id', authenticateToken, (req, res) => {
     const clientId = req.params.id;
-    db.run('DELETE FROM clients WHERE id = $1 AND userId = $2', [clientId, req.user.id], function(err) {
+    db.run('DELETE FROM clients WHERE id = $1 AND "userId" = $2', [clientId, req.user.id], function(err) {
         if (err) {
             console.error('Error deleting client:', err.message);
             return res.status(500).json({ message: 'Failed to delete client.' });
@@ -424,14 +424,14 @@ app.delete('/api/clients/:id', authenticateToken, (req, res) => {
 
 // Suppliers
 app.get('/api/suppliers', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM suppliers WHERE userId = $1 ORDER BY name ASC', [req.user.id], (err, rows) => {
+    db.all('SELECT * FROM suppliers WHERE "userId" = $1 ORDER BY name ASC', [req.user.id], (err, rows) => {
       if (err) return res.status(500).json({ message: 'Failed to fetch suppliers.' });
       res.json(rows);
     });
 });
 app.get('/api/suppliers/:id', authenticateToken, (req, res) => {
     const supplierId = req.params.id;
-    db.get('SELECT * FROM suppliers WHERE id = $1 AND userId = $2', [supplierId, req.user.id], (err, row) => {
+    db.get('SELECT * FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], (err, row) => {
         if (err) return res.status(500).json({ message: 'Failed to fetch supplier.' });
         if (!row) return res.status(404).json({ message: 'Supplier not found.' });
         res.json(row);
@@ -443,7 +443,7 @@ app.post('/api/suppliers', authenticateToken, (req, res) => {
     const supplierId = data.id || uuidv4();
     const registrationDate = data.registrationDate || new Date().toISOString();
     const sql = `INSERT INTO suppliers (
-        id, userId, name, contactPerson, phone, email, notes, registrationDate
+        id, "userId", name, "contactPerson", phone, email, notes, "registrationDate"
     ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8
     ) RETURNING *`;
@@ -468,8 +468,8 @@ app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
     const supplierId = req.params.id;
     const data = req.body;
     const sql = `UPDATE suppliers SET
-        name=$1, contactPerson=$2, phone=$3, email=$4, notes=$5
-        WHERE id=$6 AND userId=$7 RETURNING *`;
+        name=$1, "contactPerson"=$2, phone=$3, email=$4, notes=$5
+        WHERE id=$6 AND "userId"=$7 RETURNING *`;
     const params = [data.name, data.contactPerson, data.phone, data.email, data.notes, supplierId, req.user.id];
     db.run(sql, params, function(err, result) {
         if (err) {
@@ -485,7 +485,7 @@ app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
     const supplierId = req.params.id;
-    db.run('DELETE FROM suppliers WHERE id = $1 AND userId = $2', [supplierId, req.user.id], function(err) {
+    db.run('DELETE FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], function(err) {
         if (err) {
             console.error('Error deleting supplier:', err.message);
             return res.status(500).json({ message: 'Failed to delete supplier.' });
