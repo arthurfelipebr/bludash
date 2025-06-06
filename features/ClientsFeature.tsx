@@ -35,9 +35,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initia
   
   useEffect(() => {
     if (initialClient) {
-      // CORREÇÃO: Usar o spread operator (...) para garantir que todos os campos
-      // de `initialClient` sejam carregados no estado do formulário, incluindo
-      // `clientType`, `fullName`, etc.
       setFormData({
         ...initialClient,
         notes: initialClient.notes || '',
@@ -230,9 +227,10 @@ export const ClientsPage: React.FC<{}> = () => {
     setIsLoading(true);
     try {
         const clientsData = await getClients();
+        console.log('[DEBUG] Dados brutos recebidos da API:', clientsData);
         setClients(clientsData);
     } catch (error) {
-        console.error("Failed to fetch clients:", error);
+        console.error("Falha ao buscar clientes:", error);
     } finally {
         setIsLoading(false);
     }
@@ -269,9 +267,9 @@ export const ClientsPage: React.FC<{}> = () => {
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
       const term = searchTerm.toLowerCase();
-      return client.fullName.toLowerCase().includes(term) ||
-             client.cpfOrCnpj.includes(term) || 
-             client.email.toLowerCase().includes(term);
+      return (client.fullName || '').toLowerCase().includes(term) ||
+             (client.cpfOrCnpj || '').includes(term) || 
+             (client.email || '').toLowerCase().includes(term);
     });
   }, [clients, searchTerm]);
   
@@ -312,6 +310,8 @@ export const ClientsPage: React.FC<{}> = () => {
     }));
     exportToCSV(dataToExport, `clientes_blu_imports_${new Date().toISOString().split('T')[0]}.csv`);
   };
+
+  console.log('[DEBUG] Renderizando ClientsPage. isLoading:', isLoading, '| Nº de clientes no estado:', clients.length, '| Nº de clientes filtrados:', filteredClients.length);
 
   return (
     <div>
