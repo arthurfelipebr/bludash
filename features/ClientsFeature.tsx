@@ -244,6 +244,7 @@ export const ClientsPage: React.FC<{}> = () => {
   }, [fetchClients]);
 
   const handleSaveClient = async (client: Client) => {
+  5b9wiq-codex/corrigir-bugs-do-código
     try {
       if (editingClient) {
         await saveClient(client);
@@ -257,6 +258,17 @@ export const ClientsPage: React.FC<{}> = () => {
     } catch (error) {
       console.error("Failed to save client:", error);
     }
+
+    if (editingClient) {
+      await saveClient(client);
+    } else {
+      const { id, ...data } = client;
+      await saveClient(data as Omit<Client, 'id'>);
+    }
+    await fetchClients();
+    setIsFormOpen(false);
+    setEditingClient(null);
+main
   };
 
   const handleOpenForm = (client?: Client) => {
