@@ -6,6 +6,27 @@ This project is an internal dashboard for Blu Imports. It is split into a React 
 - **Node.js** (version 18 or later)
 - **PostgreSQL** server
 
+## Installing Requirements on Ubuntu 24.04
+If you are setting up the dashboard on a fresh Ubuntu 24.04 VPS, you can install
+Node.js and PostgreSQL using `apt`:
+
+```bash
+sudo apt update
+sudo apt install -y nodejs npm                # Node.js 18+ and npm
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql        # start the database service
+```
+
+After PostgreSQL is installed you can create a database and user:
+
+```bash
+sudo -u postgres createuser --interactive
+sudo -u postgres createdb bludb
+```
+
+Remember to update the values in your `.env` file with the chosen username and
+database.
+
 ## Quick Start (Development)
 
 1. **Clone the repository**
