@@ -8,7 +8,8 @@ import { CalendarPage } from './features/CalendarFeature';
 import { SuppliersPage } from './features/SuppliersFeature';
 import { BluFacilitaPage } from './features/BluFacilitaFeature';
 import { ClientsPage } from './features/ClientsFeature'; 
-import { CardFeeCalculatorPage } from './features/CardFeeCalculatorFeature'; 
+import { CardFeeCalculatorPage } from './features/CardFeeCalculatorFeature';
+import { TradeInEvaluationPage } from './features/TradeInEvaluationFeature';
 import { FinancialReportsPageContainer } from './features/FinancialReportsFeature'; 
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents'; 
 import { 
@@ -52,6 +53,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Fornecedores', path: '/suppliers', icon: Handshake },
   { name: 'Relatórios', path: '/financial-reports', icon: PieChart },
   { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
+  { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
 ];
 
 // --- Modals (AddOrderCostModal, RegisterPaymentModal) ---
@@ -338,6 +340,35 @@ const DashboardHomePage: React.FC<{}> = () => {
 };
 
 const App: React.FC<{}> = () => {
-  return ( <AuthProvider> <HashRouter> <Routes> <Route path="/login" element={<LoginPage />} /> <Route path="/*" element={ <AuthGuard> <DashboardLayout> <Routes> <Route path="/" element={<DashboardHomePage />} /> <Route path="/clients/*" element={<ClientsPage />} />  <Route path="/orders/*" element={<OrdersPage />} />    <Route path="/calendar" element={<CalendarPage />} /> <Route path="/suppliers" element={<SuppliersPage />} /> <Route path="/blufacilita" element={<BluFacilitaPage />} /> <Route path="/card-calculator" element={<CardFeeCalculatorPage />} /> <Route path="/financial-reports" element={<FinancialReportsPageContainer />} /> <Route path="*" element={<Navigate to="/" replace />} />  </Routes> </DashboardLayout> </AuthGuard> } /> </Routes> </HashRouter> </AuthProvider> );
+  return (
+    <AuthProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/*"
+            element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Routes>
+                    <Route path="/" element={<DashboardHomePage />} />
+                    <Route path="/clients/*" element={<ClientsPage />} />
+                    <Route path="/orders/*" element={<OrdersPage />} />
+                    <Route path="/calendar" element={<CalendarPage />} />
+                    <Route path="/suppliers" element={<SuppliersPage />} />
+                    <Route path="/blufacilita" element={<BluFacilitaPage />} />
+                    <Route path="/card-calculator" element={<CardFeeCalculatorPage />} />
+                    <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
+                    <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </DashboardLayout>
+              </AuthGuard>
+            }
+          />
+        </Routes>
+      </HashRouter>
+    </AuthProvider>
+  );
 };
 export default App;
