@@ -142,7 +142,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
   const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
   
   const sql = `INSERT INTO orders (
-      id, "userId", "customerName", "clientId", "productName", model, capacity, color, condition, 
+      id, "userId", "customerName", "clientId", "productName", model, capacity, watchSize, color, condition,
       "supplierId", "supplierName", "purchasePrice", "sellingPrice", status, "estimatedDeliveryDate", 
       "orderDate", notes, "paymentMethod", "downPayment", installments, "financedAmount", 
       "totalWithInterest", "installmentValue", "bluFacilitaContractStatus", "imeiBlocked", 
@@ -154,12 +154,13 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-      $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
+      $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+      $41
   )`;
 
   const params = [
-      orderId, req.user.id, orderData.customerName, orderData.clientId, orderData.productName, 
-      orderData.model, orderData.capacity, orderData.color, orderData.condition,
+      orderId, req.user.id, orderData.customerName, orderData.clientId, orderData.productName,
+      orderData.model, orderData.capacity, orderData.watchSize, orderData.color, orderData.condition,
       orderData.supplierId, orderData.supplierName, purchasePrice, sellingPrice, orderData.status,
       orderData.estimatedDeliveryDate, orderData.orderDate || new Date().toISOString(), 
       orderData.notes, orderData.paymentMethod, downPayment, installments,
@@ -234,21 +235,21 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
 
   const sql = `UPDATE orders SET
       "customerName"=$1, "clientId"=$2, "productName"=$3, model=$4, capacity=$5,
-      color=$6, condition=$7, "supplierId"=$8, "supplierName"=$9, "purchasePrice"=$10,
-      "sellingPrice"=$11, status=$12, "estimatedDeliveryDate"=$13, "orderDate"=$14,
-      notes=$15, "paymentMethod"=$16, "downPayment"=$17, installments=$18,
-      "financedAmount"=$19, "totalWithInterest"=$20, "installmentValue"=$21,
-      "bluFacilitaContractStatus"=$22, "imeiBlocked"=$23, "arrivalDate"=$24, imei=$25,
-      "arrivalNotes"=$26, "batteryHealth"=$27, "readyForDelivery"=$28,
-      "shippingCostSupplierToBlu"=$29, "shippingCostBluToClient"=$30,
-      "whatsAppHistorySummary"=$31, "bluFacilitaUsesSpecialRate"=$32,
-      "bluFacilitaSpecialAnnualRate"=$33, documents=$34, "trackingHistory"=$35,
-      "bluFacilitaInstallments"=$36, "internalNotes"=$37, "arrivalPhotos"=$38
-      WHERE id=$39 AND "userId"=$40`;
+      watchSize=$6, color=$7, condition=$8, "supplierId"=$9, "supplierName"=$10, "purchasePrice"=$11,
+      "sellingPrice"=$12, status=$13, "estimatedDeliveryDate"=$14, "orderDate"=$15,
+      notes=$16, "paymentMethod"=$17, "downPayment"=$18, installments=$19,
+      "financedAmount"=$20, "totalWithInterest"=$21, "installmentValue"=$22,
+      "bluFacilitaContractStatus"=$23, "imeiBlocked"=$24, "arrivalDate"=$25, imei=$26,
+      "arrivalNotes"=$27, "batteryHealth"=$28, "readyForDelivery"=$29,
+      "shippingCostSupplierToBlu"=$30, "shippingCostBluToClient"=$31,
+      "whatsAppHistorySummary"=$32, "bluFacilitaUsesSpecialRate"=$33,
+      "bluFacilitaSpecialAnnualRate"=$34, documents=$35, "trackingHistory"=$36,
+      "bluFacilitaInstallments"=$37, "internalNotes"=$38, "arrivalPhotos"=$39
+      WHERE id=$40 AND "userId"=$41`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
-      orderData.model, orderData.capacity, orderData.color, orderData.condition,
+      orderData.model, orderData.capacity, orderData.watchSize, orderData.color, orderData.condition,
       orderData.supplierId, orderData.supplierName, purchasePrice, sellingPrice,
       orderData.status, orderData.estimatedDeliveryDate,
       orderData.orderDate || new Date().toISOString(), orderData.notes,
