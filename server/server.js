@@ -542,6 +542,61 @@ app.post('/api/orders/:orderId/payments', authenticateToken, (req, res) => {
     });
 });
 
+// Order Costs
+app.get('/api/order-costs', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM orderCosts WHERE "userId" = $1 ORDER BY date DESC', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching order costs:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch order costs.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.get('/api/orders/:orderId/costs', authenticateToken, (req, res) => {
+    const orderId = req.params.orderId;
+    db.all('SELECT * FROM orderCosts WHERE "orderId" = $1 AND "userId" = $2 ORDER BY date DESC', [orderId, req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching costs for order:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch costs for order.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.post('/api/orders/:orderId/costs', authenticateToken, (req, res) => {
+    const orderId = req.params.orderId;
+    const { type, description, amount, date } = req.body;
+    const costId = uuidv4();
+    const sql = `INSERT INTO orderCosts (id, "userId", "orderId", type, description, amount, date)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+    const params = [costId, req.user.id, orderId, type, description, amount, date || new Date().toISOString()];
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error saving order cost:', err.message);
+            return res.status(500).json({ message: 'Failed to save order cost.' });
+        }
+        db.get('SELECT * FROM orderCosts WHERE id = $1', [costId], (err2, row) => {
+            if (err2 || !row) {
+                console.error('Error fetching order cost after insert:', err2 ? err2.message : 'Row not found');
+                return res.status(500).json({ message: 'Cost saved, but failed to retrieve record.' });
+            }
+            res.status(201).json(row);
+        });
+    });
+});
+
+app.delete('/api/costs/:costItemId', authenticateToken, (req, res) => {
+    const costItemId = req.params.costItemId;
+    db.run('DELETE FROM orderCosts WHERE id = $1 AND "userId" = $2', [costItemId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting order cost:', err.message);
+            return res.status(500).json({ message: 'Failed to delete order cost.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
 // Dashboard Statistics
 app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
     const userId = req.user.id;
@@ -564,6 +619,76 @@ app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
             productsDeliveredThisMonth: 0,
             totalClients: 0,
             totalSuppliers: 0,
+        });
+    });
+});
+
+app.get('/api/dashboard/weekly-summary', authenticateToken, (req, res) => {
+    const weekOffset = parseInt(req.query.offset) || 0;
+    const today = new Date();
+    const day = today.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day) - weekOffset * 7;
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() + diffToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const startISO = startOfWeek.toISOString();
+    const endISO = endOfWeek.toISOString();
+
+    db.all('SELECT * FROM orders WHERE "userId" = $1', [req.user.id], (err, orders) => {
+        if (err) {
+            console.error('Error fetching orders for weekly summary:', err.message);
+            return res.status(500).json({ message: 'Failed to load weekly summary.' });
+        }
+
+        let ordersArrived = 0;
+        let ordersDelivered = 0;
+        let newBluFacilitaContracts = 0;
+        let totalAmountPaidToSuppliers = 0;
+        let totalAmountReceivedFromClients = 0;
+        let totalBluFacilitaFinanced = 0;
+
+        orders.forEach(o => {
+            const trackingHistory = typeof o.trackingHistory === 'string' ? JSON.parse(o.trackingHistory || '[]') : o.trackingHistory || [];
+
+            if (o.arrivalDate) {
+                const arrival = new Date(o.arrivalDate);
+                if (arrival >= startOfWeek && arrival <= endOfWeek) {
+                    ordersArrived += 1;
+                    totalAmountPaidToSuppliers += o.purchasePrice || 0;
+                }
+            }
+
+            const deliveryEntry = trackingHistory.find(h => (h.status === 'Entregue' || h.status === 'Enviado') && h.date);
+            if (deliveryEntry) {
+                const deliveryDate = new Date(deliveryEntry.date);
+                if (deliveryDate >= startOfWeek && deliveryDate <= endOfWeek) {
+                    ordersDelivered += 1;
+                    totalAmountReceivedFromClients += o.sellingPrice || 0;
+                }
+            }
+
+            if (o.paymentMethod === 'BluFacilita') {
+                const orderDate = new Date(o.orderDate);
+                if (orderDate >= startOfWeek && orderDate <= endOfWeek) {
+                    newBluFacilitaContracts += 1;
+                    totalBluFacilitaFinanced += o.financedAmount || 0;
+                }
+            }
+        });
+
+        res.json({
+            startDate: startISO,
+            endDate: endISO,
+            ordersArrived,
+            ordersDelivered,
+            newBluFacilitaContracts,
+            totalAmountPaidToSuppliers,
+            totalAmountReceivedFromClients,
+            totalBluFacilitaFinanced,
         });
     });
 });
