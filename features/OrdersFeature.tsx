@@ -16,6 +16,7 @@ import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, Respons
 import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
+import { Eye, Pencil, ArchiveRestore, Trash2, Download, PlusCircle } from 'lucide-react';
 import ClientProductStep from './orders/steps/ClientProductStep';
 import ValuesStep from './orders/steps/ValuesStep';
 import NotesDocsStep from './orders/steps/NotesDocsStep';
@@ -759,7 +760,71 @@ export const OrdersPage = () => {
     )},
     { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order}, 
     { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} /> }, 
-    { header: 'Ações', accessor: (item: Order): ReactNode => ( <div className="flex flex-wrap items-center space-x-1"> <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button> {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && ( <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"} > {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />} </Button> )} <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button> </div> )}, 
+    { header: 'Ações', accessor: (item: Order): ReactNode => (
+        <div className="flex flex-wrap items-center space-x-1">
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={async (e) => {
+                    e.stopPropagation();
+                    setOrderToView(item);
+                    setSupplierNameVisible(false);
+                    setPurchasePriceVisible(false);
+                    setClientPayments(await getClientPaymentsByOrderId(item.id));
+                }}
+                title="Ver Detalhes"
+            >
+                <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenForm(item);
+                }}
+                title="Editar"
+            >
+                <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setOrderToRegisterArrival(item);
+                }}
+                title="Registrar Chegada"
+            >
+                <ArchiveRestore className="h-4 w-4" />
+            </Button>
+            {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && (
+                <Button
+                    variant={item.imeiBlocked ? "secondary" : "danger"}
+                    size="sm"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleImeiLockAction(item);
+                    }}
+                    title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"}
+                >
+                    {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />}
+                </Button>
+            )}
+            <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:text-red-700"
+                onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleDeleteOrder(item.id);
+                }}
+                title="Excluir"
+            >
+                <Trash2 className="h-4 w-4" />
+            </Button>
+        </div>
+    )},
   ];
   
   const handleExport = async () => { 
@@ -790,7 +855,16 @@ export const OrdersPage = () => {
   
   return ( 
     <div> 
-        <PageTitle title="Gerenciamento de Encomendas" subtitle="Adicione, visualize e gerencie todas as encomendas de clientes." actions={ <div className="flex space-x-2"> <Button onClick={handleExport} variant="secondary" leftIcon={<i className="heroicons-outline-arrow-down-tray h-5 w-5"></i>}>Exportar CSV</Button> <Button onClick={() => handleOpenForm()} leftIcon={<i className="heroicons-outline-plus-circle h-5 w-5"></i>}>Nova Encomenda</Button> </div> } /> 
+        <PageTitle
+            title="Gerenciamento de Encomendas"
+            subtitle="Adicione, visualize e gerencie todas as encomendas de clientes."
+            actions={
+                <div className="flex space-x-2">
+                    <Button onClick={handleExport} variant="secondary" leftIcon={<Download className="h-5 w-5" />}>Exportar CSV</Button>
+                    <Button onClick={() => handleOpenForm()} leftIcon={<PlusCircle className="h-5 w-5" />}>Nova Encomenda</Button>
+                </div>
+            }
+        />
         <Card className="mb-6"> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end"> <Input id="searchOrders" placeholder="Buscar por cliente, produto, IMEI..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} inputClassName="h-10" containerClassName="lg:col-span-2" /> <Select id="statusFilter" placeholder="Filtrar por status..." options={[{value: '', label: 'Todos os Status'}, ...ORDER_STATUS_OPTIONS.map(s => ({ value: s, label: s }))]} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} selectClassName="h-10" /> <Select id="paymentMethodFilter" placeholder="Filtrar por Pagamento..." options={[{value: '', label: 'Todas Formas Pgto.'}, ...PAYMENT_METHOD_OPTIONS.map(p => ({ value: p, label: p}))]} value={paymentMethodFilter} onChange={(e) => setPaymentMethodFilter(e.target.value)} selectClassName="h-10" /> </div> <div className="mt-4"> <Button onClick={handleClearFilters} variant="ghost" size="sm">Limpar Filtros</Button> </div> </Card> 
         <ResponsiveTable columns={columns} data={filteredOrders} isLoading={isLoading} emptyStateMessage="Nenhuma encomenda encontrada." onRowClick={async (item) => {setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id));}} rowKeyAccessor="id" /> 
       {isFormOpen && <OrderForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingOrder(null); }} onSave={handleSaveOrder} initialOrder={editingOrder} prefillData={(location.state as any)?.prefillOrderData as OrderFormPrefillData | undefined} />}

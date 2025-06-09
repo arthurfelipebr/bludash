@@ -8,6 +8,7 @@ import {
 } from '../services/AppService';
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, ErrorBoundary } from '../components/SharedComponents';
 import { v4 as uuidv4 } from 'uuid';
+import { Eye, Pencil, Trash2, Download, PlusCircle } from 'lucide-react';
 
 const BRAZIL_STATES = [
   { value: 'AC', label: 'Acre' },
@@ -412,13 +413,13 @@ const ClientsPageInner: React.FC = () => {
     { header: 'Ações', accessor: (item: Client): ReactNode => (
       <div className="space-x-1">
         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setViewingClient(item);}} title="Ver Detalhes">
-            <i className="heroicons-outline-eye h-4 w-4"></i>
+            <Eye className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar">
-            <i className="heroicons-outline-pencil-square h-4 w-4"></i>
+            <Pencil className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteClient(item.id);}} title="Excluir">
-            <i className="heroicons-outline-trash h-4 w-4"></i>
+            <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     )},
@@ -451,10 +452,10 @@ const ClientsPageInner: React.FC = () => {
         subtitle="Cadastre e administre os clientes da Blu Imports."
         actions={
             <div className="flex space-x-2">
-                 <Button onClick={handleExportClients} variant="secondary" leftIcon={<i className="heroicons-outline-arrow-down-tray h-5 w-5"></i>}>
+                 <Button onClick={handleExportClients} variant="secondary" leftIcon={<Download className="h-5 w-5" />}>
                     Exportar CSV
                 </Button>
-                <Button onClick={() => handleOpenForm()} leftIcon={<i className="heroicons-outline-plus-circle h-5 w-5"></i>}>
+                <Button onClick={() => handleOpenForm()} leftIcon={<PlusCircle className="h-5 w-5" />}>
                     Novo Cliente
                 </Button>
             </div>
