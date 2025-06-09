@@ -283,10 +283,10 @@ export const saveOrder = async (orderData: Omit<Order, 'id' | 'userId'> | Order)
       orderToSave.bluFacilitaContractStatus = deriveBluFacilitaContractStatus(orderToSave.bluFacilitaInstallments);
   } else { /* clear BluFacilita fields */ }
 
-  // Check for userId to decide if the order already exists. New orders have an
-  // id generated on the client but lack a userId until persisted.
-  if ('userId' in orderData && orderData.userId) {
-    return apiClient<Order>(`/orders/${orderData.id}`, { method: 'PUT', body: JSON.stringify(orderToSave) });
+  // Check for userId to decide if the order already exists. New orders already
+  // have a generated id but only persisted orders include a userId.
+  if ((orderData as Order).userId) {
+    return apiClient<Order>(`/orders/${(orderData as Order).id}`, { method: 'PUT', body: JSON.stringify(orderToSave) });
   } else {
     return apiClient<Order>('/orders', { method: 'POST', body: JSON.stringify(orderToSave) });
   }
