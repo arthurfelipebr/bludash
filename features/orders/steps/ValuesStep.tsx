@@ -1,6 +1,6 @@
 import React from 'react';
 import { Input, Select, Card, Button, WhatsAppIcon } from '../../../components/SharedComponents';
-import { PaymentMethod, PAYMENT_METHOD_OPTIONS, BLU_FACILITA_CONTRACT_STATUS_OPTIONS, DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE, Supplier, SupplierOption } from '../../../types';
+import { PaymentMethod, PAYMENT_METHOD_OPTIONS, BLU_FACILITA_CONTRACT_STATUS_OPTIONS, DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE, Supplier, SupplierOption, OrderStatus } from '../../../types';
 import { ORDER_STATUS_OPTIONS, formatCurrencyBRL } from '../../../services/AppService';
 import { OrderFormState } from '../../OrdersFeature';
 
@@ -101,6 +101,17 @@ export const ValuesStep: React.FC<ValuesStepProps> = ({
             onChange={handleChange}
             containerClassName="mt-4"
           />
+          {state.status === OrderStatus.ENTREGUE && (
+            <Input
+              label="Data de Entrega"
+              id="deliveryDate"
+              name="deliveryDate"
+              type="date"
+              value={state.deliveryDate || ''}
+              onChange={handleChange}
+              containerClassName="mt-4"
+            />
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <Input
               label="Custo Frete Fornecedor → Blu (R$)"
