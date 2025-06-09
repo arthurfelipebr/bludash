@@ -357,11 +357,36 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     
     const selectedSupplierObj = formData.supplierId ? await getSupplierById(formData.supplierId) : null;
     const selectedClientObj = formData.clientId ? await getClientById(formData.clientId) : null;
+
+    // If no existing client selected, create a minimal client record so it appears in the Clients tab
+    let createdClient: Client | null = null;
+    let finalClientId = formData.clientId;
+    if (!finalClientId && formData.customerNameManual) {
+      try {
+        createdClient = await saveClient({
+          fullName: formData.customerNameManual,
+          cpfOrCnpj: '',
+          email: '',
+          phone: '',
+          city: '',
+          state: '',
+          clientType: ClientType.PESSOA_FISICA,
+          registrationDate: new Date().toISOString(),
+          notes: '',
+          isDefaulter: false,
+          defaulterNotes: ''
+        });
+        finalClientId = createdClient.id;
+      } catch (err) {
+        console.error('Erro ao criar cliente automaticamente:', err);
+      }
+    }
     
     const orderToSave: Order = {
       ...formData,
-      id: initialOrder?.id || uuidv4(), 
-      customerName: formData.clientId ? (selectedClientObj?.fullName || 'Cliente não encontrado') : formData.customerNameManual,
+      clientId: finalClientId,
+      id: initialOrder?.id || uuidv4(),
+      customerName: finalClientId ? (selectedClientObj?.fullName || createdClient?.fullName || 'Cliente não encontrado') : formData.customerNameManual,
       supplierName: selectedSupplierObj?.name, 
       estimatedDeliveryDate: formData.estimatedDeliveryDate || undefined, 
       documents, internalNotes,
