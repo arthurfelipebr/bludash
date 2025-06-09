@@ -4,7 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const db = require('./database'); // PostgreSQL database connection
+const db = require('./database'); // SQLite database connection
 // const { GoogleGenAI } = require('@google/genai'); // For backend Gemini calls
 
 const app =express();
@@ -59,7 +59,7 @@ app.post('/api/auth/register', (req, res) => {
     [userId, email, hashedPassword, displayName, registrationDate],
     function(err) {
     if (err) {
-      if (err.code === '23505') { // unique_violation
+      if (err.code === 'SQLITE_CONSTRAINT') {
         return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
       }
       console.error('Registration error:', err.message);
@@ -446,21 +446,23 @@ app.post('/api/suppliers', authenticateToken, (req, res) => {
         id, "userId", name, "contactPerson", phone, email, notes, "registrationDate"
     ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8
-    ) RETURNING *`;
+    )`;
     const params = [
         supplierId, req.user.id, data.name, data.contactPerson, data.phone,
         data.email, data.notes, registrationDate
     ];
-    db.run(sql, params, function(err, result) {
+    db.run(sql, params, function(err) {
         if (err) {
             console.error('Error saving supplier:', err.message);
             return res.status(500).json({ message: 'Failed to save supplier.' });
         }
-        const row = result.rows && result.rows[0];
-        if (!row) {
-            return res.status(500).json({ message: 'Supplier saved, but failed to retrieve record.' });
-        }
-        res.status(201).json(row);
+        db.get('SELECT * FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], (err2, row) => {
+            if (err2 || !row) {
+                console.error('Error fetching supplier after save:', err2 ? err2.message : 'Row not found');
+                return res.status(500).json({ message: 'Supplier saved, but failed to retrieve record.' });
+            }
+            res.status(201).json(row);
+        });
     });
 });
 
@@ -469,17 +471,19 @@ app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const sql = `UPDATE suppliers SET
         name=$1, "contactPerson"=$2, phone=$3, email=$4, notes=$5
-        WHERE id=$6 AND "userId"=$7 RETURNING *`;
+        WHERE id=$6 AND "userId"=$7`;
     const params = [data.name, data.contactPerson, data.phone, data.email, data.notes, supplierId, req.user.id];
-    db.run(sql, params, function(err, result) {
+    db.run(sql, params, function(err) {
         if (err) {
             console.error('Error updating supplier:', err.message);
             return res.status(500).json({ message: 'Failed to update supplier.' });
         }
-        if (!result.rows || result.rowCount === 0) {
-            return res.status(404).json({ message: 'Supplier not found.' });
-        }
-        res.json(result.rows[0]);
+        db.get('SELECT * FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], (err2, row) => {
+            if (err2 || !row) {
+                return res.status(404).json({ message: 'Supplier not found.' });
+            }
+            res.json(row);
+        });
     });
 });
 
@@ -533,5 +537,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
   console.log(`JWT Secret is ${JWT_SECRET && JWT_SECRET !== 'your-fallback-jwt-secret-key' ? 'set (recommended)' : 'NOT SET (using fallback - NOT SECURE FOR PRODUCTION!)'}`);
-  console.log(`PostgreSQL DB: ${process.env.PGDATABASE || ''} @ ${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || 5432}`);
+  console.log(`SQLite DB file: ${process.env.DB_FILE || path.resolve(__dirname, 'database.sqlite')}`);
 });
