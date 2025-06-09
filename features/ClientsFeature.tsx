@@ -13,6 +13,8 @@ const initialFormData: Omit<Client, 'id' | 'registrationDate'> = {
   cpfOrCnpj: '',
   email: '',
   phone: '',
+  address: '',
+  cep: '',
   city: '',
   state: '',
   clientType: ClientType.PESSOA_FISICA,
@@ -108,6 +110,10 @@ const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initia
             <Input label="E-mail" id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
             <Input label="Telefone" id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} required placeholder="(00) 90000-0000" />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <Input label="Endereço" id="address" name="address" value={formData.address} onChange={handleChange} />
+            <Input label="CEP" id="cep" name="cep" value={formData.cep} onChange={handleChange} />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Cidade" id="city" name="city" value={formData.city} onChange={handleChange} />
             <Input label="Estado (UF)" id="state" name="state" value={formData.state} onChange={handleChange} maxLength={2} placeholder="Ex: SP, RJ" />
@@ -179,7 +185,7 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
                         <p><strong>CPF/CNPJ:</strong> {formatCPFOrCNPJ(client.cpfOrCnpj, client.clientType)} ({client.clientType})</p>
                         <p><strong>Email:</strong> {client.email}</p>
                         <p><strong>Telefone:</strong> {client.phone}</p>
-                        <p><strong>Endereço:</strong> {client.city ? `${client.city} - ${client.state}` : 'Não informado'}</p>
+                        <p><strong>Endereço:</strong> {client.address ? `${client.address}, ${client.city} - ${client.state}, CEP: ${client.cep}` : 'Não informado'}</p>
                         <p><strong>Cliente Desde:</strong> {formatDateBR(client.registrationDate)}</p>
                         {client.notes && <p className="md:col-span-2"><strong>Observações:</strong> {client.notes}</p>}
                     </div>
@@ -303,6 +309,8 @@ export const ClientsPage: React.FC<{}> = () => {
         TipoCliente: c.clientType,
         Email: c.email,
         Telefone: c.phone,
+        Endereco: c.address,
+        CEP: c.cep,
         Cidade: c.city,
         Estado: c.state,
         DataCadastro: formatDateBR(c.registrationDate),

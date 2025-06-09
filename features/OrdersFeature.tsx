@@ -93,20 +93,24 @@ const OrderStatusTimeline: React.FC<{ order: Order }> = ({ order }) => {
   
   const relevantStatuses = useMemo(() => {
     if ((order.status as OrderStatus) === OrderStatus.CANCELADO) {
-        return [OrderStatus.PEDIDO_REALIZADO, OrderStatus.CANCELADO];
+        return [OrderStatus.PEDIDO_CRIADO, OrderStatus.CANCELADO];
     }
     const typicalPath: OrderStatus[] = [
-        OrderStatus.PEDIDO_REALIZADO, OrderStatus.PAGAMENTO_CONFIRMADO, OrderStatus.EM_PROCESSAMENTO,
-        OrderStatus.PEDIDO_ENVIADO, OrderStatus.CHEGOU_NO_BRASIL, OrderStatus.LIBERADO_PELA_ALFANDEGA,
-        OrderStatus.PRONTO_PARA_ENTREGA, OrderStatus.ENTREGUE
+        OrderStatus.PEDIDO_CRIADO,
+        OrderStatus.PAGAMENTO_CONFIRMADO,
+        OrderStatus.COMPRA_REALIZADA,
+        OrderStatus.A_CAMINHO_DO_ESCRITORIO,
+        OrderStatus.CHEGOU_NO_ESCRITORIO,
+        OrderStatus.AGUARDANDO_RETIRADA,
+        OrderStatus.ENVIADO
     ];
     let displayStatusesSet = new Set<OrderStatus>();
     order.trackingHistory?.forEach(h => displayStatusesSet.add(h.status));
     displayStatusesSet.add(order.status);
     const currentIdxInTypical = typicalPath.indexOf(order.status);
     typicalPath.slice(0, currentIdxInTypical !== -1 ? currentIdxInTypical + 2 : typicalPath.length).forEach(s => displayStatusesSet.add(s));
-    if (!displayStatusesSet.has(OrderStatus.ENTREGUE) && order.status !== OrderStatus.CANCELADO) {
-        displayStatusesSet.add(OrderStatus.ENTREGUE); 
+    if (!displayStatusesSet.has(OrderStatus.ENVIADO) && order.status !== OrderStatus.CANCELADO) {
+        displayStatusesSet.add(OrderStatus.ENVIADO);
     }
     let displayStatuses = Array.from(displayStatusesSet);
     displayStatuses.sort((a, b) => ORDER_STATUS_OPTIONS.indexOf(a) - ORDER_STATUS_OPTIONS.indexOf(b));
@@ -151,7 +155,10 @@ const OrderStatusTimeline: React.FC<{ order: Order }> = ({ order }) => {
       })}
     </div>
   );
-};
+}; 
+
+const PRODUCT_OPTIONS = ['iPhone', 'MacBook', 'iMac'];
+const CAPACITY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 
 const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'customerName' | 'supplierName' | 'internalNotes' | 'bluFacilitaInstallments'> & { customerNameManual: string } = {
   clientId: undefined,
@@ -160,7 +167,7 @@ const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'cus
   condition: ProductCondition.LACRADO,
   supplierId: undefined,
   purchasePrice: 0, sellingPrice: undefined,
-  status: OrderStatus.PEDIDO_REALIZADO,
+  status: OrderStatus.PEDIDO_CRIADO,
   estimatedDeliveryDate: '',
   orderDate: new Date().toISOString().split('T')[0], 
   notes: '',
@@ -354,7 +361,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     e.preventDefault();
     setError(null); setIsLoading(true);
     if ((!formData.clientId && !formData.customerNameManual) || !formData.productName || !formData.model) { setError("Cliente (existente ou manual), Produto e Modelo são obrigatórios."); setIsLoading(false); return; }
-    if (formData.purchasePrice < 0) { setError("Valor pago não pode ser negativo."); setIsLoading(false); return; }
+    if (formData.purchasePrice < 0) { setError("Custo não pode ser negativo."); setIsLoading(false); return; }
     if (formData.paymentMethod === PaymentMethod.BLU_FACILITA && (formData.sellingPrice || formData.purchasePrice || 0) <= 0) { setError("Valor do produto (venda ou compra) deve ser maior que zero para BluFacilita."); setIsLoading(false); return; }
     
     const selectedSupplierObj = formData.supplierId ? await getSupplierById(formData.supplierId) : null;
@@ -363,13 +370,15 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     // If no existing client selected, create a minimal client record so it appears in the Clients tab
     let createdClient: Client | null = null;
     let finalClientId = formData.clientId;
-    if (!finalClientId && formData.customerNameManual) {
+    if (!finalClientId && formData.customerNameManual && !initialOrder) {
       try {
         createdClient = await saveClient({
           fullName: formData.customerNameManual,
           cpfOrCnpj: '',
           email: '',
           phone: '',
+          address: '',
+          cep: '',
           city: '',
           state: '',
           clientType: ClientType.PESSOA_FISICA,
@@ -439,10 +448,10 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
     const capacidade = formData.capacity || 'ARMAZENAMENTO';
     const corProduto = formData.color || 'COR';
     const imei = formData.imei || 'IMEI';
-    const valorPago = formData.purchasePrice ? formatCurrencyBRL(formData.purchasePrice) : 'VALOR PAGO';
+    const valorPago = formData.purchasePrice ? formatCurrencyBRL(formData.purchasePrice) : 'CUSTO';
     const formaPgto = formData.paymentMethod || 'FORMA DE PAGAMENTO';
 
-    const text = `Nome completo: ${clientName}\nCPF: ${cpf}\nCEP: [CEP]\nEndereço: [Endereço]\nNúmero: [Número]\nComplemento: [Complemento]\nBairro: [Bairro]\nCidade: ${city}\nEstado: ${state}\nModelo: ${modelo}\nArmazenamento: ${capacidade}\nCor: ${corProduto}\nIMEI (Se aplicável): ${imei}\nSN: [SN]\nValor Pago: ${valorPago}\nForma de Pagamento: ${formaPgto}`;
+    const text = `Nome completo: ${clientName}\nCPF: ${cpf}\nCEP: [CEP]\nEndereço: [Endereço]\nNúmero: [Número]\nComplemento: [Complemento]\nBairro: [Bairro]\nCidade: ${city}\nEstado: ${state}\nModelo: ${modelo}\nArmazenamento: ${capacidade}\nCor: ${corProduto}\nIMEI (Se aplicável): ${imei}\nSN: [SN]\nCusto: ${valorPago}\nForma de Pagamento: ${formaPgto}`;
     setProductNFText(text);
     setIsProductNFModalOpen(true);
   };
@@ -462,12 +471,12 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
                     <Input label="Nome do Cliente (Manual/Novo)" id="customerNameManual" name="customerNameManual" value={formData.customerNameManual} onChange={handleChange} disabled={!!formData.clientId} placeholder={formData.clientId ? "Cliente selecionado acima" : "Nome completo do novo cliente"} />
                 </div>
                  {selectedClientDetails?.isDefaulter && ( <Alert type="warning" message={`Atenção: Cliente ${selectedClientDetails.fullName} está marcado como inadimplente.`} details={selectedClientDetails.defaulterNotes} className="mt-2"/> )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> <Input label="Produto (ex: iPhone)" id="productName" name="productName" value={formData.productName} onChange={handleChange} required /> <Input label="Modelo (ex: 15 Pro Max)" id="model" name="model" value={formData.model} onChange={handleChange} required /> </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"> <Input label="Capacidade (ex: 256GB)" id="capacity" name="capacity" value={formData.capacity} onChange={handleChange} /> <Input label="Cor" id="color" name="color" value={formData.color} onChange={handleChange} /> <Select label="Condição" id="condition" name="condition" value={formData.condition} onChange={handleChange} options={PRODUCT_CONDITION_OPTIONS.map(c => ({ value: c, label: c }))} /> </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> <Select label="Produto" id="productName" name="productName" value={formData.productName} onChange={handleChange} options={PRODUCT_OPTIONS.map(p => ({ value: p, label: p }))} /> <Input label="Modelo (ex: 15 Pro Max)" id="model" name="model" value={formData.model} onChange={handleChange} required /> </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"> <Select label="Armazenamento" id="capacity" name="capacity" value={formData.capacity} onChange={handleChange} options={CAPACITY_OPTIONS.map(c => ({ value: c, label: c }))} /> <Input label="Cor" id="color" name="color" value={formData.color} onChange={handleChange} /> <Select label="Condição" id="condition" name="condition" value={formData.condition} onChange={handleChange} options={PRODUCT_CONDITION_OPTIONS.map(c => ({ value: c, label: c }))} /> </div>
             </Card>
             <Card title="Valores, Fornecedor e Prazos" className="h-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <Select label="Fornecedor" id="supplierId" name="supplierId" value={formData.supplierId || ''} onChange={handleChange} options={supplierOptions} /> {formData.supplierId && suppliers.find(s=>s.id === formData.supplierId)?.phone && ( <Button type="button" variant="ghost" size="sm" onClick={handleWhatsAppConsult} className="mt-6" leftIcon={<WhatsAppIcon className="h-5 w-5 text-green-500" />}> Consultar Fornecedor </Button> )} </div>
-                <Input label="Valor Pago (R$)" id="purchasePrice" name="purchasePrice" type="number" step="0.01" value={String(formData.purchasePrice || '')} onChange={handleChange} required containerClassName="mt-4" />
+                <Input label="Custo (R$)" id="purchasePrice" name="purchasePrice" type="number" step="0.01" value={String(formData.purchasePrice || '')} onChange={handleChange} required containerClassName="mt-4" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"> <Input label="Valor de Venda (R$) (Opcional)" id="sellingPrice" name="sellingPrice" type="number" step="0.01" value={String(formData.sellingPrice || '')} onChange={handleChange} /> <Select label="Status Inicial" id="status" name="status" value={formData.status} onChange={handleChange} options={ORDER_STATUS_OPTIONS.map(s => ({ value: s, label: s }))} /> <Input label="Data do Pedido" id="orderDate" name="orderDate" type="date" value={formData.orderDate} onChange={handleChange} required /> </div>
                 <Input label="Prazo Estimado de Entrega" id="estimatedDeliveryDate" name="estimatedDeliveryDate" type="date" value={formData.estimatedDeliveryDate || ''} onChange={handleChange} containerClassName="mt-4" />
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> <Input label="Custo Frete Fornecedor → Blu (R$)" id="shippingCostSupplierToBlu" name="shippingCostSupplierToBlu" type="number" step="0.01" value={String(formData.shippingCostSupplierToBlu || '')} onChange={handleChange} /> <Input label="Custo Frete Blu → Cliente (R$)" id="shippingCostBluToClient" name="shippingCostBluToClient" type="number" step="0.01" value={String(formData.shippingCostBluToClient || '')} onChange={handleChange} /> </div>
@@ -535,7 +544,7 @@ const RegisterArrivalModal: React.FC<RegisterArrivalModalProps> = ({ order, isOp
     const [isLoading, setIsLoading] = useState(false);
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value, type } = e.target; if (type === 'checkbox') { setArrivalData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked })); } else if (name === "batteryHealth"){ setArrivalData(prev => ({...prev, batteryHealth: parseInt(value, 10) || undefined}))} else { setArrivalData(prev => ({ ...prev, [name]: value })); } };
     const handleAddPhoto = () => alert("Funcionalidade de upload de fotos não implementada (mock).");
-    const handleSubmit = async () => { setIsLoading(true); const updatedOrder: Order = { ...order, ...arrivalData, arrivalPhotos, status: arrivalData.readyForDelivery ? OrderStatus.PRONTO_PARA_ENTREGA : order.status, trackingHistory: arrivalData.readyForDelivery && order.status !== OrderStatus.PRONTO_PARA_ENTREGA ? [...(order.trackingHistory || []), {status: OrderStatus.PRONTO_PARA_ENTREGA, date: new Date().toISOString(), notes: "Produto recebido e pronto"}] : order.trackingHistory, }; await onSave(updatedOrder); setIsLoading(false); onClose(); };
+    const handleSubmit = async () => { setIsLoading(true); const updatedOrder: Order = { ...order, ...arrivalData, arrivalPhotos, status: arrivalData.readyForDelivery ? OrderStatus.AGUARDANDO_RETIRADA : order.status, trackingHistory: arrivalData.readyForDelivery && order.status !== OrderStatus.AGUARDANDO_RETIRADA ? [...(order.trackingHistory || []), {status: OrderStatus.AGUARDANDO_RETIRADA, date: new Date().toISOString(), notes: "Produto recebido e pronto"}] : order.trackingHistory, }; await onSave(updatedOrder); setIsLoading(false); onClose(); };
     return ( <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Chegada: ${order.productName} ${order.model}`} size="lg"> <div className="space-y-4"> <Input id="arrivalDate" label="Data de Chegada" type="date" name="arrivalDate" value={arrivalData.arrivalDate} onChange={handleChange} required /> <Input id="imei" label="IMEI do Aparelho" name="imei" value={arrivalData.imei} onChange={handleChange} placeholder="Se aplicável" /> {(order.condition === ProductCondition.SEMINOVO || order.condition === ProductCondition.USADO_BOM || order.condition === ProductCondition.USADO_EXCELENTE) && ( <Input id="batteryHealth" label="Saúde da Bateria (%)" type="number" name="batteryHealth" min="0" max="100" value={String(arrivalData.batteryHealth || '')} onChange={handleChange} /> )} <Textarea id="arrivalNotes" label="Observações da Chegada" name="arrivalNotes" value={arrivalData.arrivalNotes} onChange={handleChange} rows={3} /> <div> <label className="block text-sm font-medium text-gray-700 mb-1">Fotos do Produto (até 5 - mock)</label> {arrivalPhotos.map(p => <span key={p.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{p.name}</span>)} <Button onClick={handleAddPhoto} size="sm" variant="ghost" className="mt-1">Adicionar Foto</Button> </div> <div className="flex items-center"> <input type="checkbox" id="readyForDelivery" name="readyForDelivery" checked={arrivalData.readyForDelivery} onChange={handleChange} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /> <label htmlFor="readyForDelivery" className="ml-2 block text-sm text-gray-900">Marcar como PRONTO PARA ENTREGA</label> </div> <div className="flex justify-end space-x-2 pt-3"> <Button variant="secondary" onClick={onClose}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Chegada</Button> </div> </div> </Modal> );
 };
 
@@ -660,7 +669,7 @@ export const OrdersPage = () => {
     { header: 'Cliente', accessor: (item: Order): ReactNode => item.clientId ? getClientName(item.clientId) : item.customerName, className: 'font-medium' }, 
     { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model}`}, 
     { header: 'Fornecedor', accessor: (item: Order): ReactNode => item.supplierName || 'N/A'},
-    { header: 'Status', accessor: (item: Order): ReactNode => ( <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${ item.status === OrderStatus.ENTREGUE ? 'bg-green-100 text-green-800' : item.status === OrderStatus.PRONTO_PARA_ENTREGA ? 'bg-teal-100 text-teal-800' : item.status === OrderStatus.CANCELADO ? 'bg-red-100 text-red-800' : item.status.includes('AGUARDANDO') || item.status.includes('PROCESSAMENTO') || item.status.includes('ADUANEIRO') ? 'bg-yellow-100 text-yellow-800' : item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800' }`}> {item.status} {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && "(Atraso)"} </span> )}, 
+    { header: 'Status', accessor: (item: Order): ReactNode => ( <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${ item.status === OrderStatus.ENVIADO ? 'bg-green-100 text-green-800' : item.status === OrderStatus.AGUARDANDO_RETIRADA ? 'bg-teal-100 text-teal-800' : item.status === OrderStatus.CANCELADO ? 'bg-red-100 text-red-800' : item.status.includes('Aguardando') || item.status.includes('Caminho') ? 'bg-yellow-100 text-yellow-800' : item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800' }`}> {item.status} {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && "(Atraso)"} </span> )},
     { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order}, 
     { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} /> }, 
     { header: 'Ações', accessor: (item: Order): ReactNode => ( <div className="flex flex-wrap items-center space-x-1"> <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button> {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && ( <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"} > {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />} </Button> )} <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button> </div> )}, 
@@ -704,7 +713,7 @@ export const OrdersPage = () => {
                 <p className="text-gray-700"><strong>Cliente:</strong> {orderToView.clientId ? getClientName(orderToView.clientId) : orderToView.customerName}</p>
                 <p className="text-gray-700"><strong>Produto:</strong> {orderToView.productName} {orderToView.model} ({orderToView.capacity}) - {orderToView.color} [{orderToView.condition}]</p>
                 <div className="flex items-center text-gray-700"> <strong>Fornecedor:</strong>&nbsp; {supplierNameVisible ? (<span>{orderToView.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)} <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1"> {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
-                <div className="flex items-center text-gray-700"> <strong>Valor Pago (Fornecedor):</strong>&nbsp; {purchasePriceVisible ? (<span>{formatCurrencyBRL(orderToView.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(orderToView.purchasePrice)}</span>)} <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1"> {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
+                <div className="flex items-center text-gray-700"> <strong>Custo (Fornecedor):</strong>&nbsp; {purchasePriceVisible ? (<span>{formatCurrencyBRL(orderToView.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(orderToView.purchasePrice)}</span>)} <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1"> {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
                 {orderToView.sellingPrice !== undefined && <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(orderToView.sellingPrice)}</p>}
                 <p className="text-gray-700"><strong>Forma de Pagamento:</strong> {orderToView.paymentMethod || 'N/A'}</p>
                 {orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && (
