@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Client, ClientType, Order, PaymentMethod, OrderStatus } from '../types';
 import { 
   saveClient, getClients, deleteClient, getClientById,
@@ -250,6 +251,14 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
         return clientOrders.filter(o => o.paymentMethod === PaymentMethod.BLU_FACILITA);
     }, [clientOrders, filterBluFacilita]);
 
+    const kpis = useMemo(() => {
+        const totalSpent = clientOrders.reduce((sum, o) => sum + (o.sellingPrice || o.purchasePrice), 0);
+        const outstandingDebt = clientOrders.filter(o => o.paymentMethod === PaymentMethod.BLU_FACILITA && o.bluFacilitaInstallments)
+            .reduce((sum, o) => sum + (o.bluFacilitaInstallments?.reduce((s,i)=> s + (i.amount - (i.amountPaid || 0)), 0) || 0), 0);
+        const activeOrders = clientOrders.filter(o => o.status !== OrderStatus.ENTREGUE && o.status !== OrderStatus.CANCELADO).length;
+        return { totalSpent, outstandingDebt, activeOrders };
+    }, [clientOrders]);
+
     if (!client) return null;
 
     const orderColumns = [
@@ -271,6 +280,23 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
                         <p><strong>Endereço:</strong> {client.address ? `${client.address}, ${client.city} - ${client.state}, CEP: ${client.cep}` : 'Não informado'}</p>
                         <p><strong>Cliente Desde:</strong> {formatDateBR(client.registrationDate)}</p>
                         {client.notes && <p className="md:col-span-2"><strong>Observações:</strong> {client.notes}</p>}
+                    </div>
+                </Card>
+
+                <Card className="bg-blue-50" title="Resumo">
+                    <div className="grid grid-cols-1 md:grid-cols-3 text-center gap-4">
+                        <div>
+                            <p className="text-sm text-gray-600">Valor Total Gasto</p>
+                            <p className="text-lg font-semibold">{formatCurrencyBRL(kpis.totalSpent)}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-600">Dívida em Aberto (BluFacilita)</p>
+                            <p className="text-lg font-semibold">{formatCurrencyBRL(kpis.outstandingDebt)}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-600">Encomendas Ativas</p>
+                            <p className="text-lg font-semibold">{kpis.activeOrders}</p>
+                        </div>
                     </div>
                 </Card>
 
@@ -311,6 +337,8 @@ const ClientsPageInner: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const fetchClients = useCallback(async () => {
     setIsLoading(true);
@@ -328,6 +356,14 @@ const ClientsPageInner: React.FC = () => {
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
+
+  useEffect(() => {
+    const state = location.state as { openNewClientForm?: boolean } | null;
+    if (state?.openNewClientForm) {
+      handleOpenForm();
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const handleSaveClient = async (client: Client) => {
     if (editingClient) {
@@ -469,3 +505,5 @@ export const ClientsPage: React.FC = () => (
     <ClientsPageInner />
   </ErrorBoundary>
 );
+
+export { ClientForm, ClientDetailsModal };

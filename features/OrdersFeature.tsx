@@ -12,7 +12,8 @@ import {
   calculateBluFacilitaDetails, 
   getClientPaymentsByOrderId,
 } from '../services/AppService';
-import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper } from '../components/SharedComponents';
+import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast } from '../components/SharedComponents';
+import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App'; 
 
@@ -213,6 +214,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const [bfDownPaymentInput, setBfDownPaymentInput] = useState('R$ 0,00');
   const [isProductNFModalOpen, setIsProductNFModalOpen] = useState(false);
   const [productNFText, setProductNFText] = useState('');
+  const [isClientFormOpen, setIsClientFormOpen] = useState(false);
   const FORM_STEPS = ['Cliente & Produto', 'Valores & Pagamento', 'Notas & Docs'];
 
   useEffect(() => {
@@ -363,6 +365,14 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const handleAddDocument = () => { const docName = prompt("Nome do documento (ex: Contrato, Invoice):"); if (docName) { setDocuments(prev => [...prev, { id: uuidv4(), name: docName, url: '#mocklink', uploadedAt: new Date().toISOString() }]); } };
   const handleRemoveDocument = (docId: string) => setDocuments(prev => prev.filter(doc => doc.id !== docId));
 
+  const handleSaveNewClient = async (client: Client) => {
+    const saved = await saveClient(client);
+    const updatedClients = await getClients();
+    setClients(updatedClients);
+    setFormData(prev => ({ ...prev, clientId: saved.id, customerNameManual: '' }));
+    setIsClientFormOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null); setIsLoading(true);
@@ -475,7 +485,10 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Detalhes do Cliente e Produto" className="h-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select label="Cliente (Existente)" id="clientId" name="clientId" value={formData.clientId || ''} onChange={handleChange} options={[{value: '', label: 'Selecionar cliente...'}, ...clients.map(c => ({ value: c.id, label: c.fullName }))]} placeholder="Ou preencha o nome abaixo" />
+                    <div className="flex items-end space-x-2">
+                        <Select label="Cliente (Existente)" id="clientId" name="clientId" value={formData.clientId || ''} onChange={handleChange} options={[{value: '', label: 'Selecionar cliente...'}, ...clients.map(c => ({ value: c.id, label: c.fullName }))]} placeholder="Ou preencha o nome abaixo" containerClassName="flex-grow" />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsClientFormOpen(true)} title="Novo Cliente"><PlusIcon className="h-5 w-5"/></Button>
+                    </div>
                     <Input label="Nome do Cliente (Manual/Novo)" id="customerNameManual" name="customerNameManual" value={formData.customerNameManual} onChange={handleChange} disabled={!!formData.clientId} placeholder={formData.clientId ? "Cliente selecionado acima" : "Nome completo do novo cliente"} />
                 </div>
                  {selectedClientDetails?.isDefaulter && ( <Alert type="warning" message={`Atenção: Cliente ${selectedClientDetails.fullName} está marcado como inadimplente.`} details={selectedClientDetails.defaulterNotes} className="mt-2"/> )}
@@ -559,18 +572,23 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         <Textarea id="productNFText" value={productNFText} readOnly rows={productNFText.split('\n').length} textareaClassName="text-sm" />
       </Modal>
     )}
+    {isClientFormOpen && (
+      <ClientForm isOpen={isClientFormOpen} onClose={() => setIsClientFormOpen(false)} onSave={handleSaveNewClient} />
+    )}
   </>
   );
 };
 
-interface RegisterArrivalModalProps { order: Order; isOpen: boolean; onClose: () => void; onSave: (updatedOrder: Order) => Promise<void>; }
-const RegisterArrivalModal: React.FC<RegisterArrivalModalProps> = ({ order, isOpen, onClose, onSave }) => {
+interface RegisterArrivalModalProps { order: Order; isOpen: boolean; onClose: () => void; onSave: (updatedOrder: Order) => Promise<void>; onArrivalRegistered?: (order: Order) => void; }
+const RegisterArrivalModal: React.FC<RegisterArrivalModalProps> = ({ order, isOpen, onClose, onSave, onArrivalRegistered }) => {
     const [arrivalData, setArrivalData] = useState({ arrivalDate: order.arrivalDate ? new Date(order.arrivalDate + "T00:00:00").toISOString().split('T')[0] : new Date().toISOString().split('T')[0], imei: order.imei || '', arrivalNotes: order.arrivalNotes || '', batteryHealth: order.batteryHealth || undefined, readyForDelivery: order.readyForDelivery || false, });
     const [arrivalPhotos, setArrivalPhotos] = useState<DocumentFile[]>(order.arrivalPhotos || []);
     const [isLoading, setIsLoading] = useState(false);
+    const [clientName, setClientName] = useState(order.customerName);
+    useEffect(() => { if(order.clientId){ getClientById(order.clientId).then(c=> setClientName(c?.fullName || order.customerName)); } }, [order]);
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value, type } = e.target; if (type === 'checkbox') { setArrivalData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked })); } else if (name === "batteryHealth"){ setArrivalData(prev => ({...prev, batteryHealth: parseInt(value, 10) || undefined}))} else { setArrivalData(prev => ({ ...prev, [name]: value })); } };
     const handleAddPhoto = () => alert("Funcionalidade de upload de fotos não implementada (mock).");
-    const handleSubmit = async () => { setIsLoading(true); const updatedOrder: Order = { ...order, ...arrivalData, arrivalPhotos, status: arrivalData.readyForDelivery ? OrderStatus.AGUARDANDO_RETIRADA : order.status, trackingHistory: arrivalData.readyForDelivery && order.status !== OrderStatus.AGUARDANDO_RETIRADA ? [...(order.trackingHistory || []), {status: OrderStatus.AGUARDANDO_RETIRADA, date: new Date().toISOString(), notes: "Produto recebido e pronto"}] : order.trackingHistory, }; await onSave(updatedOrder); setIsLoading(false); onClose(); };
+    const handleSubmit = async () => { setIsLoading(true); const updatedOrder: Order = { ...order, ...arrivalData, arrivalPhotos, status: arrivalData.readyForDelivery ? OrderStatus.AGUARDANDO_RETIRADA : order.status, trackingHistory: arrivalData.readyForDelivery && order.status !== OrderStatus.AGUARDANDO_RETIRADA ? [...(order.trackingHistory || []), {status: OrderStatus.AGUARDANDO_RETIRADA, date: new Date().toISOString(), notes: "Produto recebido e pronto"}] : order.trackingHistory, }; await onSave(updatedOrder); setIsLoading(false); onClose(); onArrivalRegistered && onArrivalRegistered(updatedOrder); };
     return ( <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Chegada: ${order.productName} ${order.model}`} size="lg"> <div className="space-y-4"> <Input id="arrivalDate" label="Data de Chegada" type="date" name="arrivalDate" value={arrivalData.arrivalDate} onChange={handleChange} required /> <Input id="imei" label="IMEI do Aparelho" name="imei" value={arrivalData.imei} onChange={handleChange} placeholder="Se aplicável" /> {(order.condition === ProductCondition.SEMINOVO || order.condition === ProductCondition.USADO_BOM || order.condition === ProductCondition.USADO_EXCELENTE) && ( <Input id="batteryHealth" label="Saúde da Bateria (%)" type="number" name="batteryHealth" min="0" max="100" value={String(arrivalData.batteryHealth || '')} onChange={handleChange} /> )} <Textarea id="arrivalNotes" label="Observações da Chegada" name="arrivalNotes" value={arrivalData.arrivalNotes} onChange={handleChange} rows={3} /> <div> <label className="block text-sm font-medium text-gray-700 mb-1">Fotos do Produto (até 5 - mock)</label> {arrivalPhotos.map(p => <span key={p.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{p.name}</span>)} <Button onClick={handleAddPhoto} size="sm" variant="ghost" className="mt-1">Adicionar Foto</Button> </div> <div className="flex items-center"> <input type="checkbox" id="readyForDelivery" name="readyForDelivery" checked={arrivalData.readyForDelivery} onChange={handleChange} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /> <label htmlFor="readyForDelivery" className="ml-2 block text-sm text-gray-900">Marcar como PRONTO PARA ENTREGA</label> </div> <div className="flex justify-end space-x-2 pt-3"> <Button variant="secondary" onClick={onClose}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Chegada</Button> </div> </div> </Modal> );
 };
 
@@ -591,6 +609,7 @@ export const OrdersPage = () => {
   const [supplierNameVisible, setSupplierNameVisible] = useState(false);
   const [purchasePriceVisible, setPurchasePriceVisible] = useState(false);
   const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
+  const [toastData, setToastData] = useState<{message:string; action: () => void} | null>(null);
 
 
   const fetchAllData = useCallback(async () => { 
@@ -821,9 +840,31 @@ export const OrdersPage = () => {
             </div>
         </Modal>
       )}
-      {orderToRegisterArrival && ( <RegisterArrivalModal order={orderToRegisterArrival} isOpen={!!orderToRegisterArrival} onClose={() => setOrderToRegisterArrival(null)} onSave={handleSaveOrder} /> )}
+      {orderToRegisterArrival && (
+        <RegisterArrivalModal
+          order={orderToRegisterArrival}
+          isOpen={!!orderToRegisterArrival}
+          onClose={() => setOrderToRegisterArrival(null)}
+          onSave={handleSaveOrder}
+          onArrivalRegistered={(o) => {
+            const client = clients.find(c => c.id === o.clientId);
+            const phone = client ? client.phone : '';
+            setToastData({
+              message: 'Chegada registrada com sucesso.',
+              action: () => {
+                const msg = `Olá, ${client ? client.fullName : o.customerName}! Boas notícias, seu ${o.productName} chegou e já está disponível. Podemos combinar a entrega?`;
+                const link = `https://wa.me/${cleanPhoneNumberForWhatsApp(phone)}?text=${encodeURIComponent(msg)}`;
+                window.open(link, '_blank');
+              }
+            });
+          }}
+        />
+      )}
       {orderToToggleImeiLock && ( <Modal isOpen={!!orderToToggleImeiLock} onClose={() => setOrderToToggleImeiLock(null)} title={`${orderToToggleImeiLock.imeiBlocked ? 'Confirmar Desbloqueio' : 'Confirmar Bloqueio'} de IMEI`} size="md" footer={ <> <Button variant="secondary" onClick={() => setOrderToToggleImeiLock(null)}>Cancelar</Button> <Button variant={orderToToggleImeiLock.imeiBlocked ? "primary" : "danger"} onClick={confirmToggleImeiLock}> {orderToToggleImeiLock.imeiBlocked ? 'Sim, Desbloquear' : 'Sim, Bloquear'} </Button> </> } > <p className="text-gray-700"> Tem certeza que deseja <strong>{orderToToggleImeiLock.imeiBlocked ? 'desbloquear' : 'bloquear'}</strong> o IMEI <span className="font-semibold"> {orderToToggleImeiLock.imei}</span> para o pedido de <span className="font-semibold">{orderToToggleImeiLock.clientId ? getClientName(orderToToggleImeiLock.clientId) : orderToToggleImeiLock.customerName}</span>? </p> <p className="text-sm text-gray-600 mt-2"> Esta ação é para controle interno e não realiza bloqueio/desbloqueio real na operadora. </p> </Modal> )}
       {orderToRegisterPayment && ( <RegisterPaymentModal order={orderToRegisterPayment} isOpen={!!orderToRegisterPayment} onClose={() => setOrderToRegisterPayment(null)} onPaymentSaved={handlePaymentSaved} /> )}
+      {toastData && (
+        <Toast message={toastData.message} actionLabel="Avisar Cliente" onAction={toastData.action} onClose={() => setToastData(null)} />
+      )}
     </div>
   );
 };
