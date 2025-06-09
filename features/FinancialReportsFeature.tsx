@@ -292,7 +292,9 @@ const MonthlySummaryTab: React.FC = () => {
                 const costsByType = Object.fromEntries(COST_TYPE_OPTIONS.map(type => [type, 0])) as Record<CostType, number>;
                 
                 allOrders.forEach(order => {
-                    const deliveryEntry = order.trackingHistory.find(h => h.status === OrderStatus.ENVIADO);
+                    const deliveryEntry = order.trackingHistory.find(
+                        h => h.status === OrderStatus.ENTREGUE || h.status === OrderStatus.ENVIADO
+                    );
                     if (deliveryEntry && deliveryEntry.date) { // Ensure date exists
                         const deliveryDate = new Date(deliveryEntry.date);
                         if (deliveryDate >= firstDayOfMonth && deliveryDate <= lastDayOfMonth) {

@@ -6,6 +6,7 @@ export enum OrderStatus {
   CHEGOU_NO_ESCRITORIO = 'Chegou no Escritório',
   AGUARDANDO_RETIRADA = 'Aguardando Retirada',
   ENVIADO = 'Enviado',
+  ENTREGUE = 'Entregue',
   CANCELADO = 'Cancelado',
 }
 

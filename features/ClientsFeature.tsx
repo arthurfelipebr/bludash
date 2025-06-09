@@ -8,6 +8,36 @@ import {
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner } from '../components/SharedComponents';
 import { v4 as uuidv4 } from 'uuid';
 
+const BRAZIL_STATES = [
+  { value: 'AC', label: 'Acre' },
+  { value: 'AL', label: 'Alagoas' },
+  { value: 'AP', label: 'Amapá' },
+  { value: 'AM', label: 'Amazonas' },
+  { value: 'BA', label: 'Bahia' },
+  { value: 'CE', label: 'Ceará' },
+  { value: 'DF', label: 'Distrito Federal' },
+  { value: 'ES', label: 'Espírito Santo' },
+  { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' },
+  { value: 'MT', label: 'Mato Grosso' },
+  { value: 'MS', label: 'Mato Grosso do Sul' },
+  { value: 'MG', label: 'Minas Gerais' },
+  { value: 'PA', label: 'Pará' },
+  { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' },
+  { value: 'PE', label: 'Pernambuco' },
+  { value: 'PI', label: 'Piauí' },
+  { value: 'RJ', label: 'Rio de Janeiro' },
+  { value: 'RN', label: 'Rio Grande do Norte' },
+  { value: 'RS', label: 'Rio Grande do Sul' },
+  { value: 'RO', label: 'Rondônia' },
+  { value: 'RR', label: 'Roraima' },
+  { value: 'SC', label: 'Santa Catarina' },
+  { value: 'SP', label: 'São Paulo' },
+  { value: 'SE', label: 'Sergipe' },
+  { value: 'TO', label: 'Tocantins' },
+];
+
 const initialFormData: Omit<Client, 'id' | 'registrationDate'> = {
   fullName: '',
   cpfOrCnpj: '',
@@ -34,6 +64,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initia
   const [formData, setFormData] = useState<Omit<Client, 'id' | 'registrationDate'>>(initialFormData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cities, setCities] = useState<string[]>([]);
   
   useEffect(() => {
     if (initialClient) {
@@ -51,6 +82,40 @@ const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initia
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  // Fetch cities whenever state (UF) changes
+  useEffect(() => {
+    if (!formData.state) {
+      setCities([]);
+      setFormData(prev => ({ ...prev, city: '' }));
+      return;
+    }
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formData.state}/municipios`)
+      .then(res => res.json())
+      .then((data: any[]) => {
+        setCities(data.map(c => c.nome));
+      })
+      .catch(() => setCities([]));
+  }, [formData.state]);
+
+  // Auto fill address by CEP using ViaCEP
+  useEffect(() => {
+    const cleaned = formData.cep.replace(/\D/g, '');
+    if (cleaned.length === 8) {
+      fetch(`https://viacep.com.br/ws/${cleaned}/json/`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.erro) return;
+          setFormData(prev => ({
+            ...prev,
+            address: data.logradouro || prev.address,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state,
+          }));
+        })
+        .catch(() => {});
+    }
+  }, [formData.cep]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +180,24 @@ const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initia
             <Input label="CEP" id="cep" name="cep" value={formData.cep} onChange={handleChange} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Cidade" id="city" name="city" value={formData.city} onChange={handleChange} />
-            <Input label="Estado (UF)" id="state" name="state" value={formData.state} onChange={handleChange} maxLength={2} placeholder="Ex: SP, RJ" />
+            <Select
+                label="Estado (UF)"
+                id="state"
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                options={BRAZIL_STATES}
+                placeholder="Selecione"
+            />
+            <Select
+                label="Cidade"
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                options={cities.map(c => ({ value: c, label: c }))}
+                placeholder="Selecione"
+            />
         </div>
         <Textarea label="Observações" id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} />
         
