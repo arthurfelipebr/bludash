@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Textarea, Button } from '../../../components/SharedComponents';
+import { Paperclip, FileText, ClipboardList, Plus } from 'lucide-react';
 import { DocumentFile, InternalNote } from '../../../types';
 import { formatDateBR } from '../../../services/AppService';
 import { OrderFormState } from '../../OrdersFeature';
@@ -60,16 +61,16 @@ export const NotesDocsStep: React.FC<NotesDocsProps> = ({
             ))}
           </ul>
           <Button type="button" variant="ghost" size="sm" onClick={handleAddDocument} className="mt-2">
-            <i className="heroicons-outline-paper-clip mr-1 h-4 w-4"></i>Adicionar Documento (mock)
+            <Paperclip className="mr-1 h-4 w-4" />Adicionar Documento (mock)
           </Button>
         </div>
         <div className="mt-4">
-          <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalDescription} className="mt-2" leftIcon={<i className="heroicons-outline-document-text h-4 w-4"></i>}>
+          <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalDescription} className="mt-2" leftIcon={<FileText className="h-4 w-4" />}>
             Gerar Descrição p/ Nota Fiscal
           </Button>
         </div>
         <div className="mt-2">
-          <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalProductInfo} className="mt-2" leftIcon={<i className="heroicons-outline-clipboard-document h-4 w-4"></i>}>
+          <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalProductInfo} className="mt-2" leftIcon={<ClipboardList className="h-4 w-4" />}>
             Gerar Dados p/ NF Produto
           </Button>
         </div>
@@ -126,7 +127,7 @@ export const NotesDocsStep: React.FC<NotesDocsProps> = ({
               title="Adicionar Nota"
               className="self-end h-10"
             >
-              <i className="heroicons-outline-plus h-4 w-4"></i>
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         </div>

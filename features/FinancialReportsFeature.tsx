@@ -4,6 +4,7 @@ import { Order, OrderCostItem, CostType, OrderStatus, COST_TYPE_OPTIONS, WeeklyS
 import { getOrders, getOrderCostsByOrderId, getClientById, formatCurrencyBRL, formatDateBR, deleteOrderCostItem, getAllOrderCosts, getWeeklySummaryStats } from '../services/AppService';
 import { PageTitle, Card, ResponsiveTable, Spinner, Button, Select as SharedSelect, Alert, Tabs, Tab } from '../components/SharedComponents';
 import { useNavigate } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 
 const ChevronLeftIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -149,13 +150,13 @@ const ReportByOrderTab: React.FC = () => {
         { header: 'Valor (R$)', accessor: (item: OrderCostItem): ReactNode => formatCurrencyBRL(item.amount), cellClassName: "text-right font-medium" },
         { header: 'Ações', accessor: (item: OrderCostItem): ReactNode => (
              item.type !== CostType.COMPRA_FORNECEDOR ? 
-            <Button 
-                variant="danger" 
-                size="sm" 
+            <Button
+                variant="danger"
+                size="sm"
                 onClick={async (e) => { e.stopPropagation(); await handleDeleteCost(item.id); }}
                 title="Excluir Custo"
             >
-                <i className="heroicons-outline-trash h-4 w-4"></i>
+                <Trash2 className="h-4 w-4" />
             </Button> : <span className="text-xs text-gray-400">Custo Fixo</span>
           )},
     ];
