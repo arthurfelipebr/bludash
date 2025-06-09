@@ -380,6 +380,9 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     if (name === "bluFacilitaUsesSpecialRate") {
         dispatch({ type: 'UPDATE_FIELD', field: 'bluFacilitaUsesSpecialRate', value: checked });
         if (!checked) dispatch({ type: 'UPDATE_FIELD', field: 'bluFacilitaSpecialAnnualRate', value: undefined });
+    } else if (name === 'productName') {
+        dispatch({ type: 'UPDATE_FIELD', field: 'productName', value });
+        dispatch({ type: 'UPDATE_FIELD', field: 'model', value: '' });
     } else if (["purchasePrice", "sellingPrice", "shippingCostSupplierToBlu", "shippingCostBluToClient", "bluFacilitaSpecialAnnualRate", "batteryHealth"].includes(name)) {
         const numericValue = parseFloat(value);
         dispatch({ type: 'UPDATE_FIELD', field: name as keyof BaseFormData, value: isNaN(numericValue) ? undefined : numericValue });
