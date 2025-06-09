@@ -37,6 +37,7 @@ function initializeDatabase() {
     // Ensure legacy databases have the new columns
     db.run('ALTER TABLE clients ADD COLUMN address TEXT', [], () => {});
     db.run('ALTER TABLE clients ADD COLUMN cep TEXT', [], () => {});
+    db.run('ALTER TABLE orders ADD COLUMN watchSize TEXT', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -73,6 +74,7 @@ function initializeDatabase() {
       "productName" TEXT NOT NULL,
       model TEXT NOT NULL,
       capacity TEXT,
+      watchSize TEXT,
       color TEXT,
       condition TEXT NOT NULL,
       "supplierId" TEXT,

@@ -266,7 +266,7 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
     if (!client) return null;
 
     const orderColumns = [
-        { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model} (${item.capacity})` },
+        { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model} ${item.watchSize ? '('+item.watchSize+') ' : ''}(${item.capacity})` },
         { header: 'Data Compra', accessor: (item: Order): ReactNode => formatDateBR(item.orderDate) },
         { header: 'Valor', accessor: (item: Order): ReactNode => formatCurrencyBRL(item.sellingPrice || item.purchasePrice) },
         { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order },

@@ -99,8 +99,9 @@ export interface Order {
   customerName: string; 
   clientId?: string; 
   productName: string; 
-  model: string; 
-  capacity: string; 
+  model: string;
+  capacity: string;
+  watchSize?: string;
   color: string;
   condition: ProductCondition;
   supplierId?: string; 

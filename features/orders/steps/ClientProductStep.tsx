@@ -13,6 +13,7 @@ const PRODUCT_MODELS: { [key: string]: string[] } = {
   'Mac Mini': ['Mac Mini (M2)', 'Mac Mini (M2 Pro)', 'Mac Mini (M1)'],
 };
 const CAPACITY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
+const WATCH_SIZE_OPTIONS = ['44mm', '40mm', '46mm', '42mm'];
 
 interface ComboboxProps {
   value: string;
@@ -71,6 +72,18 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch }) => {
     }
   }, [state.clientId]);
 
+  useEffect(() => {
+    if (state.productName !== 'Apple Watch') {
+      dispatch({ type: 'UPDATE_FIELD', field: 'watchSize', value: '' });
+    }
+  }, [state.productName]);
+
+  useEffect(() => {
+    if (state.productName === 'Apple Watch' && state.model.includes('Ultra')) {
+      dispatch({ type: 'UPDATE_FIELD', field: 'watchSize', value: '49mm' });
+    }
+  }, [state.model, state.productName]);
+
   const handleSelect = (client: Partial<Client>) => {
     dispatch({ type: 'SET_CLIENT', client });
   };
@@ -112,6 +125,17 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch }) => {
           onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'capacity', value: e.target.value })}
           options={CAPACITY_OPTIONS.map(c => ({ value: c, label: c }))}
         />
+        {state.productName === 'Apple Watch' && (
+          <Select
+            label="Tamanho (mm)"
+            id="watchSize"
+            name="watchSize"
+            value={state.watchSize}
+            onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'watchSize', value: e.target.value })}
+            options={WATCH_SIZE_OPTIONS.map(s => ({ value: s, label: s }))}
+            disabled={state.model.includes('Ultra')}
+          />
+        )}
         <Input
           label="Cor"
           id="color"

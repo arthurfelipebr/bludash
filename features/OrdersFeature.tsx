@@ -178,7 +178,7 @@ const CAPACITY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'customerName' | 'supplierName' | 'internalNotes' | 'bluFacilitaInstallments'> & { customerNameManual: string } = {
   clientId: undefined,
   customerNameManual: '', 
-  productName: '', model: '', capacity: '', color: '',
+  productName: '', model: '', capacity: '', watchSize: '', color: '',
   condition: ProductCondition.LACRADO,
   supplierId: undefined,
   purchasePrice: 0, sellingPrice: undefined,
@@ -292,7 +292,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
             ...effectiveInitialData,
             clientId: initialOrder.clientId,
             customerNameManual: client ? '' : initialOrder.customerName,
-            productName: initialOrder.productName, model: initialOrder.model, capacity: initialOrder.capacity, color: initialOrder.color,
+            productName: initialOrder.productName, model: initialOrder.model, capacity: initialOrder.capacity, watchSize: initialOrder.watchSize || '', color: initialOrder.color,
             condition: initialOrder.condition,
             supplierId: initialOrder.supplierId || undefined,
             purchasePrice: initialOrder.purchasePrice, sellingPrice: initialOrder.sellingPrice,
@@ -383,6 +383,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     } else if (name === 'productName') {
         dispatch({ type: 'UPDATE_FIELD', field: 'productName', value });
         dispatch({ type: 'UPDATE_FIELD', field: 'model', value: '' });
+        dispatch({ type: 'UPDATE_FIELD', field: 'watchSize', value: '' });
     } else if (["purchasePrice", "sellingPrice", "shippingCostSupplierToBlu", "shippingCostBluToClient", "bluFacilitaSpecialAnnualRate", "batteryHealth"].includes(name)) {
         const numericValue = parseFloat(value);
         dispatch({ type: 'UPDATE_FIELD', field: name as keyof BaseFormData, value: isNaN(numericValue) ? undefined : numericValue });
@@ -506,12 +507,13 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
     const state = selectedClientDetails?.state || 'ESTADO';
     const modelo = formData.model || 'MODELO';
     const capacidade = formData.capacity || 'ARMAZENAMENTO';
+    const tamanho = formData.watchSize || 'TAMANHO';
     const corProduto = formData.color || 'COR';
     const imei = formData.imei || 'IMEI';
     const valorPago = formData.purchasePrice ? formatCurrencyBRL(formData.purchasePrice) : 'CUSTO';
     const formaPgto = formData.paymentMethod || 'FORMA DE PAGAMENTO';
 
-    const text = `Nome completo: ${clientName}\nCPF: ${cpf}\nCEP: [CEP]\nEndereço: [Endereço]\nNúmero: [Número]\nComplemento: [Complemento]\nBairro: [Bairro]\nCidade: ${city}\nEstado: ${state}\nModelo: ${modelo}\nArmazenamento: ${capacidade}\nCor: ${corProduto}\nIMEI (Se aplicável): ${imei}\nSN: [SN]\nCusto: ${valorPago}\nForma de Pagamento: ${formaPgto}`;
+    const text = `Nome completo: ${clientName}\nCPF: ${cpf}\nCEP: [CEP]\nEndereço: [Endereço]\nNúmero: [Número]\nComplemento: [Complemento]\nBairro: [Bairro]\nCidade: ${city}\nEstado: ${state}\nModelo: ${modelo}\nTamanho: ${tamanho}\nArmazenamento: ${capacidade}\nCor: ${corProduto}\nIMEI (Se aplicável): ${imei}\nSN: [SN]\nCusto: ${valorPago}\nForma de Pagamento: ${formaPgto}`;
     setProductNFText(text);
     setIsProductNFModalOpen(true);
   };
@@ -764,7 +766,7 @@ export const OrdersPage = () => {
       const dataToExport = await Promise.all(filteredOrders.map(async o => ({ 
           ID: o.id, 
           Cliente: o.clientId ? getClientName(o.clientId) : o.customerName, 
-          Produto: `${o.productName} ${o.model} ${o.capacity} ${o.color}`, 
+          Produto: `${o.productName} ${o.model} ${o.watchSize ? '(' + o.watchSize + ') ' : ''}${o.capacity} ${o.color}`,
           Condicao: o.condition, 
           Fornecedor: o.supplierName || (o.supplierId ? await getSupplierName(o.supplierId) : 'N/A'), 
           ValorCompra_BRL: o.purchasePrice, 
@@ -796,7 +798,7 @@ export const OrdersPage = () => {
         <Modal isOpen={!!orderToView} onClose={() => setOrderToView(null)} title={`Detalhes da Encomenda: ${orderToView.productName} ${orderToView.model}`} size="3xl">
             <div className="space-y-4 text-sm">
                 <p className="text-gray-700"><strong>Cliente:</strong> {orderToView.clientId ? getClientName(orderToView.clientId) : orderToView.customerName}</p>
-                <p className="text-gray-700"><strong>Produto:</strong> {orderToView.productName} {orderToView.model} ({orderToView.capacity}) - {orderToView.color} [{orderToView.condition}]</p>
+                <p className="text-gray-700"><strong>Produto:</strong> {orderToView.productName} {orderToView.model} {orderToView.watchSize && `(${orderToView.watchSize})`} ({orderToView.capacity}) - {orderToView.color} [{orderToView.condition}]</p>
                 <div className="flex items-center text-gray-700"> <strong>Fornecedor:</strong>&nbsp; {supplierNameVisible ? (<span>{orderToView.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)} <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1"> {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
                 <div className="flex items-center text-gray-700"> <strong>Custo (Fornecedor):</strong>&nbsp; {purchasePriceVisible ? (<span>{formatCurrencyBRL(orderToView.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(orderToView.purchasePrice)}</span>)} <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1"> {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
                 {orderToView.sellingPrice !== undefined && <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(orderToView.sellingPrice)}</p>}
