@@ -498,6 +498,61 @@ app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Order Costs
+app.get('/api/order-costs', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM orderCosts WHERE "userId" = $1 ORDER BY date DESC', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching order costs:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch order costs.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.get('/api/orders/:orderId/costs', authenticateToken, (req, res) => {
+    const orderId = req.params.orderId;
+    db.all('SELECT * FROM orderCosts WHERE "orderId" = $1 AND "userId" = $2 ORDER BY date DESC', [orderId, req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching costs for order:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch costs for order.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.post('/api/orders/:orderId/costs', authenticateToken, (req, res) => {
+    const orderId = req.params.orderId;
+    const { type, description, amount, date } = req.body;
+    const costId = uuidv4();
+    const sql = `INSERT INTO orderCosts (id, "userId", "orderId", type, description, amount, date)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+    const params = [costId, req.user.id, orderId, type, description, amount, date || new Date().toISOString()];
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error saving order cost:', err.message);
+            return res.status(500).json({ message: 'Failed to save order cost.' });
+        }
+        db.get('SELECT * FROM orderCosts WHERE id = $1', [costId], (err2, row) => {
+            if (err2 || !row) {
+                console.error('Error fetching order cost after insert:', err2 ? err2.message : 'Row not found');
+                return res.status(500).json({ message: 'Cost saved, but failed to retrieve record.' });
+            }
+            res.status(201).json(row);
+        });
+    });
+});
+
+app.delete('/api/costs/:id', authenticateToken, (req, res) => {
+    const costId = req.params.id;
+    db.run('DELETE FROM orderCosts WHERE id = $1 AND "userId" = $2', [costId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting order cost:', err.message);
+            return res.status(500).json({ message: 'Failed to delete order cost.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
 // Client Payments
 app.get('/api/client-payments', authenticateToken, (req, res) => {
     db.all('SELECT * FROM clientPayments WHERE "userId" = $1 ORDER BY "paymentDate" DESC', [req.user.id], (err, rows) => {
