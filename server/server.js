@@ -542,6 +542,32 @@ app.post('/api/orders/:orderId/payments', authenticateToken, (req, res) => {
     });
 });
 
+// Dashboard Statistics
+app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const sql = `SELECT
+        (SELECT COUNT(*) FROM orders WHERE "userId" = $1 AND status NOT IN ('Entregue','Cancelado')) AS totalActiveOrders,
+        (SELECT COUNT(*) FROM orders WHERE "userId" = $1 AND "paymentMethod" = 'BluFacilita' AND ("bluFacilitaContractStatus" IS NULL OR "bluFacilitaContractStatus" != 'Pago Integralmente')) AS totalOpenBluFacilita,
+        (SELECT COUNT(*) FROM orders WHERE "userId" = $1 AND "paymentMethod" = 'BluFacilita' AND "bluFacilitaContractStatus" = 'Atrasado') AS overdueBluFacilitaContracts,
+        (SELECT COUNT(*) FROM orders WHERE "userId" = $1 AND status = 'Entregue' AND strftime('%Y-%m', "arrivalDate") = strftime('%Y-%m', 'now')) AS productsDeliveredThisMonth,
+        (SELECT COUNT(*) FROM clients WHERE "userId" = $1) AS totalClients,
+        (SELECT COUNT(*) FROM suppliers WHERE "userId" = $1) AS totalSuppliers`;
+    db.get(sql, [userId], (err, row) => {
+        if (err) {
+            console.error('Error fetching dashboard stats:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch dashboard stats.' });
+        }
+        res.json(row || {
+            totalActiveOrders: 0,
+            totalOpenBluFacilita: 0,
+            overdueBluFacilitaContracts: 0,
+            productsDeliveredThisMonth: 0,
+            totalClients: 0,
+            totalSuppliers: 0,
+        });
+    });
+});
+
 
 // Gemini AI Proxy (Placeholder)
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {

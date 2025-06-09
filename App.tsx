@@ -186,13 +186,69 @@ const DashboardHomePage: React.FC<{}> = () => {
     useEffect(() => { if(currentUser) refreshData(); }, [currentUser, refreshData]);
     
     const handleAlertAction = (alert: DashboardAlert) => { if (alert.action?.onClick) { alert.action.onClick(); } else if (alert.action?.path) { if (alert.action.orderId) { navigate(`${alert.action.path}?viewOrderId=${alert.action.orderId}`); } else { navigate(alert.action.path); } } };
-    interface StatCardProps { title: string; value: string | number; colorClass: string; description: string; }
-    const StatCard: React.FC<StatCardProps> = ({title, value, colorClass, description}) => ( <Card className="shadow-lg text-center"> <h3 className="text-lg font-semibold text-gray-700">{title.toLocaleUpperCase()}</h3> <p className={`text-4xl font-bold my-2 ${colorClass}`}>{value}</p>  <p className="text-sm text-gray-500 mt-1">{description}</p> </Card> );
+    interface StatCardProps { title: string; value: string | number; colorClass: string; description: string; iconClass?: string; }
+    const StatCard: React.FC<StatCardProps> = ({title, value, colorClass, description, iconClass}) => (
+        <Card className="shadow-lg text-center">
+            <div className="flex items-center justify-center mb-1">
+                {iconClass && <i className={`h-6 w-6 mr-2 ${iconClass}`}></i>}
+                <h3 className="text-lg font-semibold text-gray-700">{title.toLocaleUpperCase()}</h3>
+            </div>
+            <p className={`text-4xl font-bold my-2 ${colorClass}`}>{value}</p>
+            <p className="text-sm text-gray-500 mt-1">{description}</p>
+        </Card>
+    );
     
     return ( <div> <PageTitle title="Painel Principal" subtitle={`Bem-vindo, ${currentUser?.email || 'Usuário'}!`} actions={<Button onClick={() => setIsAddCostModalOpen(true)} leftIcon={<PlusCircleIcon className="h-5 w-5"/>}>Registrar Custo</Button>} /> 
         <DolarHojeWidget />
         <Tabs className="mb-6"> <Tab label="Visão Geral" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} /> <Tab label="Para Hoje" isActive={activeTab === 'today'} onClick={() => setActiveTab('today')} /> </Tabs>
-        {activeTab === 'overview' && ( <> {isLoadingStats ? <div className="text-center p-10"><Spinner size="lg"/> <p>Carregando dados...</p></div> : ( <> {alerts.length > 0 && ( <Card title="Alertas Importantes" className="mb-6 bg-yellow-50 border-l-4 border-yellow-400"> <div className="space-y-3"> {alerts.map(alert => ( <Alert key={alert.id} type={alert.type} message={alert.title} details={alert.message} className="shadow-sm"> {alert.action && ( <Button variant="link" size="sm" onClick={() => handleAlertAction(alert)} className="mt-1 text-sm" > {alert.action.label} </Button> )} </Alert> ))} </div> </Card> )} <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6"> <StatCard title="Clientes" value={stats.totalClients} colorClass="text-indigo-600" description="Total de clientes na base." /> <StatCard title="Fornecedores" value={stats.totalSuppliers} colorClass="text-purple-600" description="Total de fornecedores cadastrados." /> <StatCard title="Encomendas Ativas" value={stats.totalActiveOrders} colorClass="text-blue-600" description="Pedidos em andamento." /> </div> <div className="grid grid-cols-1 md:grid-cols-3 gap-6"> <StatCard title="Entregas no Mês" value={stats.productsDeliveredThisMonth} colorClass="text-green-600" description="Produtos entregues este mês." /> <StatCard title="BluFacilita Aberto" value={formatCurrencyBRL(stats.totalOpenBluFacilita)} colorClass="text-amber-600" description="Valor de contratos não quitados." /> <StatCard title="BluFacilita Atrasados" value={stats.overdueBluFacilitaContracts} colorClass="text-red-600" description="Contratos com status 'Atrasado'." /> </div> </> )} <Card className="mt-8 shadow-lg"> <h3 className="text-lg font-semibold text-gray-700 mb-4">Avisos e Atalhos</h3> <p className="text-gray-600 mt-2">Use o menu lateral para navegar pelas seções do painel.</p> <div className="mt-4 space-x-0 space-y-2 sm:space-x-2 sm:space-y-0 flex flex-col sm:flex-row"> <Link to="/clients" className="inline-block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-center"> Gerenciar Clientes </Link> <Link to="/orders" className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center"> Ver Encomendas </Link> <Link to="/suppliers" className="inline-block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-center"> Fornecedores </Link> <Link to="/financial-reports" className="inline-block px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors text-center"> Relatórios </Link> </div> </Card> </> )}
+        {activeTab === 'overview' && (
+            <>
+                {isLoadingStats ? (
+                    <div className="text-center p-10">
+                        <Spinner size="lg" />
+                        <p>Carregando dados...</p>
+                    </div>
+                ) : (
+                    <>
+                        {alerts.length > 0 && (
+                            <Card title="Alertas Importantes" className="mb-6 bg-yellow-50 border-l-4 border-yellow-400">
+                                <div className="space-y-3">
+                                    {alerts.map(alert => (
+                                        <Alert key={alert.id} type={alert.type} message={alert.title} details={alert.message} className="shadow-sm">
+                                            {alert.action && (
+                                                <Button variant="link" size="sm" onClick={() => handleAlertAction(alert)} className="mt-1 text-sm">
+                                                    {alert.action.label}
+                                                </Button>
+                                            )}
+                                        </Alert>
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                            <StatCard title="Clientes" iconClass="heroicons-outline-user-group" value={stats.totalClients} colorClass="text-indigo-600" description="Total de clientes na base." />
+                            <StatCard title="Fornecedores" iconClass="heroicons-outline-chat-bubble-left-right" value={stats.totalSuppliers} colorClass="text-purple-600" description="Total de fornecedores cadastrados." />
+                            <StatCard title="Encomendas Ativas" iconClass="heroicons-outline-archive-box-arrow-down" value={stats.totalActiveOrders} colorClass="text-blue-600" description="Pedidos em andamento." />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <StatCard title="Entregas no Mês" iconClass="heroicons-outline-archive-box-arrow-down" value={stats.productsDeliveredThisMonth} colorClass="text-green-600" description="Produtos entregues este mês." />
+                            <StatCard title="BluFacilita Aberto" iconClass="heroicons-outline-currency-dollar" value={formatCurrencyBRL(stats.totalOpenBluFacilita)} colorClass="text-amber-600" description="Valor de contratos não quitados." />
+                            <StatCard title="BluFacilita Atrasados" iconClass="heroicons-outline-exclamation-triangle" value={stats.overdueBluFacilitaContracts} colorClass="text-red-600" description="Contratos com status 'Atrasado'." />
+                        </div>
+                        <Card className="mt-8 shadow-lg">
+                            <h3 className="text-lg font-semibold text-gray-700 mb-4">Avisos e Atalhos</h3>
+                            <p className="text-gray-600 mt-2">Use o menu lateral para navegar pelas seções do painel.</p>
+                            <div className="mt-4 space-x-0 space-y-2 sm:space-x-2 sm:space-y-0 flex flex-col sm:flex-row">
+                                <Link to="/clients" className="inline-block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-center">Gerenciar Clientes</Link>
+                                <Link to="/orders" className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center">Ver Encomendas</Link>
+                                <Link to="/suppliers" className="inline-block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-center">Fornecedores</Link>
+                                <Link to="/financial-reports" className="inline-block px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors text-center">Relatórios</Link>
+                            </div>
+                        </Card>
+                    </>
+                )}
+            </>
+        )}
         {activeTab === 'today' && <TodayTasksDisplay />}
         <AddOrderCostModal isOpen={isAddCostModalOpen} onClose={() => setIsAddCostModalOpen(false)} onSave={(item) => { console.log("Custo salvo (Home):", item); if(currentUser) refreshData(); }} />
     </div> );
