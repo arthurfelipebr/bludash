@@ -21,17 +21,20 @@ import {
 } from './services/AppService';
 import { NavItem, TodayTask, Order, OrderCostItem, CostType, OrderStatus, DashboardAlert, ClientPayment, PaymentMethod } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  Home,
+  Users,
+  ShoppingBag,
+  Calendar,
+  BadgeDollarSign,
+  Handshake,
+  PieChart,
+  Calculator,
+  Menu as MenuIcon,
+  LogOut,
+} from 'lucide-react';
 
 
-const HomeIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" /> </svg> );
-const ShoppingBagIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /> </svg> );
-const CalendarDaysIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-3.75h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" /> </svg> );
-const UserGroupIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-9-5.192A5.971 5.971 0 006 18.719M7.5 7.5a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0z" /> </svg> );
-const ArrowLeftOnRectangleIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /> </svg> );
-const Bars3Icon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /> </svg> );
-const CurrencyDollarIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props} > <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 11.219 12.768 11 12 11c-.768 0-1.536.219-2.121.707L12 17.25M8.25 6.75h7.5M12 17.25a1.5 1.5 0 01-1.5 1.5h-1.5a1.5 1.5 0 01-1.5-1.5V6.75m6 0a1.5 1.5 0 00-1.5-1.5H9.75a1.5 1.5 0 00-1.5 1.5M15 9.75a1.5 1.5 0 011.5 1.5v4.5a1.5 1.5 0 01-1.5 1.5h-3a1.5 1.5 0 01-1.5-1.5V6.75M15 9.75a.75.75 0 00-.75-.75H9.75A.75.75 0 009 9.75m6 0v.001M12 3.75a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V4.5a.75.75 0 00-.75-.75H12z" /> </svg> );
-const ChatBubbleLeftRightIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3.697-3.697C12.71 15.43 9.987 15 7.25 15H5.25c-1.136 0-2.097-.847-2.193-1.98A40.273 40.273 0 012.25 12c0-1.136.847-2.097 1.98-2.193.34-.027-.68-.052 1.02-.072V6.75A2.25 2.25 0 017.5 4.5h3.75c.621 0 1.156.317 1.497.814-.42.205-.828.44-1.224.715a.75.75 0 00-.497 1.153 3.981 3.981 0 005.25 2.44M19.5 18.5H15M18 4.5a.75.75 0 00.75-.75V3a.75.75 0 00-.75-.75S16.25 2.25 15 2.25c-1.25 0-2.25.75-2.25 1.5V3.75c0 .414.75.75 1.5.75h1.5a.75.75 0 00.75-.75z" /> </svg> );
-const CalculatorIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V18zm2.498-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zM8.25 6.75h7.5v7.5h-7.5V6.75zM12 2.25c-2.485 0-4.5 2.015-4.5 4.5v10.5c0 2.485 2.015 4.5 4.5 4.5h.008c2.485 0 4.5-2.015 4.5-4.5V6.75c0-2.485-2.015-4.5-4.5-4.5H12z" /> </svg> );
 export const Cog6ToothIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.096.573.394 1.086.806 1.466l1.135.978c.47.404.821.976.975 1.621l.246 1.024c.082.341-.056.702-.358.908l-1.135.777c-.412.282-.71.795-.806 1.368l-.213 1.281c-.09.543-.56.94-1.11.94h-2.593c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.096-.573-.394-1.086-.806-1.466l-1.135-.978c-.47-.404-.821.976-.975-1.621l-.246-1.024a.75.75 0 01.358-.908l1.135-.777c.412.282.71-.795.806-1.368l.213-1.281z" /> <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> </svg> );
 const ChartPieIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" /> <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" /> </svg> );
 const PlusCircleIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /> </svg> );
@@ -40,7 +43,16 @@ export const EyeSlashIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xml
 
 
 interface NavItemWithExact extends NavItem { exact?: boolean; }
-const NAV_ITEMS: NavItemWithExact[] = [ { name: 'Painel Principal', path: '/', icon: HomeIcon, exact: true }, { name: 'Clientes', path: '/clients', icon: UserGroupIcon }, { name: 'Encomendas', path: '/orders', icon: ShoppingBagIcon }, { name: 'Calendário', path: '/calendar', icon: CalendarDaysIcon }, { name: 'BluFacilita', path: '/blufacilita', icon: CurrencyDollarIcon }, { name: 'Fornecedores', path: '/suppliers', icon: ChatBubbleLeftRightIcon }, { name: 'Relatórios', path: '/financial-reports', icon: ChartPieIcon }, { name: 'Calculadora Cartão', path: '/card-calculator', icon: CalculatorIcon }, ];
+const NAV_ITEMS: NavItemWithExact[] = [
+  { name: 'Painel Principal', path: '/', icon: Home, exact: true },
+  { name: 'Clientes', path: '/clients', icon: Users },
+  { name: 'Encomendas', path: '/orders', icon: ShoppingBag },
+  { name: 'Calendário', path: '/calendar', icon: Calendar },
+  { name: 'BluFacilita', path: '/blufacilita', icon: BadgeDollarSign },
+  { name: 'Fornecedores', path: '/suppliers', icon: Handshake },
+  { name: 'Relatórios', path: '/financial-reports', icon: PieChart },
+  { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
+];
 
 // --- Modals (AddOrderCostModal, RegisterPaymentModal) ---
 
@@ -154,7 +166,52 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
   const location = useLocation();
   const { logout, currentUser } = useAuth();
   const NavLink: React.FC<{item: NavItemWithExact; onClick?: () => void}> = ({ item, onClick }) => { const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path) && (location.pathname === item.path || location.pathname.startsWith(item.path + '/')); const IconComponent = item.icon; return ( <Link to={item.path} onClick={onClick} className={`flex items-center px-3 py-3 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-blu-accent text-blu-primary' : 'text-white hover:bg-white/10'}`} > <IconComponent className="h-6 w-6 mr-3 flex-shrink-0" /> {item.name} </Link> ); };
-  return ( <> {isOpen && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsOpen(false)}></div>} <div className={`fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-blu-primary text-white shadow-lg border-r border-blu-accent transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}> <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4"> <img src="https://picsum.photos/seed/bluimportslogo/150/50" alt="Blu Imports Logo" className="h-10 object-contain"/> {currentUser && <span className="text-xs text-white/80 truncate" title={currentUser.email || 'Usuário'}>{currentUser.email || 'Usuário'}</span>}</div> <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto"> {NAV_ITEMS.map((item) => <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />)} </nav> <div className="px-4 py-4 border-t border-blu-accent/50"> <button onClick={async () => { await logout(); setIsOpen(false); }} className="flex items-center w-full px-3 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors" > <ArrowLeftOnRectangleIcon className="h-6 w-6 mr-3 flex-shrink-0" /> Sair </button> </div> </div> </> );
+  return (
+    <>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        ></div>
+      )}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-blu-primary text-white shadow-lg border-r border-blu-accent transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4">
+          <img
+            src="https://picsum.photos/seed/bluimportslogo/150/50"
+            alt="Blu Imports Logo"
+            className="h-10 object-contain"
+          />
+          {currentUser && (
+            <span
+              className="text-xs text-white/80 truncate"
+              title={currentUser.email || 'Usuário'}
+            >
+              {currentUser.email || 'Usuário'}
+            </span>
+          )}
+        </div>
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
+          ))}
+        </nav>
+        <div className="px-4 py-4 border-t border-blu-accent/50">
+          <button
+            onClick={async () => {
+              await logout();
+              setIsOpen(false);
+            }}
+            className="flex items-center w-full px-3 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors"
+          >
+            <LogOut className="h-6 w-6 mr-3 flex-shrink-0" />
+            Sair
+          </button>
+        </div>
+      </div>
+    </>
+  );
 };
 
 const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => void;}> = ({onMenuButtonClick, onAddCostClick}) => {
@@ -165,7 +222,7 @@ const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => voi
       <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         <button onClick={onMenuButtonClick} className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden" >
           <span className="sr-only">Abrir menu</span>
-          <Bars3Icon className="h-6 w-6" />
+          <MenuIcon className="h-6 w-6" />
         </button>
         <div className="text-lg font-semibold text-blue-700">{APP_NAME}</div>
         <div className="relative">
