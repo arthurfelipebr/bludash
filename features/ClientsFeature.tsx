@@ -5,7 +5,7 @@ import {
   getOrders, 
   CLIENT_TYPE_OPTIONS, formatCPFOrCNPJ, formatDateBR, formatCurrencyBRL, exportToCSV
 } from '../services/AppService';
-import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner } from '../components/SharedComponents';
+import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, ErrorBoundary } from '../components/SharedComponents';
 import { v4 as uuidv4 } from 'uuid';
 
 const BRAZIL_STATES = [
@@ -302,7 +302,7 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
 };
 
 
-export const ClientsPage: React.FC<{}> = () => {
+const ClientsPageInner: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -461,3 +461,9 @@ export const ClientsPage: React.FC<{}> = () => {
     </div>
   );
 };
+
+export const ClientsPage: React.FC = () => (
+  <ErrorBoundary>
+    <ClientsPageInner />
+  </ErrorBoundary>
+);
