@@ -165,7 +165,14 @@ const OrderStatusTimeline: React.FC<{ order: Order }> = ({ order }) => {
   );
 }; 
 
-const PRODUCT_OPTIONS = ['iPhone', 'MacBook', 'iMac'];
+const PRODUCT_OPTIONS = ['iPhone', 'MacBook', 'iPad', 'Apple Watch', 'Mac Mini'];
+const PRODUCT_MODELS: { [key: string]: string[] } = {
+  'iPhone': ['15 Pro Max', '15 Pro', '15 Plus', '15', '14 Pro Max', '14 Pro', '14 Plus', '14', 'SE (3ª ger)', '13 Pro Max', '13 Pro', '13', '13 Mini', '12 Pro Max', '12 Pro', '12', '12 Mini', 'SE (2ª ger)'],
+  'MacBook': ['Air 15" (M3)', 'Air 13" (M3)', 'Pro 14" (M3)', 'Pro 14" (M3 Pro/Max)', 'Pro 16" (M3 Pro/Max)', 'Air 15" (M2)', 'Pro 13" (M2)', 'Air (M2)', 'Pro 14" (M2 Pro/Max)', 'Pro 16" (M2 Pro/Max)', 'Air (M1)', 'Pro 13" (M1)'],
+  'iPad': ['Pro 13" (M4)', 'Pro 11" (M4)', 'Air 13" (M2)', 'Air 11" (M2)', 'iPad (10ª ger)', 'Pro 12.9" (M2)', 'Pro 11" (M2)', 'Air (M1 - 5ª ger)', 'Mini (6ª ger)', 'iPad (9ª ger)', 'Pro 12.9" (M1)', 'Pro 11" (M1)'],
+  'Apple Watch': ['Series 9', 'Ultra 2', 'SE (2ª ger)', 'Series 8', 'Ultra', 'Series 7', 'SE (1ª ger)', 'Series 6'],
+  'Mac Mini': ['Mac Mini (M2)', 'Mac Mini (M2 Pro)', 'Mac Mini (M1)'],
+};
 const CAPACITY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 
 const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'customerName' | 'supplierName' | 'internalNotes' | 'bluFacilitaInstallments'> & { customerNameManual: string } = {
