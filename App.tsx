@@ -157,7 +157,33 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
   return ( <> {isOpen && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsOpen(false)}></div>} <div className={`fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-blu-primary text-white shadow-lg border-r border-blu-accent transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}> <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4"> <img src="https://picsum.photos/seed/bluimportslogo/150/50" alt="Blu Imports Logo" className="h-10 object-contain"/> {currentUser && <span className="text-xs text-white/80 truncate" title={currentUser.email || 'Usuário'}>{currentUser.email || 'Usuário'}</span>}</div> <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto"> {NAV_ITEMS.map((item) => <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />)} </nav> <div className="px-4 py-4 border-t border-blu-accent/50"> <button onClick={async () => { await logout(); setIsOpen(false); }} className="flex items-center w-full px-3 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors" > <ArrowLeftOnRectangleIcon className="h-6 w-6 mr-3 flex-shrink-0" /> Sair </button> </div> </div> </> );
 };
 
-const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => void;}> = ({onMenuButtonClick, onAddCostClick}) => { return ( <header className="sticky top-0 z-20 bg-white shadow-md lg:hidden"> <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"> <button onClick={onMenuButtonClick} className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden" > <span className="sr-only">Abrir menu</span> <Bars3Icon className="h-6 w-6" /> </button> <div className="text-lg font-semibold text-blue-700">{APP_NAME}</div> <div> <Button variant="ghost" size="sm" onClick={onAddCostClick} title="Registrar Custo de Encomenda" className="lg:hidden"> <PlusCircleIcon className="h-6 w-6 text-blue-600"/> </Button> </div> </div> </header> ); };
+const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => void;}> = ({onMenuButtonClick, onAddCostClick}) => {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="sticky top-0 z-20 bg-white shadow-md lg:hidden">
+      <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
+        <button onClick={onMenuButtonClick} className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden" >
+          <span className="sr-only">Abrir menu</span>
+          <Bars3Icon className="h-6 w-6" />
+        </button>
+        <div className="text-lg font-semibold text-blue-700">{APP_NAME}</div>
+        <div className="relative">
+          <Button variant="ghost" size="sm" onClick={() => setOpen(o => !o)} title="Ações Rápidas" className="lg:hidden">
+            <PlusCircleIcon className="h-6 w-6 text-blue-600"/>
+          </Button>
+          {open && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+              <button onClick={() => {navigate('/orders', { state: { prefillOrderData: {} } }); setOpen(false);}} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100">Nova Encomenda</button>
+              <button onClick={() => {navigate('/clients', { state: { openNewClientForm: true } }); setOpen(false);}} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100">Novo Cliente</button>
+              <button onClick={() => {onAddCostClick(); setOpen(false);}} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100">Registrar Custo de Encomenda</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+};
 const DashboardLayout: React.FC<{ children: ReactNode }> = ({ children }) => { const [sidebarOpen, setSidebarOpen] = useState(false); const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false); const handleCostSaved = (costItem: OrderCostItem) => { console.log("Custo salvo:", costItem); /* Potentially refresh relevant dashboard data if needed */ }; return ( <div className="min-h-screen flex"> <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} /> <div className="flex-1 flex flex-col lg:ml-64"> <Header onMenuButtonClick={() => setSidebarOpen(true)} onAddCostClick={() => setIsAddCostModalOpen(true)} /> <main className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto"> {children} </main> </div> <AddOrderCostModal isOpen={isAddCostModalOpen} onClose={() => setIsAddCostModalOpen(false)} onSave={handleCostSaved} /> </div> ); };
 
 const TodayTasksDisplay: React.FC = () => {

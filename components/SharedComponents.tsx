@@ -1,5 +1,5 @@
 
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, useEffect } from 'react';
 
 // --- Simple Error Boundary to avoid blank pages on runtime errors ---
 interface ErrorBoundaryProps { children: ReactNode; }
@@ -485,3 +485,30 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep }) => (
     ))}
   </div>
 );
+
+interface ToastProps {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  onClose: () => void;
+}
+
+export const Toast: React.FC<ToastProps> = ({ message, actionLabel, onAction, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div className="fixed bottom-5 right-5 bg-green-600 text-white px-4 py-3 rounded shadow-lg flex items-center space-x-3 z-50">
+      <span className="text-sm">{message}</span>
+      {actionLabel && onAction && (
+        <button onClick={onAction} className="underline text-white font-semibold text-sm">
+          {actionLabel}
+        </button>
+      )}
+      <button onClick={onClose} className="ml-2 text-white hover:text-gray-200">
+        <i className="heroicons-outline-x-mark h-4 w-4" />
+      </button>
+    </div>
+  );
+};
