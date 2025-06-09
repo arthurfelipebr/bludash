@@ -297,8 +297,9 @@ export const deleteOrder = async (orderId: string): Promise<void> => {
 };
 
 // --- Client Service ---
-export const getClients = async (): Promise<Client[]> => {
-    return apiClient<Client[]>('/clients');
+export const getClients = async (search?: string): Promise<Client[]> => {
+    const url = search ? `/clients?search=${encodeURIComponent(search)}` : '/clients';
+    return apiClient<Client[]>(url);
 };
 export const saveClient = async (clientData: Omit<Client, 'id'|'userId'> | Client): Promise<Client> => {
     const clientToSave = { ...clientData, registrationDate: clientData.registrationDate || new Date().toISOString() };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, ReactNode, ChangeEvent } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, ReactNode, ChangeEvent, useReducer } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom'; 
 import { Order, OrderStatus, ProductCondition, DocumentFile, Client, PaymentMethod, PAYMENT_METHOD_OPTIONS, BLU_FACILITA_CONTRACT_STATUS_OPTIONS, BluFacilitaContractStatus, Supplier, SupplierOption, InternalNote, DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE, ClientType, ClientPayment } from '../types';
 import { 
@@ -15,7 +15,8 @@ import {
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast } from '../components/SharedComponents';
 import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
-import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App'; 
+import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
+import ClientProductStep from './orders/steps/ClientProductStep';
 
 
 // Icons
@@ -187,6 +188,41 @@ const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'cus
   bluFacilitaUsesSpecialRate: false, bluFacilitaSpecialAnnualRate: undefined,
 };
 
+type BaseFormData = typeof initialFormData;
+export interface OrderFormState extends BaseFormData {
+  currentStep: number;
+}
+
+export type OrderFormAction =
+  | { type: 'UPDATE_FIELD'; field: keyof BaseFormData; value: any }
+  | { type: 'SET_CLIENT'; client: Partial<Client> }
+  | { type: 'SET_STATE_FROM_INITIAL'; data: OrderFormState }
+  | { type: 'NEXT_STEP' }
+  | { type: 'PREV_STEP' };
+
+const orderFormReducer = (state: OrderFormState, action: OrderFormAction): OrderFormState => {
+  switch (action.type) {
+    case 'UPDATE_FIELD':
+      return { ...state, [action.field]: action.value } as OrderFormState;
+    case 'SET_CLIENT':
+      return {
+        ...state,
+        clientId: action.client.id,
+        customerNameManual: action.client.id ? '' : action.client.fullName ?? ''
+      };
+    case 'SET_STATE_FROM_INITIAL':
+      return action.data;
+    case 'NEXT_STEP':
+      return { ...state, currentStep: state.currentStep + 1 };
+    case 'PREV_STEP':
+      return { ...state, currentStep: Math.max(0, state.currentStep - 1) };
+    default:
+      return state;
+  }
+};
+
+const initialState: OrderFormState = { ...initialFormData, currentStep: 0 };
+
 
 interface OrderFormProps { isOpen: boolean; onClose: () => void; onSave: (order: Order) => Promise<void>; initialOrder?: Order | null; prefillData?: Partial<OrderFormPrefillData>; }
 interface OrderFormPrefillData {
@@ -200,7 +236,8 @@ interface OrderFormPrefillData {
 
 
 const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialOrder, prefillData }) => {
-  const [formData, setFormData] = useState(initialFormData);
+  const [state, dispatch] = useReducer(orderFormReducer, initialState);
+  const formData = state;
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [internalNotes, setInternalNotes] = useState<InternalNote[]>([]);
   const [currentInternalNote, setCurrentInternalNote] = useState('');
@@ -208,7 +245,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  const currentStep = state.currentStep;
 
   const [bfProductValueForSim, setBfProductValueForSim] = useState(0);
   const [bfDownPaymentInput, setBfDownPaymentInput] = useState('R$ 0,00');
@@ -288,7 +325,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
             initialBfDownPayment = prefillData.downPayment ?? initialBfDownPayment;
         }
 
-        setFormData(effectiveInitialData);
+        dispatch({ type: 'SET_STATE_FROM_INITIAL', data: { ...effectiveInitialData, currentStep: 0 } });
         setDocuments(effectiveDocuments);
         setInternalNotes(effectiveInternalNotes);
         setBfProductValueForSim(initialBfProductValue);
@@ -314,21 +351,15 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
 
         if (productVal > 0 && formData.installments && formData.installments > 0) {
              const bfDetails = calculateBluFacilitaDetails(productVal, downPaymentVal, formData.installments, annualRateToUse);
-            setFormData(prev => ({ 
-                ...prev, 
-                downPayment: downPaymentVal, 
-                financedAmount: bfDetails.financedAmount, 
-                totalWithInterest: bfDetails.totalWithInterest, 
-                installmentValue: bfDetails.installmentValue 
-            }));
+            dispatch({ type: 'UPDATE_FIELD', field: 'downPayment', value: downPaymentVal });
+            dispatch({ type: 'UPDATE_FIELD', field: 'financedAmount', value: bfDetails.financedAmount });
+            dispatch({ type: 'UPDATE_FIELD', field: 'totalWithInterest', value: bfDetails.totalWithInterest });
+            dispatch({ type: 'UPDATE_FIELD', field: 'installmentValue', value: bfDetails.installmentValue });
         } else {
-             setFormData(prev => ({ 
-                 ...prev, 
-                 downPayment: downPaymentVal, 
-                 financedAmount: Math.max(0, productVal - downPaymentVal), 
-                 totalWithInterest: Math.max(0, productVal - downPaymentVal), 
-                 installmentValue: 0 
-            }));
+             dispatch({ type: 'UPDATE_FIELD', field: 'downPayment', value: downPaymentVal });
+             dispatch({ type: 'UPDATE_FIELD', field: 'financedAmount', value: Math.max(0, productVal - downPaymentVal) });
+             dispatch({ type: 'UPDATE_FIELD', field: 'totalWithInterest', value: Math.max(0, productVal - downPaymentVal) });
+             dispatch({ type: 'UPDATE_FIELD', field: 'installmentValue', value: 0 });
         }
     }
   }, [formData.paymentMethod, formData.sellingPrice, formData.purchasePrice, bfDownPaymentInput, formData.installments, formData.bluFacilitaUsesSpecialRate, formData.bluFacilitaSpecialAnnualRate]);
@@ -338,22 +369,22 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     const checked = (e.target as HTMLInputElement).checked;
 
     if (name === "bluFacilitaUsesSpecialRate") {
-        setFormData(prev => ({ ...prev, bluFacilitaUsesSpecialRate: checked, bluFacilitaSpecialAnnualRate: checked ? prev.bluFacilitaSpecialAnnualRate : undefined }));
+        dispatch({ type: 'UPDATE_FIELD', field: 'bluFacilitaUsesSpecialRate', value: checked });
+        if (!checked) dispatch({ type: 'UPDATE_FIELD', field: 'bluFacilitaSpecialAnnualRate', value: undefined });
     } else if (["purchasePrice", "sellingPrice", "shippingCostSupplierToBlu", "shippingCostBluToClient", "bluFacilitaSpecialAnnualRate", "batteryHealth"].includes(name)) {
         const numericValue = parseFloat(value);
-        setFormData(prev => ({ ...prev, [name]: isNaN(numericValue) ? undefined : numericValue }));
+        dispatch({ type: 'UPDATE_FIELD', field: name as keyof BaseFormData, value: isNaN(numericValue) ? undefined : numericValue });
         if (name === "sellingPrice" || (name === "purchasePrice" && !formData.sellingPrice)) {
             setBfProductValueForSim(isNaN(numericValue) ? 0 : numericValue);
         }
     } else if (name === "supplierId" || name === "clientId") {
-        setFormData(prev => ({ ...prev, [name]: value || undefined }));
+        dispatch({ type: 'UPDATE_FIELD', field: name as keyof BaseFormData, value: value || undefined });
     } else if (type === 'number' && name === 'installments') {
-        setFormData(prev => ({...prev, [name]: parseInt(value, 10) || 1 }));
+        dispatch({ type: 'UPDATE_FIELD', field: 'installments', value: parseInt(value, 10) || 1 });
     } else if (type === 'checkbox' && name === 'readyForDelivery') {
-        setFormData(prev => ({ ...prev, [name]: checked }));
-    }
-     else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+        dispatch({ type: 'UPDATE_FIELD', field: 'readyForDelivery', value: checked });
+    } else {
+      dispatch({ type: 'UPDATE_FIELD', field: name as keyof BaseFormData, value });
     }
   };
 
@@ -369,7 +400,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     const saved = await saveClient(client);
     const updatedClients = await getClients();
     setClients(updatedClients);
-    setFormData(prev => ({ ...prev, clientId: saved.id, customerNameManual: '' }));
+    dispatch({ type: 'UPDATE_FIELD', field: 'clientId', value: saved.id });
+    dispatch({ type: 'UPDATE_FIELD', field: 'customerNameManual', value: '' });
     setIsClientFormOpen(false);
   };
 
@@ -483,18 +515,7 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         <Stepper steps={FORM_STEPS} currentStep={currentStep} />
         {currentStep === 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Detalhes do Cliente e Produto" className="h-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-end space-x-2">
-                        <Select label="Cliente (Existente)" id="clientId" name="clientId" value={formData.clientId || ''} onChange={handleChange} options={[{value: '', label: 'Selecionar cliente...'}, ...clients.map(c => ({ value: c.id, label: c.fullName }))]} placeholder="Ou preencha o nome abaixo" containerClassName="flex-grow" />
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsClientFormOpen(true)} title="Novo Cliente"><PlusIcon className="h-5 w-5"/></Button>
-                    </div>
-                    <Input label="Nome do Cliente (Manual/Novo)" id="customerNameManual" name="customerNameManual" value={formData.customerNameManual} onChange={handleChange} disabled={!!formData.clientId} placeholder={formData.clientId ? "Cliente selecionado acima" : "Nome completo do novo cliente"} />
-                </div>
-                 {selectedClientDetails?.isDefaulter && ( <Alert type="warning" message={`Atenção: Cliente ${selectedClientDetails.fullName} está marcado como inadimplente.`} details={selectedClientDetails.defaulterNotes} className="mt-2"/> )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> <Select label="Produto" id="productName" name="productName" value={formData.productName} onChange={handleChange} options={PRODUCT_OPTIONS.map(p => ({ value: p, label: p }))} /> <Input label="Modelo (ex: 15 Pro Max)" id="model" name="model" value={formData.model} onChange={handleChange} required /> </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"> <Select label="Armazenamento" id="capacity" name="capacity" value={formData.capacity} onChange={handleChange} options={CAPACITY_OPTIONS.map(c => ({ value: c, label: c }))} /> <Input label="Cor" id="color" name="color" value={formData.color} onChange={handleChange} /> <Select label="Condição" id="condition" name="condition" value={formData.condition} onChange={handleChange} options={PRODUCT_CONDITION_OPTIONS.map(c => ({ value: c, label: c }))} /> </div>
-            </Card>
+            <ClientProductStep state={formData} dispatch={dispatch} />
         </div>)}
 {currentStep === 1 && (
 <>
@@ -544,11 +565,11 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         </div>
         )}
         <div className="flex justify-between pt-4 border-t mt-6">
-            {currentStep > 0 && <Button type="button" variant="secondary" onClick={() => setCurrentStep(s => s - 1)} disabled={isLoading}>Voltar</Button>}
+            {currentStep > 0 && <Button type="button" variant="secondary" onClick={() => dispatch({ type: 'PREV_STEP' })} disabled={isLoading}>Voltar</Button>}
             <div className="flex space-x-3 ml-auto">
                 <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button>
                 {currentStep < FORM_STEPS.length - 1 ? (
-                    <Button type="button" onClick={() => setCurrentStep(s => s + 1)} disabled={isLoading}>Próximo</Button>
+                    <Button type="button" onClick={() => dispatch({ type: 'NEXT_STEP' })} disabled={isLoading}>Próximo</Button>
                 ) : (
                     <Button type="submit" isLoading={isLoading} disabled={isLoading}>{initialOrder ? 'Salvar Alterações' : 'Adicionar Encomenda'}</Button>
                 )}
