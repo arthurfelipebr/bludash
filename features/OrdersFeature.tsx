@@ -17,6 +17,8 @@ import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
 import ClientProductStep from './orders/steps/ClientProductStep';
+import ValuesStep from './orders/steps/ValuesStep';
+import NotesDocsStep from './orders/steps/NotesDocsStep';
 
 
 // Icons
@@ -517,53 +519,36 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ClientProductStep state={formData} dispatch={dispatch} />
         </div>)}
-{currentStep === 1 && (
-<>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Valores, Fornecedor e Prazos" className="h-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <Select label="Fornecedor" id="supplierId" name="supplierId" value={formData.supplierId || ''} onChange={handleChange} options={supplierOptions} /> {formData.supplierId && suppliers.find(s=>s.id === formData.supplierId)?.phone && ( <Button type="button" variant="ghost" size="sm" onClick={handleWhatsAppConsult} className="mt-6" leftIcon={<WhatsAppIcon className="h-5 w-5 text-green-500" />}> Consultar Fornecedor </Button> )} </div>
-                <Input label="Custo (R$)" id="purchasePrice" name="purchasePrice" type="number" step="0.01" value={String(formData.purchasePrice || '')} onChange={handleChange} required containerClassName="mt-4" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"> <Input label="Valor de Venda (R$) (Opcional)" id="sellingPrice" name="sellingPrice" type="number" step="0.01" value={String(formData.sellingPrice || '')} onChange={handleChange} /> <Select label="Status Inicial" id="status" name="status" value={formData.status} onChange={handleChange} options={ORDER_STATUS_OPTIONS.map(s => ({ value: s, label: s }))} /> <Input label="Data do Pedido" id="orderDate" name="orderDate" type="date" value={formData.orderDate} onChange={handleChange} required /> </div>
-                <Input label="Prazo Estimado de Entrega" id="estimatedDeliveryDate" name="estimatedDeliveryDate" type="date" value={formData.estimatedDeliveryDate || ''} onChange={handleChange} containerClassName="mt-4" />
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> <Input label="Custo Frete Fornecedor → Blu (R$)" id="shippingCostSupplierToBlu" name="shippingCostSupplierToBlu" type="number" step="0.01" value={String(formData.shippingCostSupplierToBlu || '')} onChange={handleChange} /> <Input label="Custo Frete Blu → Cliente (R$)" id="shippingCostBluToClient" name="shippingCostBluToClient" type="number" step="0.01" value={String(formData.shippingCostBluToClient || '')} onChange={handleChange} /> </div>
-            </Card>
-        </div>
-        <Card title="Forma de Pagamento">
-            <Select label="Forma de Pagamento" id="paymentMethod" name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} options={PAYMENT_METHOD_OPTIONS.map(p => ({value: p, label: p}))} />
-            {formData.paymentMethod === PaymentMethod.BLU_FACILITA && (
-                <div className="mt-4 p-4 border border-blue-200 rounded-md bg-blue-50 space-y-3">
-                    <h4 className="font-semibold text-blue-700">Simulação BluFacilita (Base: {formatCurrencyBRL(bfProductValueForSim)})</h4>
-                     <div className="flex items-center space-x-2"> <input type="checkbox" id="bluFacilitaUsesSpecialRate" name="bluFacilitaUsesSpecialRate" checked={formData.bluFacilitaUsesSpecialRate} onChange={handleChange} className="rounded text-blue-600 focus:ring-blue-500"/> <label htmlFor="bluFacilitaUsesSpecialRate" className="text-sm text-gray-700">Usar Taxa Especial BluFacilita?</label> </div>
-                    {formData.bluFacilitaUsesSpecialRate && ( <Input label="Taxa Anual Especial (%)" id="bluFacilitaSpecialAnnualRate" name="bluFacilitaSpecialAnnualRate" type="number" step="0.01" value={String(formData.bluFacilitaSpecialAnnualRate || '')} onChange={handleChange} placeholder={`Padrão ${DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE * 100}%`} /> )}
-                    <Input label="Entrada (R$)" id="bfDownPaymentInput" name="bfDownPaymentInput" value={bfDownPaymentInput} onChange={handleBfDownPaymentChange} onBlur={handleBfDownPaymentBlur} />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <Select label="Nº de Parcelas" id="installments" name="installments" value={String(formData.installments || 12)} onChange={handleChange} options={Array.from({length:12}, (_,i)=>({value:i+1, label:`${i+1}x`}))} /> </div>
-                    <p className="text-sm"><strong>Valor Financiado:</strong> {formatCurrencyBRL(formData.financedAmount)}</p>
-                    <p className="text-sm"><strong>Valor da Parcela:</strong> {formatCurrencyBRL(formData.installmentValue)}</p>
-                    <p className="text-sm"><strong>Total com Juros (Financiamento + Entrada):</strong> {formatCurrencyBRL((formData.totalWithInterest || 0) + (formData.downPayment || 0))}</p>
-                    <Select label="Status do Contrato BluFacilita" id="bluFacilitaContractStatus" name="bluFacilitaContractStatus" value={formData.bluFacilitaContractStatus} onChange={handleChange} options={BLU_FACILITA_CONTRACT_STATUS_OPTIONS.map(s => ({value:s, label:s}))} />
-                </div>
-            )}
-        </Card>
-        </>
+        {currentStep === 1 && (
+          <ValuesStep
+            state={formData}
+            suppliers={suppliers}
+            supplierOptions={supplierOptions}
+            bfProductValueForSim={bfProductValueForSim}
+            bfDownPaymentInput={bfDownPaymentInput}
+            handleChange={handleChange}
+            handleWhatsAppConsult={handleWhatsAppConsult}
+            handleBfDownPaymentChange={handleBfDownPaymentChange}
+            handleBfDownPaymentBlur={handleBfDownPaymentBlur}
+          />
         )}
         {currentStep === 2 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Notas e Documentos">
-                <Textarea label="Observações Gerais da Encomenda" id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} />
-                <div className="mt-4"> <h4 className="text-sm font-medium text-gray-700 mb-1">Documentos Anexados</h4> {documents.length === 0 && <p className="text-xs text-gray-500">Nenhum documento.</p>} <ul className="list-disc list-inside space-y-1 max-h-24 overflow-y-auto"> {documents.map(doc => ( <li key={doc.id} className="text-sm text-gray-600 flex justify-between items-center"> <span>{doc.name} ({formatDateBR(doc.uploadedAt)})</span> <Button type="button" variant="link" size="sm" onClick={() => handleRemoveDocument(doc.id)} className="text-red-500">Remover</Button> </li> ))} </ul> <Button type="button" variant="ghost" size="sm" onClick={handleAddDocument} className="mt-2"> <i className="heroicons-outline-paper-clip mr-1 h-4 w-4"></i>Adicionar Documento (mock) </Button> </div>
-                <div className="mt-4">
-                    <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalDescription} leftIcon={<DocumentTextIcon className="h-4 w-4"/>} className="mt-2">Gerar Descrição p/ Nota Fiscal</Button>
-                </div>
-                <div className="mt-2">
-                    <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalProductInfo} leftIcon={<ClipboardDocumentIcon className="h-4 w-4"/>} className="mt-2">Gerar Dados p/ NF Produto</Button>
-                </div>
-            </Card>
-            <Card title="Comunicação e Histórico Interno">
-                 <Textarea label="Resumo do Histórico do WhatsApp (Opcional)" id="whatsAppHistorySummary" name="whatsAppHistorySummary" value={formData.whatsAppHistorySummary || ''} onChange={handleChange} rows={3} placeholder="Ex: Cliente aceitou seminovo se bateria > 85%..." />
-                <div className="mt-4"> <h4 className="text-sm font-medium text-gray-700 mb-1">Notas Internas (Não visível ao cliente)</h4> <div className="max-h-32 overflow-y-auto mb-2 border rounded-md p-2 bg-gray-50 space-y-1"> {internalNotes.length === 0 && <p className="text-xs text-gray-500">Nenhuma nota interna.</p>} {internalNotes.slice().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(note => ( <div key={note.id} className="text-xs text-gray-600 bg-white p-1.5 rounded shadow-sm"> <div className="flex justify-between items-center"> <span className="font-semibold">{formatDateBR(note.date, true)}</span> <Button type="button" variant="link" size="sm" onClick={() => handleRemoveInternalNote(note.id)} className="text-red-400 hover:text-red-600 p-0 leading-none">X</Button> </div> <p className="whitespace-pre-wrap">{note.note}</p> </div> ))} </div> <div className="flex items-center space-x-2"> <Textarea id="currentInternalNote" value={currentInternalNote} onChange={(e) => setCurrentInternalNote(e.target.value)} rows={2} placeholder="Adicionar nova nota interna..." textareaClassName="text-sm" /> <Button type="button" variant="secondary" size="sm" onClick={handleAddInternalNote} title="Adicionar Nota" className="self-end h-10"> <PlusIcon className="h-4 w-4"/> </Button> </div> </div>
-            </Card>
-        </div>
+          <NotesDocsStep
+            state={formData}
+            documents={documents}
+            internalNotes={internalNotes}
+            currentInternalNote={currentInternalNote}
+            setCurrentInternalNote={setCurrentInternalNote}
+            handleChange={handleChange}
+            handleAddInternalNote={handleAddInternalNote}
+            handleRemoveInternalNote={handleRemoveInternalNote}
+            handleAddDocument={handleAddDocument}
+            handleRemoveDocument={handleRemoveDocument}
+            generateNotaFiscalDescription={generateNotaFiscalDescription}
+            generateNotaFiscalProductInfo={generateNotaFiscalProductInfo}
+          />
         )}
+
         <div className="flex justify-between pt-4 border-t mt-6">
             {currentStep > 0 && <Button type="button" variant="secondary" onClick={() => dispatch({ type: 'PREV_STEP' })} disabled={isLoading}>Voltar</Button>}
             <div className="flex space-x-3 ml-auto">
