@@ -70,10 +70,10 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-6 py-3 text-lg',
   };
   const variantStyles = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:bg-blue-400',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400 disabled:bg-gray-100 disabled:text-gray-400',
+    primary: 'bg-blu-primary text-white hover:bg-blu-primary/90 focus:ring-blu-primary disabled:bg-blu-primary/50',
+    secondary: 'bg-white text-black border border-blu-accent hover:border-blu-primary disabled:text-black/40',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 disabled:bg-red-400',
-    ghost: 'bg-transparent text-blue-600 hover:bg-blue-100 focus:ring-blue-500 disabled:text-gray-400',
+    ghost: 'bg-transparent text-blu-primary hover:bg-blu-accent/50 focus:ring-blu-primary disabled:text-black/40',
     link: 'bg-transparent text-blue-600 hover:underline focus:ring-blue-500 disabled:text-gray-400 p-0',
   };
   const widthStyles = fullWidth ? 'w-full' : '';
@@ -101,7 +101,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input: React.FC<InputProps> = ({ label, id, error, containerClassName = '', inputClassName = '', ...props }) => {
-  const baseInputStyles = 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed';
+  const baseInputStyles = 'block w-full px-3 py-2 border border-black/20 rounded-md shadow-sm focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
   const errorInputStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
 
   return (
@@ -125,7 +125,7 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   containerClassName?: string;
 }
 export const Textarea: React.FC<TextareaProps> = ({ label, id, error, containerClassName = '', textareaClassName = '', ...props }) => {
-  const baseTextareaStyles = 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed';
+  const baseTextareaStyles = 'block w-full px-3 py-2 border border-black/20 rounded-md shadow-sm focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
   const errorTextareaStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
   return (
     <div className={containerClassName}>
@@ -151,7 +151,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select: React.FC<SelectProps> = ({ label, id, error, options, containerClassName = '', selectClassName = '', placeholder, ...props }) => {
-  const baseSelectStyles = 'block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-900 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed';
+  const baseSelectStyles = 'block w-full pl-3 pr-10 py-2 text-base border-black/20 focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm rounded-md text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
   const errorSelectStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
 
   return (
@@ -204,7 +204,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         {title && (
           <div className="flex items-center justify-between p-4 border-b">
             <h3 className="text-lg font-semibold text-gray-800">{title}</h3> 
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={onClose} className="text-gray-400 hover:text-black/60">
               <i className="h-6 w-6 heroicons-outline-x-mark"></i>
             </button>
           </div>
@@ -262,9 +262,9 @@ interface CardProps {
 
 export const Card: React.FC<CardProps> = ({ children, className = '', title, actions, titleClassName='', bodyClassName='p-6 text-gray-800' }) => { 
   return (
-    <div className={`bg-white shadow-lg rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-white shadow-md border border-black/10 rounded-lg overflow-hidden ${className}`}>
       {(title || actions) && (
-        <div className={`p-4 border-b border-gray-200 flex justify-between items-center ${titleClassName}`}>
+        <div className={`p-4 border-b border-black/10 flex justify-between items-center ${titleClassName}`}>
           {title && <h2 className="text-xl font-semibold text-gray-800">{title}</h2>}
           {actions && <div className="flex items-center space-x-2">{actions}</div>}
         </div>
@@ -289,7 +289,7 @@ export const PageTitle: React.FC<PageTitleProps> = ({ title, subtitle, actions, 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-gray-600">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-sm text-black/60">{subtitle}</p>}
         </div>
         {actions && <div className="mt-4 md:mt-0 md:ml-4 flex-shrink-0">{actions}</div>}
       </div>
@@ -441,10 +441,10 @@ export const Tab: React.FC<TabProps> = ({ label, isActive, onClick, className = 
     role="tab"
     aria-selected={isActive}
     className={`px-4 py-2 font-medium text-sm rounded-t-md focus:outline-none transition-colors duration-150
-                ${isActive ? 'bg-blue-600 text-white border-b-2 border-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600 border-b-2 border-transparent'}
+                ${isActive ? 'bg-blu-primary text-white border-b-2 border-blu-primary' : 'text-black/60 hover:bg-black/5 hover:text-blu-primary border-b-2 border-transparent'}
                 ${className}`}
   >
-    {label} {count !== undefined && <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${isActive ? 'bg-white text-blue-600' : 'bg-gray-200 text-gray-700'}`}>{count}</span>}
+    {label} {count !== undefined && <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${isActive ? 'bg-blu-accent text-blu-primary' : 'bg-blu-accent text-blu-primary'}`}>{count}</span>}
   </button>
 );
 
@@ -455,7 +455,7 @@ interface TabsProps {
 }
 export const Tabs: React.FC<TabsProps> = ({ children, className = '', navClassName = '' }) => (
   <div className={className}>
-    <nav role="tablist" className={`flex border-b border-gray-300 mb-0 ${navClassName}`}> {/* Added role="tablist" and nav element */}
+    <nav role="tablist" className={`flex border-b border-black/20 mb-0 ${navClassName}`}> {/* Added role="tablist" and nav element */}
       {children}
     </nav>
   </div>
@@ -472,14 +472,14 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep }) => (
       <div key={idx} className="flex items-center flex-1">
         <div
           className={`flex items-center justify-center h-8 w-8 rounded-full text-sm font-semibold ${
-            idx <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+            idx < currentStep ? "bg-blu-primary text-white" : idx === currentStep ? "bg-blu-accent text-blu-primary" : "border border-black/20 text-black"
           }`}
         >
-          {idx + 1}
+          {idx < currentStep ? "✓" : idx + 1}
         </div>
-        <span className={`ml-2 text-sm ${idx <= currentStep ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>{step}</span>
+        <span className={`ml-2 text-sm ${idx <= currentStep ? 'text-blu-primary font-medium' : 'text-black/60'}`}>{step}</span>
         {idx < steps.length - 1 && (
-          <div className={`flex-1 h-0.5 ${idx < currentStep ? 'bg-blue-600' : 'bg-gray-300'} mx-2`} />
+          <div className={`flex-1 h-0.5 ${idx < currentStep ? 'bg-blu-primary' : 'bg-black/20'} mx-2`} />
         )}
       </div>
     ))}

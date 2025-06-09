@@ -5,6 +5,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blu Imports Dashboard</title>
+  <script>
+    window.tailwind = {
+      theme: {
+        extend: {
+          colors: {
+            blu: {
+              primary: '#3A4DFF',
+              accent: '#A4A5FF'
+            }
+          }
+        }
+      }
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/heroicons/2.1.3/24/outline/heroicons.min.css" integrity="sha512-MatZEMZRsmCkmPHJ8JDZ6rBKaZlMXfrRGOCgXPO7KMc3rZ3nzv2oEKj6G0yHlqIfZtBTVW0Jg2BF33xQn0Pg5A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
@@ -66,7 +80,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-gray-100">
+<body class="bg-white text-black">
   <div id="root"></div>
   <script>
     // Shim for process.env for client-side libraries expecting it.
