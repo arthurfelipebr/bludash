@@ -199,6 +199,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
 
   const [bfProductValueForSim, setBfProductValueForSim] = useState(0);
   const [bfDownPaymentInput, setBfDownPaymentInput] = useState('R$ 0,00');
+  const [isProductNFModalOpen, setIsProductNFModalOpen] = useState(false);
+  const [productNFText, setProductNFText] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -415,12 +417,41 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const generateNotaFiscalDescription = () => { const { productName, model, capacity, color, condition } = formData; const marcaModelo = `${productName || "PRODUTO"} ${model || "MODELO"}`; const armazenamento = capacity || "ARMAZENAMENTO"; const cor = color || "COR"; const estado = condition || "ESTADO"; const desc = `Serviço de intermediação para a compra do seguinte produto: ${marcaModelo} com ${armazenamento} de armazenamento na cor ${cor}, ${estado}.
 
 Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de intermediação prestado pela Blu Imports. Trabalhamos sob encomenda, intermediando ou importando produtos conforme solicitado pelo cliente, sem manter estoque próprio. A transação foi realizada com base em contrato assinado e autenticado por meio da plataforma Autentique.`;
-    navigator.clipboard.writeText(desc).then(() => { alert("Descrição da Nota Fiscal copiada para a área de transferência!"); }).catch(err => { console.error('Erro ao copiar descrição: ', err); alert('Erro ao copiar descrição. Veja o console.'); const modal = document.createElement('div'); modal.innerHTML = `<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;"> <div style="background:white;padding:20px;border-radius:8px;max-width:500px;white-space:pre-wrap;"> <h3>Descrição para Nota Fiscal:</h3> <textarea rows="10" style="width:100%;margin-top:10px;" readonly>${desc}</textarea> <button onclick="this.parentElement.parentElement.remove()" style="margin-top:10px;">Fechar</button> </div> </div>`; document.body.appendChild(modal); }); };
+  navigator.clipboard.writeText(desc)
+    .then(() => {
+      alert("Descrição da Nota Fiscal copiada para a área de transferência!");
+    })
+    .catch(err => {
+      console.error('Erro ao copiar descrição: ', err);
+      alert('Erro ao copiar descrição. Veja o console.');
+      const modal = document.createElement('div');
+      modal.innerHTML = `<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;"><div style="background:white;padding:20px;border-radius:8px;max-width:500px;white-space:pre-wrap;"><h3>Descrição para Nota Fiscal:</h3><textarea rows="10" style="width:100%;margin-top:10px;" readonly>${desc}</textarea><button onclick="this.parentElement.parentElement.remove()" style="margin-top:10px;">Fechar</button></div></div>`;
+      document.body.appendChild(modal);
+    });
+  };
+
+  const generateNotaFiscalProductInfo = () => {
+    const clientName = selectedClientDetails?.fullName || formData.customerNameManual || 'NOME DO CLIENTE';
+    const cpf = selectedClientDetails?.cpfOrCnpj || 'CPF';
+    const city = selectedClientDetails?.city || 'CIDADE';
+    const state = selectedClientDetails?.state || 'ESTADO';
+    const modelo = formData.model || 'MODELO';
+    const capacidade = formData.capacity || 'ARMAZENAMENTO';
+    const corProduto = formData.color || 'COR';
+    const imei = formData.imei || 'IMEI';
+    const valorPago = formData.purchasePrice ? formatCurrencyBRL(formData.purchasePrice) : 'VALOR PAGO';
+    const formaPgto = formData.paymentMethod || 'FORMA DE PAGAMENTO';
+
+    const text = `Nome completo: ${clientName}\nCPF: ${cpf}\nCEP: [CEP]\nEndereço: [Endereço]\nNúmero: [Número]\nComplemento: [Complemento]\nBairro: [Bairro]\nCidade: ${city}\nEstado: ${state}\nModelo: ${modelo}\nArmazenamento: ${capacidade}\nCor: ${corProduto}\nIMEI (Se aplicável): ${imei}\nSN: [SN]\nValor Pago: ${valorPago}\nForma de Pagamento: ${formaPgto}`;
+    setProductNFText(text);
+    setIsProductNFModalOpen(true);
+  };
   
   const selectedClientDetails = formData.clientId ? clients.find(c => c.id === formData.clientId) : null;
 
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title={initialOrder ? 'Editar Encomenda' : 'Adicionar Nova Encomenda'} size="3xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
@@ -462,7 +493,12 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
             <Card title="Notas e Documentos">
                 <Textarea label="Observações Gerais da Encomenda" id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} />
                 <div className="mt-4"> <h4 className="text-sm font-medium text-gray-700 mb-1">Documentos Anexados</h4> {documents.length === 0 && <p className="text-xs text-gray-500">Nenhum documento.</p>} <ul className="list-disc list-inside space-y-1 max-h-24 overflow-y-auto"> {documents.map(doc => ( <li key={doc.id} className="text-sm text-gray-600 flex justify-between items-center"> <span>{doc.name} ({formatDateBR(doc.uploadedAt)})</span> <Button type="button" variant="link" size="sm" onClick={() => handleRemoveDocument(doc.id)} className="text-red-500">Remover</Button> </li> ))} </ul> <Button type="button" variant="ghost" size="sm" onClick={handleAddDocument} className="mt-2"> <i className="heroicons-outline-paper-clip mr-1 h-4 w-4"></i>Adicionar Documento (mock) </Button> </div>
-                 <div className="mt-4"> <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalDescription} leftIcon={<DocumentTextIcon className="h-4 w-4"/>} className="mt-2">Gerar Descrição p/ Nota Fiscal</Button> </div>
+                <div className="mt-4">
+                    <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalDescription} leftIcon={<DocumentTextIcon className="h-4 w-4"/>} className="mt-2">Gerar Descrição p/ Nota Fiscal</Button>
+                </div>
+                <div className="mt-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={generateNotaFiscalProductInfo} leftIcon={<ClipboardDocumentIcon className="h-4 w-4"/>} className="mt-2">Gerar Dados p/ NF Produto</Button>
+                </div>
             </Card>
             <Card title="Comunicação e Histórico Interno">
                  <Textarea label="Resumo do Histórico do WhatsApp (Opcional)" id="whatsAppHistorySummary" name="whatsAppHistorySummary" value={formData.whatsAppHistorySummary || ''} onChange={handleChange} rows={3} placeholder="Ex: Cliente aceitou seminovo se bateria > 85%..." />
@@ -472,6 +508,23 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         <div className="flex justify-end space-x-3 pt-4 border-t mt-6"> <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button> <Button type="submit" isLoading={isLoading} disabled={isLoading}> {initialOrder ? 'Salvar Alterações' : 'Adicionar Encomenda'} </Button> </div>
       </form>
     </Modal>
+    {isProductNFModalOpen && (
+      <Modal
+        isOpen={isProductNFModalOpen}
+        onClose={() => setIsProductNFModalOpen(false)}
+        title="Dados para Nota Fiscal do Produto"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsProductNFModalOpen(false)}>Fechar</Button>
+            <Button onClick={() => navigator.clipboard.writeText(productNFText)}>Copiar Tudo</Button>
+          </>
+        }
+      >
+        <Textarea id="productNFText" value={productNFText} readOnly rows={productNFText.split('\n').length} textareaClassName="text-sm" />
+      </Modal>
+    )}
+  </>
   );
 };
 
