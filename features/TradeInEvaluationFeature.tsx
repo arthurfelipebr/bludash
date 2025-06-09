@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PageTitle, Card, Input, Button } from '../components/SharedComponents';
+import { formatCurrencyBRL } from '../services/AppService';
 
 interface EvaluationFormState {
   model: string;
@@ -23,8 +24,51 @@ const initialState: EvaluationFormState = {
   buttonsWorking: true,
 };
 
+const DEDUCTIONS = {
+  screenScratched: 200,
+  backGlassCracked: 400,
+  faceIdNotWorking: 500,
+  buttonsNotWorking: 150,
+  batteryLow: 150,
+};
+
+interface EvaluationResult {
+  suggestedValue: number;
+  issues: string[];
+}
+
+const calculateSuggestedValue = (state: EvaluationFormState): EvaluationResult => {
+  let deduction = 0;
+  const issues: string[] = [];
+
+  if (state.screenScratched) {
+    deduction += DEDUCTIONS.screenScratched;
+    issues.push('Tela riscada');
+  }
+  if (state.backGlassCracked) {
+    deduction += DEDUCTIONS.backGlassCracked;
+    issues.push('Traseira quebrada');
+  }
+  if (!state.faceIdWorks) {
+    deduction += DEDUCTIONS.faceIdNotWorking;
+    issues.push('Face ID não funciona');
+  }
+  if (!state.buttonsWorking) {
+    deduction += DEDUCTIONS.buttonsNotWorking;
+    issues.push('Botões com problema');
+  }
+  if (state.batteryHealth < 80) {
+    deduction += DEDUCTIONS.batteryLow;
+    issues.push('Bateria abaixo de 80%');
+  }
+
+  const suggestedValue = Math.max(state.tableValue - deduction, 0);
+  return { suggestedValue, issues };
+};
+
 export const TradeInEvaluationPage: React.FC<{}> = () => {
   const [form, setForm] = useState<EvaluationFormState>(initialState);
+  const { suggestedValue, issues } = calculateSuggestedValue(form);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -123,6 +167,25 @@ export const TradeInEvaluationPage: React.FC<{}> = () => {
           </label>
         </div>
       </Card>
+
+      {form.tableValue > 0 && (
+        <Card title="Resultado da Avaliação">
+          <p>
+            <strong>Valor Sugerido para a Troca:</strong>{' '}
+            {formatCurrencyBRL(suggestedValue)}
+          </p>
+          {issues.length > 0 && (
+            <div className="mt-2">
+              <p className="font-semibold">Problemas Encontrados:</p>
+              <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                {issues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className="text-right">
         <Button onClick={handleSubmit}>Salvar Avaliação</Button>
