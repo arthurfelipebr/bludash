@@ -321,8 +321,18 @@ const CLIENTS_SELECT_QUERY = `
 `;
 
 app.get('/api/clients', authenticateToken, (req, res) => {
-    const query = `${CLIENTS_SELECT_QUERY} WHERE "userId" = $1 ORDER BY "fullName" ASC`;
-    db.all(query, [req.user.id], (err, rows) => {
+    const search = req.query.search ? String(req.query.search) : null;
+    let query = `${CLIENTS_SELECT_QUERY} WHERE "userId" = $1`;
+    const params = [req.user.id];
+
+    if (search) {
+        query += ` AND ("fullName" LIKE $2 OR "cpfOrCnpj" LIKE $2)`;
+        params.push(`%${search}%`);
+    }
+
+    query += ' ORDER BY "fullName" ASC';
+
+    db.all(query, params, (err, rows) => {
       if (err) {
         console.error("Error fetching clients:", err.message);
         return res.status(500).json({ message: 'Failed to fetch clients.' });
