@@ -68,7 +68,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, onSave, initia
   
   useEffect(() => {
     if (initialClient) {
+      // Merge with initialFormData to ensure optional fields exist
       setFormData({
+        ...initialFormData,
         ...initialClient,
         notes: initialClient.notes || '',
         defaulterNotes: initialClient.defaulterNotes || '',
