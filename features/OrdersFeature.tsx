@@ -12,7 +12,7 @@ import {
   calculateBluFacilitaDetails, 
   getClientPaymentsByOrderId,
 } from '../services/AppService';
-import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon } from '../components/SharedComponents';
+import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper } from '../components/SharedComponents';
 import { v4 as uuidv4 } from 'uuid';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App'; 
 
@@ -207,11 +207,13 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
 
   const [bfProductValueForSim, setBfProductValueForSim] = useState(0);
   const [bfDownPaymentInput, setBfDownPaymentInput] = useState('R$ 0,00');
   const [isProductNFModalOpen, setIsProductNFModalOpen] = useState(false);
   const [productNFText, setProductNFText] = useState('');
+  const FORM_STEPS = ['Cliente & Produto', 'Valores & Pagamento', 'Notas & Docs'];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -468,6 +470,8 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
     <Modal isOpen={isOpen} onClose={onClose} title={initialOrder ? 'Editar Encomenda' : 'Adicionar Nova Encomenda'} size="3xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+        <Stepper steps={FORM_STEPS} currentStep={currentStep} />
+        {currentStep === 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Detalhes do Cliente e Produto" className="h-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -478,6 +482,10 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> <Select label="Produto" id="productName" name="productName" value={formData.productName} onChange={handleChange} options={PRODUCT_OPTIONS.map(p => ({ value: p, label: p }))} /> <Input label="Modelo (ex: 15 Pro Max)" id="model" name="model" value={formData.model} onChange={handleChange} required /> </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"> <Select label="Armazenamento" id="capacity" name="capacity" value={formData.capacity} onChange={handleChange} options={CAPACITY_OPTIONS.map(c => ({ value: c, label: c }))} /> <Input label="Cor" id="color" name="color" value={formData.color} onChange={handleChange} /> <Select label="Condição" id="condition" name="condition" value={formData.condition} onChange={handleChange} options={PRODUCT_CONDITION_OPTIONS.map(c => ({ value: c, label: c }))} /> </div>
             </Card>
+        </div>)}
+{currentStep === 1 && (
+<>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Valores, Fornecedor e Prazos" className="h-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <Select label="Fornecedor" id="supplierId" name="supplierId" value={formData.supplierId || ''} onChange={handleChange} options={supplierOptions} /> {formData.supplierId && suppliers.find(s=>s.id === formData.supplierId)?.phone && ( <Button type="button" variant="ghost" size="sm" onClick={handleWhatsAppConsult} className="mt-6" leftIcon={<WhatsAppIcon className="h-5 w-5 text-green-500" />}> Consultar Fornecedor </Button> )} </div>
                 <Input label="Custo (R$)" id="purchasePrice" name="purchasePrice" type="number" step="0.01" value={String(formData.purchasePrice || '')} onChange={handleChange} required containerClassName="mt-4" />
@@ -502,6 +510,9 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
                 </div>
             )}
         </Card>
+        </>
+        )}
+        {currentStep === 2 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Notas e Documentos">
                 <Textarea label="Observações Gerais da Encomenda" id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} />
@@ -518,7 +529,18 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
                 <div className="mt-4"> <h4 className="text-sm font-medium text-gray-700 mb-1">Notas Internas (Não visível ao cliente)</h4> <div className="max-h-32 overflow-y-auto mb-2 border rounded-md p-2 bg-gray-50 space-y-1"> {internalNotes.length === 0 && <p className="text-xs text-gray-500">Nenhuma nota interna.</p>} {internalNotes.slice().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(note => ( <div key={note.id} className="text-xs text-gray-600 bg-white p-1.5 rounded shadow-sm"> <div className="flex justify-between items-center"> <span className="font-semibold">{formatDateBR(note.date, true)}</span> <Button type="button" variant="link" size="sm" onClick={() => handleRemoveInternalNote(note.id)} className="text-red-400 hover:text-red-600 p-0 leading-none">X</Button> </div> <p className="whitespace-pre-wrap">{note.note}</p> </div> ))} </div> <div className="flex items-center space-x-2"> <Textarea id="currentInternalNote" value={currentInternalNote} onChange={(e) => setCurrentInternalNote(e.target.value)} rows={2} placeholder="Adicionar nova nota interna..." textareaClassName="text-sm" /> <Button type="button" variant="secondary" size="sm" onClick={handleAddInternalNote} title="Adicionar Nota" className="self-end h-10"> <PlusIcon className="h-4 w-4"/> </Button> </div> </div>
             </Card>
         </div>
-        <div className="flex justify-end space-x-3 pt-4 border-t mt-6"> <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button> <Button type="submit" isLoading={isLoading} disabled={isLoading}> {initialOrder ? 'Salvar Alterações' : 'Adicionar Encomenda'} </Button> </div>
+        )}
+        <div className="flex justify-between pt-4 border-t mt-6">
+            {currentStep > 0 && <Button type="button" variant="secondary" onClick={() => setCurrentStep(s => s - 1)} disabled={isLoading}>Voltar</Button>}
+            <div className="flex space-x-3 ml-auto">
+                <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button>
+                {currentStep < FORM_STEPS.length - 1 ? (
+                    <Button type="button" onClick={() => setCurrentStep(s => s + 1)} disabled={isLoading}>Próximo</Button>
+                ) : (
+                    <Button type="submit" isLoading={isLoading} disabled={isLoading}>{initialOrder ? 'Salvar Alterações' : 'Adicionar Encomenda'}</Button>
+                )}
+            </div>
+        </div>
       </form>
     </Modal>
     {isProductNFModalOpen && (

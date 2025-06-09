@@ -460,3 +460,28 @@ export const Tabs: React.FC<TabsProps> = ({ children, className = '', navClassNa
     </nav>
   </div>
 );
+
+interface StepperProps {
+  steps: string[];
+  currentStep: number;
+}
+
+export const Stepper: React.FC<StepperProps> = ({ steps, currentStep }) => (
+  <div className="flex items-center justify-between mb-4">
+    {steps.map((step, idx) => (
+      <div key={idx} className="flex items-center flex-1">
+        <div
+          className={`flex items-center justify-center h-8 w-8 rounded-full text-sm font-semibold ${
+            idx <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+          }`}
+        >
+          {idx + 1}
+        </div>
+        <span className={`ml-2 text-sm ${idx <= currentStep ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>{step}</span>
+        {idx < steps.length - 1 && (
+          <div className={`flex-1 h-0.5 ${idx < currentStep ? 'bg-blue-600' : 'bg-gray-300'} mx-2`} />
+        )}
+      </div>
+    ))}
+  </div>
+);
