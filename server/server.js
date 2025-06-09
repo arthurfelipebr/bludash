@@ -498,6 +498,50 @@ app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Client Payments
+app.get('/api/client-payments', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM clientPayments WHERE "userId" = $1 ORDER BY "paymentDate" DESC', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching client payments:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch client payments.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.get('/api/orders/:orderId/payments', authenticateToken, (req, res) => {
+    const orderId = req.params.orderId;
+    db.all('SELECT * FROM clientPayments WHERE "orderId" = $1 AND "userId" = $2 ORDER BY "paymentDate" DESC', [orderId, req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching payments for order:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch payments for order.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.post('/api/orders/:orderId/payments', authenticateToken, (req, res) => {
+    const orderId = req.params.orderId;
+    const { paymentDate, amountPaid, paymentMethodUsed, notes } = req.body;
+    const paymentId = uuidv4();
+    const sql = `INSERT INTO clientPayments (id, "userId", "orderId", "paymentDate", "amountPaid", "paymentMethodUsed", notes)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+    const params = [paymentId, req.user.id, orderId, paymentDate || new Date().toISOString(), amountPaid, paymentMethodUsed, notes];
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error saving client payment:', err.message);
+            return res.status(500).json({ message: 'Failed to save client payment.' });
+        }
+        db.get('SELECT * FROM clientPayments WHERE id = $1', [paymentId], (err2, row) => {
+            if (err2 || !row) {
+                console.error('Error fetching client payment after insert:', err2 ? err2.message : 'Row not found');
+                return res.status(500).json({ message: 'Payment saved, but failed to retrieve record.' });
+            }
+            res.status(201).json(row);
+        });
+    });
+});
+
 
 // Gemini AI Proxy (Placeholder)
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
