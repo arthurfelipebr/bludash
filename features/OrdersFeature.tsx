@@ -93,6 +93,11 @@ const CountdownDisplay: React.FC<{ targetDate?: string }> = ({ targetDate }) => 
   return ( <span className="text-sm text-blue-600"> {timeLeft.days !== undefined && timeLeft.days > 0 && `${timeLeft.days}d `} {timeLeft.hours !== undefined && `${String(timeLeft.hours).padStart(2, '0')}h `} {timeLeft.minutes !== undefined && `${String(timeLeft.minutes).padStart(2, '0')}m`} </span> );
 };
 
+const getDeliveryDate = (order: Order): string | undefined => {
+  const entry = order.trackingHistory?.find(h => h.status === OrderStatus.ENTREGUE);
+  return entry?.date;
+};
+
 const OrderStatusTimeline: React.FC<{ order: Order }> = ({ order }) => {
   const getStatusHistory = (status: OrderStatus) => order.trackingHistory?.find(h => h.status === status);
   
@@ -176,7 +181,7 @@ const PRODUCT_MODELS: { [key: string]: string[] } = {
 };
 const CAPACITY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 
-const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'customerName' | 'supplierName' | 'internalNotes' | 'bluFacilitaInstallments'> & { customerNameManual: string } = {
+const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'customerName' | 'supplierName' | 'internalNotes' | 'bluFacilitaInstallments'> & { customerNameManual: string; deliveryDate?: string } = {
   clientId: undefined,
   customerNameManual: '', 
   productName: '', model: '', capacity: '', watchSize: '', color: '',
@@ -193,6 +198,7 @@ const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'cus
   bluFacilitaContractStatus: BluFacilitaContractStatus.EM_DIA,
   imeiBlocked: false,
   arrivalDate: undefined, imei: undefined, arrivalPhotos: [], arrivalNotes: undefined, batteryHealth: undefined, readyForDelivery: false,
+  deliveryDate: undefined,
   shippingCostSupplierToBlu: undefined, shippingCostBluToClient: undefined,
   whatsAppHistorySummary: undefined,
   bluFacilitaUsesSpecialRate: false, bluFacilitaSpecialAnnualRate: undefined,
@@ -314,6 +320,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
             whatsAppHistorySummary: initialOrder.whatsAppHistorySummary,
             bluFacilitaUsesSpecialRate: initialOrder.bluFacilitaUsesSpecialRate || false,
             bluFacilitaSpecialAnnualRate: initialOrder.bluFacilitaSpecialAnnualRate,
+            deliveryDate: (() => { const entry = initialOrder.trackingHistory?.find(h => h.status === OrderStatus.ENTREGUE); return entry ? new Date(entry.date).toISOString().split('T')[0] : undefined; })(),
         };
         effectiveDocuments = initialOrder.documents || [];
         effectiveInternalNotes = initialOrder.internalNotes || [];
@@ -391,6 +398,13 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
         if (name === "sellingPrice" || (name === "purchasePrice" && !formData.sellingPrice)) {
             setBfProductValueForSim(isNaN(numericValue) ? 0 : numericValue);
         }
+    } else if (name === 'status') {
+        dispatch({ type: 'UPDATE_FIELD', field: 'status', value });
+        if (value === OrderStatus.ENTREGUE && !formData.deliveryDate) {
+            dispatch({ type: 'UPDATE_FIELD', field: 'deliveryDate', value: new Date().toISOString().split('T')[0] });
+        } else if (value !== OrderStatus.ENTREGUE) {
+            dispatch({ type: 'UPDATE_FIELD', field: 'deliveryDate', value: undefined });
+        }
     } else if (name === "supplierId" || name === "clientId") {
         dispatch({ type: 'UPDATE_FIELD', field: name as keyof BaseFormData, value: value || undefined });
     } else if (type === 'number' && name === 'installments') {
@@ -455,8 +469,9 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
       }
     }
     
+    const { deliveryDate, ...formDataToSave } = formData;
     const orderToSave: Order = {
-      ...formData,
+      ...formDataToSave,
       clientId: finalClientId,
       id: initialOrder?.id || uuidv4(),
       userId: initialOrder?.userId,
@@ -464,12 +479,12 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
       supplierName: selectedSupplierObj?.name,
       estimatedDeliveryDate: formData.estimatedDeliveryDate || undefined,
       documents, internalNotes,
-      trackingHistory: initialOrder?.trackingHistory || [{ status: formData.status, date: new Date().toISOString(), notes:"Pedido Criado" }],
+      trackingHistory: initialOrder?.trackingHistory || [{ status: formData.status, date: formData.status === OrderStatus.ENTREGUE && formData.deliveryDate ? new Date(formData.deliveryDate + 'T00:00:00').toISOString() : new Date().toISOString(), notes:"Pedido Criado" }],
       downPayment: formData.paymentMethod === PaymentMethod.BLU_FACILITA ? parseBRLCurrencyStringToNumber(bfDownPaymentInput) : undefined,
       installments: formData.paymentMethod === PaymentMethod.BLU_FACILITA ? formData.installments : undefined,
       bluFacilitaInstallments: initialOrder?.bluFacilitaInstallments, 
     };
-    if (initialOrder && initialOrder.status !== formData.status) { const newHistoryEntry = { status: formData.status, date: new Date().toISOString(), notes: "Status atualizado manualmente" }; orderToSave.trackingHistory = [...(initialOrder.trackingHistory || []), newHistoryEntry]; }
+    if (initialOrder && initialOrder.status !== formData.status) { const histDate = formData.status === OrderStatus.ENTREGUE && formData.deliveryDate ? new Date(formData.deliveryDate + 'T00:00:00').toISOString() : new Date().toISOString(); const newHistoryEntry = { status: formData.status, date: histDate, notes: "Status atualizado manualmente" }; orderToSave.trackingHistory = [...(initialOrder.trackingHistory || []), newHistoryEntry]; }
     try { await onSave(orderToSave); onClose(); } catch (err) { setError(err instanceof Error ? err.message : "Erro ao salvar encomenda.");
     } finally { setIsLoading(false); }
   };
@@ -825,6 +840,16 @@ export const OrdersPage = () => {
             </Button>
         </div>
     )},
+    { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => {
+        const delivered = getDeliveryDate(item);
+        if (delivered) return <span className="text-gray-700">Entregue: {formatDateBR(delivered)}</span>;
+        return item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} />;
+      } },
+    { header: 'Ações', accessor: (item: Order): ReactNode => ( <div className="flex flex-wrap items-center space-x-1"> <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button> {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && ( <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"} > {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />} </Button> )} <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button> </div> )}, 
+      
+  
+  
+  
   ];
   
   const handleExport = async () => { 
@@ -898,7 +923,8 @@ export const OrdersPage = () => {
                     </div>
                 )}
                 <p className="text-gray-700"><strong>Data do Pedido:</strong> {formatDateBR(orderToView.orderDate)}</p>
-                <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(orderToView.estimatedDeliveryDate)} (<CountdownDisplay targetDate={orderToView.estimatedDeliveryDate} />)</p>
+                <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(orderToView.estimatedDeliveryDate)}</p>
+                {(() => { const d = getDeliveryDate(orderToView); if(d) { const onTime = orderToView.estimatedDeliveryDate ? new Date(d) <= new Date(orderToView.estimatedDeliveryDate + "T23:59:59") : true; return <p className="text-gray-700"><strong>Data de Entrega:</strong> {formatDateBR(d)} {orderToView.estimatedDeliveryDate && (<span className={onTime ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>({onTime ? 'Em dia' : 'Atraso'})</span>)}</p>; } else { return <p className="text-gray-700"><CountdownDisplay targetDate={orderToView.estimatedDeliveryDate} /></p>; } })()}
                 {orderToView.arrivalDate && <p className="text-gray-700"><strong>Data de Chegada:</strong> {formatDateBR(orderToView.arrivalDate)}</p>}
                 {orderToView.imei && <p className="text-gray-700"><strong>IMEI:</strong> {orderToView.imei}</p>}
                 {orderToView.batteryHealth !== undefined && <p className="text-gray-700"><strong>Saúde da Bateria:</strong> {orderToView.batteryHealth}%</p>}
