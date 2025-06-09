@@ -1,20 +1,12 @@
 export enum OrderStatus {
-  PEDIDO_REALIZADO = 'Pedido Realizado',
+  PEDIDO_CRIADO = 'Pedido Criado',
   PAGAMENTO_CONFIRMADO = 'Pagamento Confirmado',
-  EM_PROCESSAMENTO = 'Em Processamento', // Fornecedor preparando
-  PEDIDO_ENVIADO = 'Pedido Enviado', // Enviado pelo fornecedor
-  EM_TRANSITO_INTERNACIONAL = 'Em Trânsito Internacional',
-  CHEGOU_HUB_LOGISTICO = 'Chegou ao Hub Logístico', // Ex: Miami, redirecionador
-  AGUARDANDO_ENVIO_BRASIL = 'Aguardando Envio para o Brasil',
-  EM_TRANSITO_BRASIL = 'Em Trânsito para o Brasil',
-  DESEMBARACO_ADUANEIRO = 'Desembaraço Aduaneiro',
-  LIBERADO_PELA_ALFANDEGA = 'Liberado pela Alfândega',
-  EM_ROTA_ENTREGA_FINAL = 'Em Rota para Entrega Final', // Já no Brasil
-  CHEGOU_NO_BRASIL = 'Chegou no Brasil', // Genérico se não detalhado
+  COMPRA_REALIZADA = 'Compra Realizada',
+  A_CAMINHO_DO_ESCRITORIO = 'A Caminho do Escritório',
+  CHEGOU_NO_ESCRITORIO = 'Chegou no Escritório',
   AGUARDANDO_RETIRADA = 'Aguardando Retirada',
-  ENTREGUE = 'Entregue',
+  ENVIADO = 'Enviado',
   CANCELADO = 'Cancelado',
-  PRONTO_PARA_ENTREGA = 'Pronto para Entrega', // Após registro de chegada
 }
 
 export enum ProductCondition {
@@ -161,6 +153,8 @@ export interface Client {
     cpfOrCnpj: string; 
     email: string;
     phone: string;
+    address: string;
+    cep: string;
     city: string;
     state: string; 
     clientType: ClientType;

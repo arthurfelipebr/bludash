@@ -65,7 +65,7 @@ export const AddOrderCostModal: React.FC<AddOrderCostModalProps> = ({ isOpen, on
             setIsLoadingOrders(true);
             getOrders() // Use the corrected getOrders
                 .then(fetchedOrders => {
-                    const activeOrders = fetchedOrders.filter( o => o.status !== OrderStatus.CANCELADO && o.status !== OrderStatus.ENTREGUE ).sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()); 
+                    const activeOrders = fetchedOrders.filter( o => o.status !== OrderStatus.CANCELADO && o.status !== OrderStatus.ENVIADO ).sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
                     setAllOrders(activeOrders);
                     setIsLoadingOrders(false);
                 })

@@ -174,7 +174,7 @@ const ViewInstallmentsModal: React.FC<ViewInstallmentsModalProps> = ({ order, is
                 {item.status}
             </span>
         )},
-        { header: 'Valor Pago', accessor: (item: BluFacilitaInstallment): ReactNode => formatCurrencyBRL(item.amountPaid) },
+        { header: 'Custo Pago', accessor: (item: BluFacilitaInstallment): ReactNode => formatCurrencyBRL(item.amountPaid) },
         { header: 'Data Pag.', accessor: (item: BluFacilitaInstallment): ReactNode => formatDateBR(item.paymentDate) },
         { header: 'Obs.', accessor: 'notes' as keyof BluFacilitaInstallment, cellClassName: "text-xs max-w-xs whitespace-normal" },
     ];
