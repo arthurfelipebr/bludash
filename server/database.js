@@ -1,19 +1,13 @@
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-const pool = new Pool({
-  host: process.env.PGHOST || 'localhost',
-  port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
-  user: process.env.PGUSER || 'postgres',
-  password: process.env.PGPASSWORD || '',
-  database: process.env.PGDATABASE || 'bludb'
-});
+const dbPath = process.env.DB_FILE || path.resolve(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath);
 
-async function initializeDatabase() {
-  const client = await pool.connect();
-  try {
-    await client.query(`CREATE TABLE IF NOT EXISTS users (
+function initializeDatabase() {
+  db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
@@ -21,12 +15,7 @@ async function initializeDatabase() {
       "registrationDate" TEXT NOT NULL
     )`);
 
-    // Ensure column exists for databases created before the column was quoted
-    await client.query(
-      'ALTER TABLE users ADD COLUMN IF NOT EXISTS "registrationDate" TEXT'
-    );
-
-    await client.query(`CREATE TABLE IF NOT EXISTS clients (
+    db.run(`CREATE TABLE IF NOT EXISTS clients (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,
       "fullName" TEXT NOT NULL,
@@ -43,7 +32,7 @@ async function initializeDatabase() {
       FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS suppliers (
+    db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -55,7 +44,7 @@ async function initializeDatabase() {
       FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS historicalPrices (
+    db.run(`CREATE TABLE IF NOT EXISTS historicalPrices (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
         supplierId TEXT NOT NULL,
@@ -64,13 +53,13 @@ async function initializeDatabase() {
         model TEXT NOT NULL,
         capacity TEXT,
         condition TEXT,
-        priceBRL DOUBLE PRECISION,
+        priceBRL REAL,
         dateRecorded TEXT NOT NULL,
         FOREIGN KEY (userId) REFERENCES users(id),
         FOREIGN KEY (supplierId) REFERENCES suppliers(id) ON DELETE CASCADE
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS orders (
+    db.run(`CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,
       "customerName" TEXT NOT NULL,
@@ -82,18 +71,18 @@ async function initializeDatabase() {
       condition TEXT NOT NULL,
       "supplierId" TEXT,
       "supplierName" TEXT,
-      "purchasePrice" DOUBLE PRECISION NOT NULL,
-      "sellingPrice" DOUBLE PRECISION,
+      "purchasePrice" REAL NOT NULL,
+      "sellingPrice" REAL,
       status TEXT NOT NULL,
       "estimatedDeliveryDate" TEXT,
       "orderDate" TEXT NOT NULL,
       notes TEXT,
       "paymentMethod" TEXT,
-      "downPayment" DOUBLE PRECISION,
+      "downPayment" REAL,
       installments INTEGER,
-      "financedAmount" DOUBLE PRECISION,
-      "totalWithInterest" DOUBLE PRECISION,
-      "installmentValue" DOUBLE PRECISION,
+      "financedAmount" REAL,
+      "totalWithInterest" REAL,
+      "installmentValue" REAL,
       "bluFacilitaContractStatus" TEXT,
       "imeiBlocked" INTEGER DEFAULT 0,
       "arrivalDate" TEXT,
@@ -101,11 +90,11 @@ async function initializeDatabase() {
       "arrivalNotes" TEXT,
       "batteryHealth" INTEGER,
       "readyForDelivery" INTEGER DEFAULT 0,
-      "shippingCostSupplierToBlu" DOUBLE PRECISION,
-      "shippingCostBluToClient" DOUBLE PRECISION,
+      "shippingCostSupplierToBlu" REAL,
+      "shippingCostBluToClient" REAL,
       "whatsAppHistorySummary" TEXT,
       "bluFacilitaUsesSpecialRate" INTEGER DEFAULT 0,
-      "bluFacilitaSpecialAnnualRate" DOUBLE PRECISION,
+      "bluFacilitaSpecialAnnualRate" REAL,
       documents TEXT,
       "trackingHistory" TEXT,
       "bluFacilitaInstallments" TEXT,
@@ -116,7 +105,7 @@ async function initializeDatabase() {
       FOREIGN KEY ("supplierId") REFERENCES suppliers(id) ON DELETE SET NULL
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS orderTrackingHistory (
+    db.run(`CREATE TABLE IF NOT EXISTS orderTrackingHistory (
         id TEXT PRIMARY KEY,
         "orderId" TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -125,21 +114,21 @@ async function initializeDatabase() {
         FOREIGN KEY ("orderId") REFERENCES orders(id) ON DELETE CASCADE
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS bluFacilitaInstallments (
+    db.run(`CREATE TABLE IF NOT EXISTS bluFacilitaInstallments (
         id TEXT PRIMARY KEY,
         "orderId" TEXT NOT NULL,
         "installmentNumber" INTEGER NOT NULL,
         "dueDate" TEXT NOT NULL,
-        amount DOUBLE PRECISION NOT NULL,
+        amount REAL NOT NULL,
         status TEXT NOT NULL,
-        "amountPaid" DOUBLE PRECISION,
+        "amountPaid" REAL,
         "paymentDate" TEXT,
         "paymentMethodUsed" TEXT,
         notes TEXT,
         FOREIGN KEY ("orderId") REFERENCES orders(id) ON DELETE CASCADE
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS internalNotes (
+    db.run(`CREATE TABLE IF NOT EXISTS internalNotes (
         id TEXT PRIMARY KEY,
         "orderId" TEXT NOT NULL,
         date TEXT NOT NULL,
@@ -149,7 +138,7 @@ async function initializeDatabase() {
         FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS documentFiles (
+    db.run(`CREATE TABLE IF NOT EXISTS documentFiles (
         id TEXT PRIMARY KEY,
         "orderId" TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -160,24 +149,24 @@ async function initializeDatabase() {
         FOREIGN KEY ("orderId") REFERENCES orders(id) ON DELETE CASCADE
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS orderCosts (
+    db.run(`CREATE TABLE IF NOT EXISTS orderCosts (
         id TEXT PRIMARY KEY,
         "userId" TEXT NOT NULL,
         "orderId" TEXT NOT NULL,
         type TEXT NOT NULL,
         description TEXT,
-        amount DOUBLE PRECISION NOT NULL,
+        amount REAL NOT NULL,
         date TEXT NOT NULL,
         FOREIGN KEY ("userId") REFERENCES users(id),
         FOREIGN KEY ("orderId") REFERENCES orders(id) ON DELETE CASCADE
     )`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS clientPayments (
+    db.run(`CREATE TABLE IF NOT EXISTS clientPayments (
         id TEXT PRIMARY KEY,
         "userId" TEXT NOT NULL,
         "orderId" TEXT NOT NULL,
         "paymentDate" TEXT NOT NULL,
-        "amountPaid" DOUBLE PRECISION NOT NULL,
+        "amountPaid" REAL NOT NULL,
         "paymentMethodUsed" TEXT NOT NULL,
         notes TEXT,
         FOREIGN KEY ("userId") REFERENCES users(id),
@@ -185,28 +174,26 @@ async function initializeDatabase() {
     )`);
 
     console.log('Database schema initialized/verified.');
-  } finally {
-    client.release();
-  }
+  });
 }
 
-initializeDatabase().catch(err => console.error('Error initializing database', err));
+initializeDatabase();
+
+function convertPlaceholders(sql) {
+  return sql.replace(/\$\d+/g, '?');
+}
 
 module.exports = {
   run: (sql, params, cb) => {
-    pool.query(sql, params)
-      .then(res => cb(null, res))
-      .catch(err => cb(err));
+    db.run(convertPlaceholders(sql), params, function(err) {
+      cb(err, { lastID: this.lastID, changes: this.changes });
+    });
   },
   get: (sql, params, cb) => {
-    pool.query(sql, params)
-      .then(res => cb(null, res.rows[0]))
-      .catch(err => cb(err));
+    db.get(convertPlaceholders(sql), params, cb);
   },
   all: (sql, params, cb) => {
-    pool.query(sql, params)
-      .then(res => cb(null, res.rows))
-      .catch(err => cb(err));
+    db.all(convertPlaceholders(sql), params, cb);
   },
-  pool
+  db
 };

@@ -1,10 +1,10 @@
 # Blu Imports Dashboard
 
-This project is an internal dashboard for Blu Imports. It is split into a React frontend (built with Vite) and a Node.js/Express backend that stores data in PostgreSQL.
+This project is an internal dashboard for Blu Imports. It is split into a React frontend (built with Vite) and a Node.js/Express backend that stores data in SQLite.
 
 ## Requirements
 - **Node.js** (version 18 or later)
-- **PostgreSQL** server
+- **SQLite** (no separate server required)
 
 ## Quick Start (Development)
 
@@ -27,10 +27,10 @@ Follow the steps below in order:
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` with your PostgreSQL details and a value for `JWT_SECRET`.
+   Edit `.env` with the path to your SQLite database file and a value for `JWT_SECRET`.
    Important keys:
    - `PORT` – backend port (default `3001`)
-   - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` – PostgreSQL connection
+   - `DB_FILE` – path to the SQLite database file
    - `JWT_SECRET` – any random string used to sign tokens
    - `API_KEY` – optional Gemini API key
 
@@ -70,17 +70,13 @@ After these steps, open `http://localhost:5173` in your browser to use the dashb
 
 ## Directory Overview
 - `App.tsx`, `features/`, `components/` – React source code
-- `server/` – Express API and PostgreSQL setup
+- `server/` – Express API and SQLite setup
 - `.env.example` – sample environment variables
 
 ## Sample `.env`
 ```env
 PORT=3001
-PGHOST=localhost
-PGPORT=5432
-PGUSER=seu_usuario
-PGPASSWORD=sua_senha
-PGDATABASE=bludb
+DB_FILE=./database.sqlite
 JWT_SECRET=sua-chave-secreta
 API_KEY=sua-chave-gemini
 ```
