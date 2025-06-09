@@ -102,7 +102,8 @@ const OrderStatusTimeline: React.FC<{ order: Order }> = ({ order }) => {
         OrderStatus.A_CAMINHO_DO_ESCRITORIO,
         OrderStatus.CHEGOU_NO_ESCRITORIO,
         OrderStatus.AGUARDANDO_RETIRADA,
-        OrderStatus.ENVIADO
+        OrderStatus.ENVIADO,
+        OrderStatus.ENTREGUE
     ];
     let displayStatusesSet = new Set<OrderStatus>();
     order.trackingHistory?.forEach(h => displayStatusesSet.add(h.status));
@@ -111,6 +112,9 @@ const OrderStatusTimeline: React.FC<{ order: Order }> = ({ order }) => {
     typicalPath.slice(0, currentIdxInTypical !== -1 ? currentIdxInTypical + 2 : typicalPath.length).forEach(s => displayStatusesSet.add(s));
     if (!displayStatusesSet.has(OrderStatus.ENVIADO) && order.status !== OrderStatus.CANCELADO) {
         displayStatusesSet.add(OrderStatus.ENVIADO);
+    }
+    if (!displayStatusesSet.has(OrderStatus.ENTREGUE) && order.status !== OrderStatus.CANCELADO) {
+        displayStatusesSet.add(OrderStatus.ENTREGUE);
     }
     let displayStatuses = Array.from(displayStatusesSet);
     displayStatuses.sort((a, b) => ORDER_STATUS_OPTIONS.indexOf(a) - ORDER_STATUS_OPTIONS.indexOf(b));
@@ -669,7 +673,31 @@ export const OrdersPage = () => {
     { header: 'Cliente', accessor: (item: Order): ReactNode => item.clientId ? getClientName(item.clientId) : item.customerName, className: 'font-medium' }, 
     { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model}`}, 
     { header: 'Fornecedor', accessor: (item: Order): ReactNode => item.supplierName || 'N/A'},
-    { header: 'Status', accessor: (item: Order): ReactNode => ( <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${ item.status === OrderStatus.ENVIADO ? 'bg-green-100 text-green-800' : item.status === OrderStatus.AGUARDANDO_RETIRADA ? 'bg-teal-100 text-teal-800' : item.status === OrderStatus.CANCELADO ? 'bg-red-100 text-red-800' : item.status.includes('Aguardando') || item.status.includes('Caminho') ? 'bg-yellow-100 text-yellow-800' : item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800' }`}> {item.status} {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && "(Atraso)"} </span> )},
+    { header: 'Status', accessor: (item: Order): ReactNode => (
+      <span
+        className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          item.status === OrderStatus.ENTREGUE
+            ? 'bg-green-200 text-green-800'
+            : item.status === OrderStatus.ENVIADO
+            ? 'bg-green-100 text-green-800'
+            : item.status === OrderStatus.AGUARDANDO_RETIRADA
+            ? 'bg-teal-100 text-teal-800'
+            : item.status === OrderStatus.CANCELADO
+            ? 'bg-red-100 text-red-800'
+            : item.status.includes('Aguardando') || item.status.includes('Caminho')
+            ? 'bg-yellow-100 text-yellow-800'
+            : item.paymentMethod === PaymentMethod.BLU_FACILITA &&
+              item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO
+            ? 'bg-orange-100 text-orange-800'
+            : 'bg-blue-100 text-blue-800'
+        }`}
+      >
+        {item.status}{' '}
+        {item.paymentMethod === PaymentMethod.BLU_FACILITA &&
+          item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO &&
+          '(Atraso)'}
+      </span>
+    )},
     { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order}, 
     { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} /> }, 
     { header: 'Ações', accessor: (item: Order): ReactNode => ( <div className="flex flex-wrap items-center space-x-1"> <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button> {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && ( <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"} > {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />} </Button> )} <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button> </div> )}, 
