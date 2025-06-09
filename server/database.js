@@ -22,6 +22,8 @@ function initializeDatabase() {
       "cpfOrCnpj" TEXT NOT NULL,
       email TEXT NOT NULL,
       phone TEXT NOT NULL,
+      address TEXT,
+      cep TEXT,
       city TEXT,
       state TEXT,
       "clientType" TEXT NOT NULL,
@@ -31,6 +33,10 @@ function initializeDatabase() {
       "defaulterNotes" TEXT,
       FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
+
+    // Ensure legacy databases have the new columns
+    db.run('ALTER TABLE clients ADD COLUMN address TEXT', [], () => {});
+    db.run('ALTER TABLE clients ADD COLUMN cep TEXT', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,

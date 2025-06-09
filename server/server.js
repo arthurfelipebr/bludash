@@ -303,13 +303,15 @@ app.delete('/api/orders/:id', authenticateToken, (req, res) => {
 // Clients
 // CORREÇÃO: SQL query para renomear colunas para camelCase
 const CLIENTS_SELECT_QUERY = `
-  SELECT 
+  SELECT
     id,
     "userId",
     "fullName",
     "cpfOrCnpj",
     email,
     phone,
+    address,
+    cep,
     city,
     state,
     "clientType",
@@ -359,15 +361,15 @@ app.post('/api/clients', authenticateToken, (req, res) => {
   const registrationDate = data.registrationDate || new Date().toISOString();
   
   const sql = `INSERT INTO clients (
-      id, "userId", "fullName", "cpfOrCnpj", email, phone, city, state, "clientType",
+      id, "userId", "fullName", "cpfOrCnpj", email, phone, address, cep, city, state, "clientType",
       "registrationDate", notes, "isDefaulter", "defaulterNotes"
   ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
   )`;
-  
+
   const params = [
       clientId, req.user.id, data.fullName, data.cpfOrCnpj, data.email, data.phone,
-      data.city, data.state, data.clientType, registrationDate, data.notes,
+      data.address, data.cep, data.city, data.state, data.clientType, registrationDate, data.notes,
       data.isDefaulter ? 1 : 0, data.defaulterNotes
   ];
 
@@ -393,12 +395,12 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
   const data = req.body;
   
   const sql = `UPDATE clients SET
-      "fullName"=$1, "cpfOrCnpj"=$2, email=$3, phone=$4, city=$5, state=$6,
-      "clientType"=$7, notes=$8, "isDefaulter"=$9, "defaulterNotes"=$10
-      WHERE id=$11 AND "userId"=$12`;
-      
+      "fullName"=$1, "cpfOrCnpj"=$2, email=$3, phone=$4, address=$5, cep=$6, city=$7, state=$8,
+      "clientType"=$9, notes=$10, "isDefaulter"=$11, "defaulterNotes"=$12
+      WHERE id=$13 AND "userId"=$14`;
+
   const params = [
-      data.fullName, data.cpfOrCnpj, data.email, data.phone, data.city, data.state,
+      data.fullName, data.cpfOrCnpj, data.email, data.phone, data.address, data.cep, data.city, data.state,
       data.clientType, data.notes, data.isDefaulter ? 1 : 0, data.defaulterNotes,
       clientId, req.user.id
   ];
