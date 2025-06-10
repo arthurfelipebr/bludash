@@ -65,14 +65,17 @@ export interface Supplier {
 }
 
 export interface HistoricalParsedProduct {
-  id: string; 
-  supplierId: string; 
-  listId?: string; 
+  id: string;
+  supplierId: string;
+  listId?: string;
   userId?: string; // Associated with the user who created it
   productName: string;
   model: string;
   capacity: string;
-  condition: string; 
+  color?: string;
+  characteristics?: string;
+  country?: string;
+  condition: string;
   priceBRL: number | null;
   dateRecorded: string; // ISO string
 }
@@ -194,28 +197,34 @@ export interface NavItem {
 }
 
 export interface ParsedSupplierProduct {
-  id: string; 
-  supplierId: string; 
-  supplierName: string; 
+  id: string;
+  supplierId: string;
+  supplierName: string;
   product: string;
   model: string;
   capacity: string;
-  condition: string; 
+  color?: string;
+  characteristics?: string;
+  country?: string;
+  condition: string;
   priceBRL: number | null;
   priceUSD?: number | null;
-  originalTextLine?: string; 
+  originalTextLine?: string;
 }
 
 export interface AggregatedProductPrice {
-  key: string; 
+  key: string;
   productName: string;
   model: string;
   capacity: string;
+  color?: string;
+  characteristics?: string;
+  country?: string;
   condition: string;
   avgPriceBRL: number;
   minPriceBRL: number;
-  cheapestSupplierId: string; 
-  cheapestSupplierName: string; 
+  cheapestSupplierId: string;
+  cheapestSupplierName: string;
   supplierCount: number;
   allPrices: Array<{ supplierId: string; supplierName: string; priceBRL: number }>;
 }
@@ -237,6 +246,9 @@ export interface GeminiParsedProduct { // This is used for the expected structur
   modelo?: string;
   capacidade?: string;
   condicao?: string;
+  caracteristicas?: string;
+  pais?: string;
+  cor?: string;
   precoBRL?: number;
   precoUSD?: number;
 }
