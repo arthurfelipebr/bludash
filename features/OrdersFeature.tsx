@@ -13,7 +13,7 @@ import {
   getClientPaymentsByOrderId,
   sendOrderContractToAutentique,
 } from '../services/AppService';
-import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast } from '../components/SharedComponents';
+import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast, OrderProgressBar } from '../components/SharedComponents';
 import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
@@ -784,7 +784,12 @@ export const OrdersPage = () => {
           '(Atraso)'}
       </span>
     )},
-    { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order}, 
+    { header: 'Progresso', accessor: (item: Order): ReactNode => (
+        <div className="w-32">
+          <OrderProgressBar status={item.status} />
+        </div>
+    )},
+    { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order},
     { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} /> }, 
     { header: 'Ações', accessor: (item: Order): ReactNode => (
         <div className="flex flex-wrap items-center space-x-1">

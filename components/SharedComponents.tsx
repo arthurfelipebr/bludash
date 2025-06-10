@@ -1,5 +1,6 @@
 
 import React, { ReactNode, useState, useEffect } from 'react';
+import { OrderStatus } from '../types';
 
 // --- Simple Error Boundary to avoid blank pages on runtime errors ---
 interface ErrorBoundaryProps { children: ReactNode; }
@@ -485,6 +486,48 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep }) => (
     ))}
   </div>
 );
+
+interface OrderProgressBarProps {
+  status: OrderStatus;
+}
+
+const ORDER_PROGRESS_STEPS = [
+  { label: 'Contrato assinado', statuses: [OrderStatus.PEDIDO_CRIADO] },
+  { label: 'Pagamento recebido', statuses: [OrderStatus.PAGAMENTO_CONFIRMADO] },
+  { label: 'Produto comprado', statuses: [OrderStatus.COMPRA_REALIZADA] },
+  { label: 'Em trânsito', statuses: [
+      OrderStatus.A_CAMINHO_DO_ESCRITORIO,
+      OrderStatus.CHEGOU_NO_ESCRITORIO,
+      OrderStatus.AGUARDANDO_RETIRADA,
+      OrderStatus.ENVIADO,
+    ] },
+  { label: 'Entregue', statuses: [OrderStatus.ENTREGUE] },
+];
+
+const getProgressIndex = (status: OrderStatus): number => {
+  for (let i = ORDER_PROGRESS_STEPS.length - 1; i >= 0; i--) {
+    if (ORDER_PROGRESS_STEPS[i].statuses.includes(status)) return i;
+  }
+  return 0;
+};
+
+export const OrderProgressBar: React.FC<OrderProgressBarProps> = ({ status }) => {
+  const currentIdx = getProgressIndex(status);
+  return (
+    <div className="flex items-center space-x-1 w-full" title={ORDER_PROGRESS_STEPS[currentIdx].label}>
+      {ORDER_PROGRESS_STEPS.map((_, idx) => (
+        <React.Fragment key={idx}>
+          <div
+            className={`w-2 h-2 rounded-full ${idx <= currentIdx ? 'bg-blu-primary' : 'bg-gray-300'}`}
+          />
+          {idx < ORDER_PROGRESS_STEPS.length - 1 && (
+            <div className={`flex-1 h-0.5 ${idx < currentIdx ? 'bg-blu-primary' : 'bg-gray-300'}`} />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
 
 interface ToastProps {
   message: string;
