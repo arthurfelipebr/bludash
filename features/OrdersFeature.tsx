@@ -9,8 +9,9 @@ import {
   getSuppliers, getSupplierById, 
   parseBRLCurrencyStringToNumber, formatNumberToBRLCurrencyInput,
   cleanPhoneNumberForWhatsApp,
-  calculateBluFacilitaDetails, 
+  calculateBluFacilitaDetails,
   getClientPaymentsByOrderId,
+  sendOrderContractToAutentique,
 } from '../services/AppService';
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast } from '../components/SharedComponents';
 import { ClientForm } from './ClientsFeature';
@@ -734,14 +735,24 @@ export const OrdersPage = () => {
 
   const handleClearFilters = () => { setSearchTerm(''); setStatusFilter(''); setPaymentMethodFilter(''); };
   
-  const handlePaymentSaved = async () => { 
-    await fetchAllData(); 
-    if(orderToView) { 
+  const handlePaymentSaved = async () => {
+    await fetchAllData();
+    if(orderToView) {
       const updatedOrder = await getOrderByIdService(orderToView.id);
       if (updatedOrder) setOrderToView(updatedOrder);
-      setClientPayments(await getClientPaymentsByOrderId(orderToView.id)); 
-    } 
-    setOrderToRegisterPayment(null); 
+      setClientPayments(await getClientPaymentsByOrderId(orderToView.id));
+    }
+    setOrderToRegisterPayment(null);
+  };
+
+  const handleSendContract = async (order: Order) => {
+    try {
+      await sendOrderContractToAutentique(order.id);
+      alert('Contrato enviado via Autentique.');
+    } catch (err) {
+      console.error('Erro ao enviar contrato', err);
+      alert('Falha ao enviar contrato.');
+    }
   };
 
   const columns = [ 
@@ -845,7 +856,20 @@ export const OrdersPage = () => {
         if (delivered) return <span className="text-gray-700">Entregue: {formatDateBR(delivered)}</span>;
         return item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} />;
       } },
-    { header: 'Ações', accessor: (item: Order): ReactNode => ( <div className="flex flex-wrap items-center space-x-1"> <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button> <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button> {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && ( <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"} > {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />} </Button> )} <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button> </div> )}, 
+    { header: 'Ações', accessor: (item: Order): ReactNode => (
+        <div className="flex flex-wrap items-center space-x-1">
+            <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button>
+            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button>
+            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button>
+            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleSendContract(item); }} title="Enviar Contrato"><DocumentTextIcon className="h-4 w-4"/></Button>
+            {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && (
+                <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"}>
+                    {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />}
+                </Button>
+            )}
+            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button>
+        </div>
+    )},
       
   
   

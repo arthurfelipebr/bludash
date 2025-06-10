@@ -455,6 +455,10 @@ export const getWeeklySummaryStats = async (weekOffset: number = 0): Promise<Wee
     return apiClient<WeeklySummaryStats>(`/dashboard/weekly-summary?offset=${weekOffset}`);
 };
 
+export const sendOrderContractToAutentique = async (orderId: string): Promise<void> => {
+    await apiClient<void>('/contracts/autentique', { method: 'POST', body: JSON.stringify({ orderId }) });
+};
+
 // --- User Management ---
 export const getUsers = async (): Promise<User[]> => {
     return apiClient<User[]>('/users');

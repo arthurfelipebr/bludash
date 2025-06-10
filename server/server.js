@@ -4,12 +4,15 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 const db = require('./database'); // SQLite database connection
 // const { GoogleGenAI } = require('@google/genai'); // For backend Gemini calls
 
 const app =express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
+const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
 // const GEMINI_API_KEY = process.env.API_KEY; // For backend Gemini calls
 
 // if (GEMINI_API_KEY) {
@@ -678,6 +681,52 @@ app.delete('/api/costs/:costItemId', authenticateToken, (req, res) => {
     });
 });
 
+app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ message: 'orderId required' });
+
+    db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, orderRow) => {
+        if (err || !orderRow) {
+            console.error('Error fetching order for contract:', err && err.message);
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+        if (!orderRow.clientId) {
+            return res.status(400).json({ message: 'Order missing client.' });
+        }
+        db.get('SELECT * FROM clients WHERE id = $1 AND "userId" = $2', [orderRow.clientId, req.user.id], async (err2, clientRow) => {
+            if (err2 || !clientRow) {
+                console.error('Error fetching client for contract:', err2 && err2.message);
+                return res.status(404).json({ message: 'Client not found.' });
+            }
+            try {
+                const templatePath = path.join(__dirname, 'contractTemplate.html');
+                let html = fs.readFileSync(templatePath, 'utf8');
+                html = html.replace('[Nome do Contratante]', clientRow.fullName)
+                           .replace('[E-mail do Contratante]', clientRow.email)
+                           .replace('[Celular do Contratante]', clientRow.phone)
+                           .replace('[CPF do Contratante]', clientRow.cpfOrCnpj);
+
+                const contentBase64 = Buffer.from(html).toString('base64');
+                const mutation = `mutation CreateDocument($name: String!, $content: String!) {\n  createDocument(document: { name: $name, contentBase64: $content, contentType: \"text/html\" }) { id }\n}`;
+                const variables = { name: `Contrato ${orderRow.id}`, content: contentBase64 };
+                const response = await fetch('https://api.autentique.com.br/v2/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AUTENTIQUE_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: mutation, variables })
+                });
+                const data = await response.json();
+                res.json(data);
+            } catch (error) {
+                console.error('Autentique integration error:', error);
+                res.status(500).json({ message: 'Failed to send contract.' });
+            }
+        });
+    });
+});
+
 // Dashboard Statistics
 app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
     const userId = req.user.id;
@@ -801,7 +850,6 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
 // --- Serve Static Frontend ---
 // In production, Nginx or Apache might serve static files directly.
 // For development or simpler setups, Express can serve them.
-const path = require('path');
 app.use(express.static(path.join(__dirname, '../dist'))); // Serve files from frontend build
 
 // All other GET requests not handled before will return the React app
