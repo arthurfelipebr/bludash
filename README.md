@@ -33,6 +33,7 @@ Follow the steps below in order:
    - `DB_FILE` – path to the SQLite database file
    - `JWT_SECRET` – any random string used to sign tokens
    - `API_KEY` – optional Gemini API key
+   - `AUTENTIQUE_TOKEN` – token de acesso à API da Autentique
 
 4. **Initialize the database**
    ```bash
@@ -79,6 +80,7 @@ PORT=3001
 DB_FILE=./database.sqlite
 JWT_SECRET=sua-chave-secreta
 API_KEY=sua-chave-gemini
+AUTENTIQUE_TOKEN=
 ```
 
 After following the steps above you should be able to register a user and start managing orders, clients and suppliers through the web interface.
