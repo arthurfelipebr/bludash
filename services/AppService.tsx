@@ -194,7 +194,7 @@ export const parseSupplierListWithGemini = async ( textList: string, supplier: S
         product: p.produto || 'N/A',
         model: p.modelo || 'N/A',
         capacity: p.capacidade || 'N/A',
-        color: p.cor || undefined,
+        color: undefined,
         characteristics: p.caracteristicas || undefined,
         country: p.pais || undefined,
         condition: p.condicao || 'N/A',
