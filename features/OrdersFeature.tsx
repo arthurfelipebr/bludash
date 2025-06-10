@@ -269,6 +269,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const [isProductNFModalOpen, setIsProductNFModalOpen] = useState(false);
   const [productNFText, setProductNFText] = useState('');
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
   const FORM_STEPS = ['Cliente & Produto', 'Valores & Pagamento', 'Notas & Docs'];
 
   useEffect(() => {
@@ -425,6 +426,11 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
   const handleAddDocument = () => { const docName = prompt("Nome do documento (ex: Contrato, Invoice):"); if (docName) { setDocuments(prev => [...prev, { id: uuidv4(), name: docName, url: '#mocklink', uploadedAt: new Date().toISOString() }]); } };
   const handleRemoveDocument = (docId: string) => setDocuments(prev => prev.filter(doc => doc.id !== docId));
 
+  const openNewClientForm = (name: string) => {
+    setNewClientName(name);
+    setIsClientFormOpen(true);
+  };
+
   const handleSaveNewClient = async (client: Client) => {
     const saved = await saveClient(client);
     const updatedClients = await getClients();
@@ -432,6 +438,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
     dispatch({ type: 'UPDATE_FIELD', field: 'clientId', value: saved.id });
     dispatch({ type: 'UPDATE_FIELD', field: 'customerNameManual', value: '' });
     setIsClientFormOpen(false);
+    setNewClientName('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -546,7 +553,7 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
         <Stepper steps={FORM_STEPS} currentStep={currentStep} />
         {currentStep === 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ClientProductStep state={formData} dispatch={dispatch} />
+            <ClientProductStep state={formData} dispatch={dispatch} onAddNewClient={openNewClientForm} />
         </div>)}
         {currentStep === 1 && (
           <ValuesStep
@@ -608,7 +615,12 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
       </Modal>
     )}
     {isClientFormOpen && (
-      <ClientForm isOpen={isClientFormOpen} onClose={() => setIsClientFormOpen(false)} onSave={handleSaveNewClient} />
+      <ClientForm
+        isOpen={isClientFormOpen}
+        onClose={() => setIsClientFormOpen(false)}
+        onSave={handleSaveNewClient}
+        initialClient={newClientName ? { fullName: newClientName } as Client : undefined}
+      />
     )}
   </>
   );

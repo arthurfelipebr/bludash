@@ -19,10 +19,11 @@ interface ComboboxProps {
   value: string;
   onChange: (val: string) => void;
   onSelect: (client: Partial<Client>) => void;
+  onAddNew?: (name: string) => void;
   results: Client[];
 }
 
-const Combobox: React.FC<ComboboxProps> = ({ value, onChange, onSelect, results }) => {
+const Combobox: React.FC<ComboboxProps> = ({ value, onChange, onSelect, onAddNew, results }) => {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -35,7 +36,7 @@ const Combobox: React.FC<ComboboxProps> = ({ value, onChange, onSelect, results 
               {c.fullName} {c.cpfOrCnpj && `(${c.cpfOrCnpj})`}
             </li>
           )) : value && (
-            <li className="p-2 cursor-pointer hover:bg-gray-100" onMouseDown={() => { onSelect({ fullName: value }); setOpen(false); }}>
+            <li className="p-2 cursor-pointer hover:bg-gray-100" onMouseDown={() => { onSelect({ fullName: value }); onAddNew && onAddNew(value); setOpen(false); }}>
               Adicionar novo cliente: '{value}'
             </li>
           )}
@@ -48,14 +49,21 @@ const Combobox: React.FC<ComboboxProps> = ({ value, onChange, onSelect, results 
 interface Props {
   state: OrderFormState;
   dispatch: React.Dispatch<OrderFormAction>;
+  onAddNewClient?: (name: string) => void;
 }
 
-export const ClientProductStep: React.FC<Props> = ({ state, dispatch }) => {
+export const ClientProductStep: React.FC<Props> = ({ state, dispatch, onAddNewClient }) => {
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  useEffect(() => { setQuery(state.customerNameManual); }, [state.customerNameManual]);
+  useEffect(() => {
+    if (selectedClient) {
+      setQuery(selectedClient.fullName);
+    } else {
+      setQuery(state.customerNameManual);
+    }
+  }, [state.customerNameManual, selectedClient]);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -86,11 +94,14 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch }) => {
 
   const handleSelect = (client: Partial<Client>) => {
     dispatch({ type: 'SET_CLIENT', client });
+    if (client.fullName) {
+      setQuery(client.fullName);
+    }
   };
 
   return (
     <Card title="Detalhes do Cliente e Produto" className="h-full">
-      <Combobox value={query} onChange={setQuery} onSelect={handleSelect} results={options} />
+      <Combobox value={query} onChange={setQuery} onSelect={handleSelect} onAddNew={onAddNewClient} results={options} />
       {selectedClient?.isDefaulter && (
         <Alert type="warning" message={`Atenção: Cliente ${selectedClient.fullName} está marcado como inadimplente.`}
                details={selectedClient.defaulterNotes} className="mt-2" />
