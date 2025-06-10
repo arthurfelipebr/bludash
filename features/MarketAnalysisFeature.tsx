@@ -91,7 +91,6 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
       h.model === product.model &&
       h.capacity === product.capacity &&
       h.color === product.color &&
-      h.characteristics === product.characteristics &&
       h.country === product.country &&
       normalizeProductCondition(h.condition) === product.condition
     );
@@ -113,7 +112,6 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
         h.model === product.model &&
         h.capacity === product.capacity &&
         h.color === product.color &&
-        h.characteristics === product.characteristics &&
         h.country === product.country &&
         normalizeProductCondition(h.condition) === product.condition
       ) {
