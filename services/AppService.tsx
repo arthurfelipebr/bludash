@@ -202,6 +202,9 @@ export const parseSupplierListWithGemini = async ( textList: string, supplier: S
     return [];
   } catch (error) {
     console.error("Error calling backend for Gemini parsing:", error);
+    if (error instanceof Error) {
+      throw new Error(`Falha ao comunicar com o servidor para processar a lista: ${error.message}`);
+    }
     throw new Error("Falha ao comunicar com o servidor para processar a lista. Verifique o console para detalhes.");
   }
 };
