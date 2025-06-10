@@ -12,6 +12,7 @@ function initializeDatabase() {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
       "registrationDate" TEXT NOT NULL
     )`);
 
@@ -38,6 +39,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE clients ADD COLUMN address TEXT', [], () => {});
     db.run('ALTER TABLE clients ADD COLUMN cep TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN watchSize TEXT', [], () => {});
+    db.run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'", [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,

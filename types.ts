@@ -170,6 +170,7 @@ export interface User {
   id: string; // Typically the same as userId from backend
   email: string;
   name?: string; // Name is optional
+  role?: string;
   registrationDate?: string;
 }
 

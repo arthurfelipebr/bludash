@@ -40,6 +40,13 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const authorizeAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    return next();
+  }
+  return res.sendStatus(403);
+};
+
 // --- Authentication Routes ---
 app.post('/api/auth/register', (req, res) => {
   const { email, password, name } = req.body;
@@ -54,9 +61,10 @@ app.post('/api/auth/register', (req, res) => {
   const userId = uuidv4();
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
+  const role = 'user';
 
-  db.run('INSERT INTO users (id, email, password, name, "registrationDate") VALUES ($1, $2, $3, $4, $5)',
-    [userId, email, hashedPassword, displayName, registrationDate],
+  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate") VALUES ($1, $2, $3, $4, $5, $6)',
+    [userId, email, hashedPassword, displayName, role, registrationDate],
     function(err) {
     if (err) {
       if (err.code === 'SQLITE_CONSTRAINT') {
@@ -65,29 +73,29 @@ app.post('/api/auth/register', (req, res) => {
       console.error('Registration error:', err.message);
       return res.status(500).json({ message: 'Falha ao registrar usuário.' });
     }
-    const user = { id: userId, email: email, name: displayName, registrationDate: registrationDate };
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' }); // Longer expiry for new users
+    const user = { id: userId, email: email, name: displayName, role, registrationDate: registrationDate };
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' }); // Longer expiry for new users
     res.status(201).json({ token, user });
   });
 });
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  db.get('SELECT id, email, password, name, "registrationDate" FROM users WHERE email = $1', [email], (err, user) => {
+  db.get('SELECT id, email, password, name, role, "registrationDate" FROM users WHERE email = $1', [email], (err, user) => {
     if (err) return res.status(500).json({ message: 'Server error during login.' });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
 
     const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) return res.status(401).json({ message: 'Usuário não encontrado ou senha incorreta.' });
     
-    const userPayload = { id: user.id, email: user.email, name: user.name, registrationDate: user.registrationDate };
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    const userPayload = { id: user.id, email: user.email, name: user.name, role: user.role, registrationDate: user.registrationDate };
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
     res.status(200).json({ token, user: userPayload });
   });
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, email, name, "registrationDate" FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
+  db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
     if (err) {
       console.error('Error fetching user for /me:', err.message);
       return res.status(500).json({ message: 'Error fetching user details.' });
@@ -96,6 +104,66 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
     res.json(userRow);
+  });
+});
+
+// --- User Management (Admin Only) ---
+app.get('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all('SELECT id, email, name, role, "registrationDate" FROM users ORDER BY email ASC', [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching users:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch users.' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
+  const { email, password, name, role } = req.body;
+  if (!email || !password || !role) {
+    return res.status(400).json({ message: 'Email, password and role are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+  }
+  const hashedPassword = bcrypt.hashSync(password, 8);
+  const userId = uuidv4();
+  const registrationDate = new Date().toISOString();
+  const displayName = name && name.trim() !== '' ? name.trim() : email;
+  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate") VALUES ($1,$2,$3,$4,$5,$6)',
+    [userId, email, hashedPassword, displayName, role, registrationDate],
+    function(err) {
+      if (err) {
+        if (err.code === 'SQLITE_CONSTRAINT') {
+          return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
+        }
+        console.error('Error inviting user:', err.message);
+        return res.status(500).json({ message: 'Failed to invite user.' });
+      }
+      db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [userId], (err2, row) => {
+        if (err2 || !row) {
+          return res.status(500).json({ message: 'User created, but failed to retrieve.' });
+        }
+        res.status(201).json(row);
+      });
+    });
+});
+
+app.put('/api/users/:id/role', authenticateToken, authorizeAdmin, (req, res) => {
+  const userId = req.params.id;
+  const { role } = req.body;
+  if (!role) return res.status(400).json({ message: 'Role is required.' });
+  db.run('UPDATE users SET role = $1 WHERE id = $2', [role, userId], function(err) {
+    if (err) {
+      console.error('Error updating user role:', err.message);
+      return res.status(500).json({ message: 'Failed to update user role.' });
+    }
+    db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [userId], (err2, row) => {
+      if (err2 || !row) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+      res.json(row);
+    });
   });
 });
 
