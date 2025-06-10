@@ -917,10 +917,11 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
 
       REGRAS IMPORTANTES:
       1.  Ignore completamente qualquer texto introdutório, saudações, avisos, informações de contato ou regras de frete. Foque apenas nas linhas que descrevem os produtos e seus preços.
-      2.  Para cada produto, extraia: o nome do produto (produto), o modelo, a capacidade (capacidade), a condição (condicao), características como "e-sim" ou "chip físico" (caracteristicas), o país de fabricação (pais, ex: HN, CN, US), a cor (cor) e o preço em BRL (precoBRL).
+      2.  Para cada produto, extraia: o nome do produto (produto), o modelo, a capacidade (capacidade), a condição (condicao), características como "e-sim" ou "chip físico" (caracteristicas), o país de fabricação (pais, ex: HN, CN, US) e o preço em BRL (precoBRL). Inclua a cor (cor) apenas se houver uma única opção com o mesmo preço.
       3.  "Condicao" deve conter apenas o estado do aparelho (ex: "Lacrado", "Novo", "CPO", "Seminovo"). Informações como "e-sim" ou "chip físico" vão para "caracteristicas" e abreviações como "HN" ou "CN" vão para "pais".
       4.  O campo "precoBRL" DEVE SER um número (float), não uma string. Remova "R$", "$", ".", e substitua "," por "." antes de converter para número. Ex: "R$6.650,00" se torna 6650.00. "(8,900)" se torna 8900.00.
       5.  A saída DEVE ser um array JSON válido. Nada além do array.
+      6.  Se o mesmo modelo e capacidade for listado com diferentes opções de cor e preços variados, ignore a cor e use somente o maior preço encontrado.
 
       Exemplo de Saída Esperada:
       [
