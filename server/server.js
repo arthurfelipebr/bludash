@@ -9,7 +9,6 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./database'); // SQLite database connection
 const { GoogleGenAI } = require('@google/genai');
-const { GoogleGenerativeAI } = require('@google/genai');
 
 const app =express();
 const PORT = process.env.PORT || 3001;
@@ -21,8 +20,6 @@ let genAI;
 if (GEMINI_API_KEY) {
 
   genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
   console.log('Cliente Gemini AI inicializado no backend.');
 } else {
