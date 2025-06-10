@@ -40,6 +40,8 @@ const BRAZIL_STATES = [
   { value: 'TO', label: 'Tocantins' },
 ];
 
+const PRODUCT_CATEGORIES = ['iPhone', 'MacBook', 'iPad', 'Apple Watch', 'Mac Mini', 'AirPods'];
+
 const initialFormData: Omit<Client, 'id' | 'registrationDate'> = {
   fullName: '',
   cpfOrCnpj: '',
@@ -264,6 +266,14 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
         return { totalSpent, outstandingDebt, activeOrders };
     }, [clientOrders]);
 
+    const purchasedProducts = useMemo(() => {
+        return Array.from(new Set(clientOrders.map(o => o.productName).filter(Boolean)));
+    }, [clientOrders]);
+
+    const missingProducts = useMemo(() => {
+        return PRODUCT_CATEGORIES.filter(p => !purchasedProducts.includes(p));
+    }, [purchasedProducts]);
+
     if (!client) return null;
 
     const orderColumns = [
@@ -301,6 +311,27 @@ const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({ client, isOpen,
                         <div>
                             <p className="text-sm text-gray-600">Encomendas Ativas</p>
                             <p className="text-lg font-semibold">{kpis.activeOrders}</p>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card title="Monitoramento de Produtos">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p className="font-medium mb-1">Já Comprou</p>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                                {purchasedProducts.length > 0 ? purchasedProducts.map(p => (
+                                    <li key={p}>{p}</li>
+                                )) : <li>Nenhum produto registrado</li>}
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="font-medium mb-1">Sugestões</p>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                                {missingProducts.length > 0 ? missingProducts.map(p => (
+                                    <li key={p}>{p}</li>
+                                )) : <li>Cliente já possui todos</li>}
+                            </ul>
                         </div>
                     </div>
                 </Card>
