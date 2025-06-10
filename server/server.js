@@ -945,12 +945,18 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
       model: 'gemini-1.5-flash',
       contents: prompt,
     });
-    const rawText = result.text;
-    const jsonText = rawText
-      .replace(/^```json\n/, '')
-      .replace(/\n```$/, '');
+    const rawText = result.text || '';
+    const cleaned = rawText
+      .replace(/```json\s*/i, '')
+      .replace(/```$/, '')
+      .trim();
 
-    const parsedData = JSON.parse(jsonText);
+    const match = cleaned.match(/\[.*\]/s);
+    if (!match) {
+      throw new Error('Resposta da IA não continha um array JSON válido');
+    }
+
+    const parsedData = JSON.parse(match[0]);
     res.json(parsedData);
 
   } catch (error) {
