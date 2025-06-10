@@ -878,7 +878,10 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const jsonText = response.text().replace(/^```json\n/, '').replace(/\n```$/, '');
+    const rawText = await response.text();
+    const jsonText = rawText
+      .replace(/^```json\n/, '')
+      .replace(/\n```$/, '');
 
     const parsedData = JSON.parse(jsonText);
     res.json(parsedData);
