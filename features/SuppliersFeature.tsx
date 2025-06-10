@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { ParsedSupplierProduct, AggregatedProductPrice, Supplier, SupplierOption, HistoricalParsedProduct } from '../types';
+import { AggregatedProductPrice, Supplier, HistoricalParsedProduct } from '../types';
 import { 
   parseSupplierListWithGemini, 
   aggregateSupplierData,
@@ -11,7 +11,16 @@ import {
   getHistoricalParsedProducts,  // For fetching all data for aggregation
   deleteAllHistoricalProductsForUser // For clearing data
 } from '../services/AppService';
-import { Button, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, Input, Modal, Select, Tabs, Tab } from '../components/SharedComponents';
+import { Button, Textarea, Card, PageTitle, Alert, ResponsiveTable, Input, Modal, Select, Tabs, Tab } from '../components/SharedComponents';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Supplier Form Component ---
@@ -132,6 +141,7 @@ const ManageSuppliersTab: React.FC<ManageSuppliersTabProps> = ({ suppliers, onEd
 interface AnalyzePricesTabProps {
     suppliers: Supplier[];
     aggregatedData: AggregatedProductPrice[];
+    historicalData: HistoricalParsedProduct[];
     onProcessList: (textList: string, supplier: Supplier) => Promise<void>;
     onClearAllParsedData: () => Promise<void>;
     onExportAggregated: (profitMargin: number) => void;
@@ -139,14 +149,14 @@ interface AnalyzePricesTabProps {
     isLoadingRawData: boolean;
 }
 const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
-    suppliers, aggregatedData, onProcessList, onClearAllParsedData, onExportAggregated, onExportRaw, isLoadingRawData
+    suppliers, aggregatedData, historicalData, onProcessList, onClearAllParsedData, onExportAggregated, onExportRaw, isLoadingRawData
 }) => {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const [priceListText, setPriceListText] = useState<string>('');
   const [isLoadingProcessing, setIsLoadingProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [profitMargin, setProfitMargin] = useState<number>(0);
-  const [selectedProductPrices, setSelectedProductPrices] = useState<AggregatedProductPrice | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<AggregatedProductPrice | null>(null);
 
   const supplierOptions = useMemo(() => [
       { value: '', label: 'Selecione um Fornecedor...' },
@@ -188,13 +198,48 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
     { header: 'Menor Preço (R$)', accessor: (item: AggregatedProductPrice): ReactNode => formatCurrencyBRL(item.minPriceBRL), className: 'font-semibold text-green-600' },
     { header: 'Fornecedor +Barato', accessor: 'cheapestSupplierName' as keyof AggregatedProductPrice },
     { header: 'Qtd Fornec.', accessor: 'supplierCount' as keyof AggregatedProductPrice, className: 'text-center' },
-    ...(profitMargin > 0 ? [{ 
-        header: `Preço Venda (${profitMargin}%)`, 
+    ...(profitMargin > 0 ? [{
+        header: `Preço Venda (${profitMargin}%)`,
         accessor: (item: AggregatedProductPrice): ReactNode => formatCurrencyBRL(item.minPriceBRL * (1 + profitMargin / 100)),
         className: 'font-bold text-blue-700'
     }] : []),
-    { header: 'Ver Preços', accessor: (item: AggregatedProductPrice): ReactNode => ( <Button size="sm" variant="link" onClick={(e) => { e.stopPropagation(); setSelectedProductPrices(item); }}>Detalhes</Button> )}
+    { header: 'Ver Histórico', accessor: (item: AggregatedProductPrice): ReactNode => ( <Button size="sm" variant="link" onClick={(e) => { e.stopPropagation(); setSelectedProduct(item); }}>Ver</Button> )}
   ], [profitMargin]);
+
+  const buildChartData = (product: AggregatedProductPrice) => {
+    const filtered = historicalData.filter(h =>
+      h.productName === product.productName &&
+      h.model === product.model &&
+      h.capacity === product.capacity &&
+      h.condition === product.condition
+    );
+    const dateMap: Record<string, any> = {};
+    filtered.forEach(item => {
+      const date = item.dateRecorded.split('T')[0];
+      const supplier = suppliers.find(s => s.id === item.supplierId)?.name || item.supplierId;
+      if (!dateMap[date]) dateMap[date] = { date };
+      dateMap[date][supplier] = item.priceBRL;
+    });
+    return Object.values(dateMap).sort((a,b) => a.date.localeCompare(b.date));
+  };
+
+  const chartLines = (product: AggregatedProductPrice) => {
+    const suppliersSet = new Set<string>();
+    historicalData.forEach(h => {
+      if (
+        h.productName === product.productName &&
+        h.model === product.model &&
+        h.capacity === product.capacity &&
+        h.condition === product.condition
+      ) {
+        suppliersSet.add(suppliers.find(s => s.id === h.supplierId)?.name || h.supplierId);
+      }
+    });
+    const colors = ['#8884d8', '#82ca9d', '#ff7300', '#e6194B', '#4363d8', '#f58231'];
+    return Array.from(suppliersSet).map((name, idx) => (
+      <Line key={name} type="monotone" dataKey={name} stroke={colors[idx % colors.length]} />
+    ));
+  };
 
   return (
     <>
@@ -230,10 +275,20 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
             {aggregatedData.length > 0 && ( <div className="mt-6 text-right"> <Button variant="danger" onClick={onClearAllParsedData} size="sm"> Limpar Todos os Dados Processados </Button> </div> )}
         </Card>
     </div>
-    {selectedProductPrices && (
-        <Modal isOpen={!!selectedProductPrices} onClose={() => setSelectedProductPrices(null)} title={`Preços para: ${selectedProductPrices.productName} ${selectedProductPrices.model} ${selectedProductPrices.capacity} (${selectedProductPrices.condition})`} size="lg">
-            <ResponsiveTable columns={[ { header: "Fornecedor", accessor: "supplierName" }, { header: "Preço (R$)", accessor: (item: {supplierName: string, priceBRL: number}): ReactNode => formatCurrencyBRL(item.priceBRL) } ]} data={selectedProductPrices.allPrices.sort((a,b) => a.priceBRL - b.priceBRL)} rowKeyAccessor={(item: {supplierName: string, priceBRL: number}) => `${item.supplierName}-${item.priceBRL}`} />
-            <div className="mt-4 flex justify-end"> <Button onClick={() => setSelectedProductPrices(null)}>Fechar</Button> </div>
+    {selectedProduct && (
+        <Modal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} title={`Histórico: ${selectedProduct.productName} ${selectedProduct.model} ${selectedProduct.capacity} (${selectedProduct.condition})`} size="xl">
+            <div className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={buildChartData(selectedProduct)}>
+                        <XAxis dataKey="date" />
+                        <YAxis tickFormatter={formatCurrencyBRL} />
+                        <Tooltip formatter={(v: number) => formatCurrencyBRL(v)} />
+                        <Legend />
+                        {chartLines(selectedProduct)}
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+            <div className="mt-4 flex justify-end"> <Button onClick={() => setSelectedProduct(null)}>Fechar</Button> </div>
         </Modal>
     )}
     </>
@@ -355,9 +410,10 @@ export const SuppliersPage: React.FC<{}> = () => {
       </Tabs>
 
       {activeTab === 'analyze' && (
-        <AnalyzePricesTab 
+        <AnalyzePricesTab
             suppliers={suppliers}
             aggregatedData={aggregatedData}
+            historicalData={historicalProducts}
             onProcessList={handleProcessList}
             onClearAllParsedData={handleClearAllParsedData}
             onExportAggregated={handleExportAggregated}

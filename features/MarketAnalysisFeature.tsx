@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState, ReactNode } from 'react';
 import { AggregatedProductPrice, HistoricalParsedProduct, Supplier } from '../types';
 import {
-  parseSupplierListWithGemini,
   aggregateSupplierData,
   getSuppliers,
-  saveHistoricalParsedProducts,
   getHistoricalParsedProducts,
-  isGeminiAvailable,
   formatCurrencyBRL,
   deleteAllHistoricalProductsForUser,
 } from '../services/AppService';
@@ -14,15 +11,10 @@ import {
   Button,
   Card,
   PageTitle,
-  Textarea,
-  Select,
   Input,
   ResponsiveTable,
   Modal,
-  Alert,
-  Spinner,
 } from '../components/SharedComponents';
-import { v4 as uuidv4 } from 'uuid';
 import {
   LineChart,
   Line,
@@ -35,10 +27,6 @@ import {
 
 export const MarketAnalysisPage: React.FC<{}> = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
-  const [priceListText, setPriceListText] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingError, setProcessingError] = useState<string | null>(null);
 
   const [historicalData, setHistoricalData] = useState<HistoricalParsedProduct[]>([]);
   const [aggregatedData, setAggregatedData] = useState<AggregatedProductPrice[]>([]);
@@ -46,10 +34,6 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
 
   const [selectedProduct, setSelectedProduct] = useState<AggregatedProductPrice | null>(null);
 
-  const supplierOptions = useMemo(() => [
-    { value: '', label: 'Selecione um Fornecedor...' },
-    ...suppliers.map(s => ({ value: s.id, label: s.name }))
-  ], [suppliers]);
 
   const fetchSuppliers = useCallback(async () => {
     try {
@@ -74,43 +58,6 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
     fetchHistoricalAndAggregate();
   }, [fetchSuppliers, fetchHistoricalAndAggregate]);
 
-  const handleProcessList = async () => {
-    const supplier = suppliers.find(s => s.id === selectedSupplierId);
-    if (!supplier) {
-      setProcessingError('Por favor, selecione um fornecedor cadastrado.');
-      return;
-    }
-    if (!priceListText.trim()) {
-      setProcessingError('A lista de preços não pode estar vazia.');
-      return;
-    }
-    if (!isGeminiAvailable()) {
-      setProcessingError('Serviço de IA (Gemini) não está disponível.');
-      return;
-    }
-    setIsProcessing(true);
-    setProcessingError(null);
-    try {
-      const parsed = await parseSupplierListWithGemini(priceListText, supplier);
-      const histItems = parsed.map(p => ({
-        id: uuidv4(),
-        supplierId: p.supplierId,
-        productName: p.product,
-        model: p.model,
-        capacity: p.capacity,
-        condition: p.condition,
-        priceBRL: p.priceBRL,
-        dateRecorded: new Date().toISOString(),
-      }));
-      await saveHistoricalParsedProducts(histItems);
-      setPriceListText('');
-      await fetchHistoricalAndAggregate();
-    } catch (err) {
-      setProcessingError(err instanceof Error ? err.message : 'Falha ao processar lista.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const handleClearAll = async () => {
     if (window.confirm('Limpar TODOS os dados de preços históricos? Esta ação não pode ser desfeita.')) {
@@ -172,26 +119,8 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
   return (
     <div>
       <PageTitle title="Análise de Mercado" subtitle="Compare preços e tendências." />
-      {processingError && <Alert type="error" message={processingError} onClose={() => setProcessingError(null)} className="mb-4" />}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card title="1. Adicionar Lista de Preços" className="lg:col-span-1">
-          <div className="space-y-4">
-            <Select
-              label="Selecione o Fornecedor"
-              id="supplier"
-              value={selectedSupplierId}
-              onChange={e => setSelectedSupplierId(e.target.value)}
-              options={supplierOptions}
-              required
-            />
-            <Textarea label="Cole a Lista de Preços" id="priceList" value={priceListText} onChange={e => setPriceListText(e.target.value)} rows={10} required />
-            <Button onClick={handleProcessList} isLoading={isProcessing} disabled={isProcessing || !isGeminiAvailable()} fullWidth>
-              {isProcessing ? 'Processando...' : 'Processar Lista'}
-            </Button>
-            {!isGeminiAvailable() && <p className="text-xs text-red-500 text-center">API Key não configurada.</p>}
-          </div>
-        </Card>
-        <Card title="2. Visão Geral de Preços" className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 mb-6">
+        <Card title="Visão Geral de Preços" className="">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
             <Input label="Margem de Lucro (%)" id="profit" type="number" value={String(profitMargin)} onChange={e => setProfitMargin(parseFloat(e.target.value) || 0)} className="max-w-xs" inputClassName="h-10" />
             <div className="flex space-x-2 flex-wrap">
