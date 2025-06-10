@@ -942,7 +942,7 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
     `;
 
     const result = await genAI.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-pro',
       contents: prompt,
     });
     const rawText = result.text || '';
