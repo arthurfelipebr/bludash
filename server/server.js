@@ -906,7 +906,6 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const prompt = `
       Você é um assistente especialista em extração de dados para a empresa Blu Imports.
       Sua tarefa é analisar a lista de preços de um fornecedor, fornecida em texto corrido, e extrair as informações dos produtos em um formato JSON estruturado.
@@ -942,9 +941,11 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
       ---
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const rawText = await response.text();
+    const result = await genAI.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: prompt,
+    });
+    const rawText = result.text;
     const jsonText = rawText
       .replace(/^```json\n/, '')
       .replace(/\n```$/, '');
