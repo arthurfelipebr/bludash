@@ -6,6 +6,7 @@ import { AuthProvider, LoginPage, AuthGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
 import { CalendarPage } from './features/CalendarFeature';
 import { SuppliersPage } from './features/SuppliersFeature';
+import MarketAnalysisPage from './features/MarketAnalysisFeature';
 import { BluFacilitaPage } from './features/BluFacilitaFeature';
 import { ClientsPage } from './features/ClientsFeature'; 
 import { CardFeeCalculatorPage } from './features/CardFeeCalculatorFeature';
@@ -34,6 +35,7 @@ import {
   Handshake,
   PieChart,
   Calculator,
+  LineChart as LineChartIcon,
   Menu as MenuIcon,
   LogOut,
 } from 'lucide-react';
@@ -54,6 +56,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Calendário', path: '/calendar', icon: Calendar },
   { name: 'BluFacilita', path: '/blufacilita', icon: BadgeDollarSign },
   { name: 'Fornecedores', path: '/suppliers', icon: Handshake },
+  { name: 'Análise de Mercado', path: '/market-analysis', icon: LineChartIcon },
   { name: 'Relatórios', path: '/financial-reports', icon: PieChart },
   { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
@@ -354,6 +357,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/orders/*" element={<OrdersPage />} />
                     <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/suppliers" element={<SuppliersPage />} />
+                    <Route path="/market-analysis" element={<MarketAnalysisPage />} />
                     <Route path="/blufacilita" element={<BluFacilitaPage />} />
                     <Route path="/card-calculator" element={<CardFeeCalculatorPage />} />
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
