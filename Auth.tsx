@@ -52,6 +52,9 @@ async function fetchCurrentUser(): Promise<User | null> {
       localStorage.setItem('authUser', JSON.stringify(user));
       return user;
     }
+    if (response.status === 401 || response.status === 403) {
+      console.warn('Auth token expired or invalid. Clearing local data.');
+    }
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
     return null;
