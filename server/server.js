@@ -842,7 +842,7 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
       ` produto, modelo, capacidade, condicao, cor, pais, precoBRL.\n` +
       `Lista do fornecedor ${supplierName}:\n${textList}`;
     const result = await model.generateContent(prompt);
-    let text = result.response.text();
+    let text = result.response.text;
     try {
       const json = JSON.parse(text.trim());
       res.json(json);
