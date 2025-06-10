@@ -586,6 +586,72 @@ app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Historical Supplier Prices
+app.post('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
+    const products = Array.isArray(req.body) ? req.body : [];
+    if (products.length === 0) {
+        return res.status(400).json({ message: 'Lista de produtos inválida.' });
+    }
+
+    const insertSql = `INSERT INTO historicalPrices (
+        id, userId, supplierId, listId, productName, model, capacity,
+        condition, priceBRL, dateRecorded
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    db.serialize(() => {
+        const stmt = db.prepare(insertSql);
+        products.forEach(p => {
+            stmt.run([
+                p.id || uuidv4(),
+                req.user.id,
+                p.supplierId,
+                p.listId || null,
+                p.productName,
+                p.model,
+                p.capacity,
+                p.condition,
+                p.priceBRL !== undefined && p.priceBRL !== null ? parseFloat(p.priceBRL) : null,
+                p.dateRecorded || new Date().toISOString(),
+            ]);
+        });
+        stmt.finalize(err => {
+            if (err) {
+                console.error('Error saving historical prices:', err.message);
+                return res.status(500).json({ message: 'Failed to save historical prices.' });
+            }
+            res.sendStatus(201);
+        });
+    });
+});
+
+app.get('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
+    const supplierId = req.query.supplierId;
+    const baseSql = 'SELECT * FROM historicalPrices WHERE userId = $1';
+    const sql = supplierId ? `${baseSql} AND supplierId = $2 ORDER BY dateRecorded DESC` : `${baseSql} ORDER BY dateRecorded DESC`;
+    const params = supplierId ? [req.user.id, supplierId] : [req.user.id];
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error fetching historical prices:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch historical prices.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.delete('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
+    const supplierId = req.query.supplierId;
+    const baseSql = 'DELETE FROM historicalPrices WHERE userId = $1';
+    const sql = supplierId ? `${baseSql} AND supplierId = $2` : baseSql;
+    const params = supplierId ? [req.user.id, supplierId] : [req.user.id];
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error deleting historical prices:', err.message);
+            return res.status(500).json({ message: 'Failed to delete historical prices.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
 // Client Payments
 app.get('/api/client-payments', authenticateToken, (req, res) => {
     db.all('SELECT * FROM clientPayments WHERE "userId" = $1 ORDER BY "paymentDate" DESC', [req.user.id], (err, rows) => {
