@@ -1,9 +1,12 @@
 export enum OrderStatus {
   PEDIDO_CRIADO = 'Pedido Criado',
   PAGAMENTO_CONFIRMADO = 'Pagamento Confirmado',
+  AGUARDANDO_PAGAMENTO_FORNECEDOR = 'Aguardando Pagar Fornecedor',
   COMPRA_REALIZADA = 'Compra Realizada',
   A_CAMINHO_DO_ESCRITORIO = 'A Caminho do Escritório',
   CHEGOU_NO_ESCRITORIO = 'Chegou no Escritório',
+  AGUARDANDO_EMBALAR = 'Aguardando Embalar',
+  AGUARDANDO_GERAR_NF = 'Aguardando Gerar NF',
   AGUARDANDO_RETIRADA = 'Aguardando Retirada',
   ENVIADO = 'Enviado',
   ENTREGUE = 'Entregue',
