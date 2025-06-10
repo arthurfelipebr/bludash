@@ -40,7 +40,9 @@ async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promis
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: `API request failed: ${response.statusText}` }));
-    throw new Error(errorData.message || `API request failed: ${response.status}`);
+    const detailInfo = errorData.details ? ` (${errorData.details})` : '';
+    const msg = errorData.message || `API request failed: ${response.status}`;
+    throw new Error(`${msg}${detailInfo}`);
   }
   if (response.status === 204) { // No Content
     return undefined as T;
