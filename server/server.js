@@ -851,7 +851,6 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
 // --- Serve Static Frontend ---
 // In production, Nginx or Apache might serve static files directly.
 // For development or simpler setups, Express can serve them.
-const path = require('path');
 app.use(express.static(path.join(__dirname, '../dist'))); // Serve files from frontend build
 
 // All other GET requests not handled before will return the React app
