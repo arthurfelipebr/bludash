@@ -455,6 +455,19 @@ export const getWeeklySummaryStats = async (weekOffset: number = 0): Promise<Wee
     return apiClient<WeeklySummaryStats>(`/dashboard/weekly-summary?offset=${weekOffset}`);
 };
 
+// --- User Management ---
+export const getUsers = async (): Promise<User[]> => {
+    return apiClient<User[]>('/users');
+};
+
+export const inviteUser = async (data: { email: string; password: string; name?: string; role: string; }): Promise<User> => {
+    return apiClient<User>('/users', { method: 'POST', body: JSON.stringify(data) });
+};
+
+export const updateUserRole = async (userId: string, role: string): Promise<User> => {
+    return apiClient<User>(`/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
+};
+
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.
 export const CREDIT_CARD_RATES_CONFIG: CreditCardRate[] = [ 
     { installments: 3, ratePercent: 5.69 }, { installments: 4, ratePercent: 6.59 }, { installments: 5, ratePercent: 7.49 }, { installments: 6, ratePercent: 8.39 }, { installments: 7, ratePercent: 8.59 }, { installments: 8, ratePercent: 9.49 }, { installments: 9, ratePercent: 10.39 }, { installments: 10, ratePercent: 11.29 }, { installments: 11, ratePercent: 12.19 }, { installments: 12, ratePercent: 13.09 },
