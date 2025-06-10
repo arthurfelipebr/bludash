@@ -8,20 +8,21 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const db = require('./database'); // SQLite database connection
-// const { GoogleGenAI } = require('@google/genai'); // For backend Gemini calls
+const { GoogleGenAI } = require('@google/genai'); // Gemini SDK
 
 const app =express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
 const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
-// const GEMINI_API_KEY = process.env.API_KEY; // For backend Gemini calls
+const GEMINI_API_KEY = process.env.API_KEY; // Gemini API key
 
-// if (GEMINI_API_KEY) {
-//   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-//   console.log("Gemini AI Service initialized on backend.");
-// } else {
-//   console.warn("Gemini API Key not found on backend. AI features will be disabled.");
-// }
+let ai = null;
+if (GEMINI_API_KEY) {
+  ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  console.log('Gemini AI Service initialized on backend.');
+} else {
+  console.warn('Gemini API Key not found on backend. AI features will be disabled.');
+}
 
 
 app.use(cors());
@@ -825,26 +826,42 @@ app.get('/api/dashboard/weekly-summary', authenticateToken, (req, res) => {
 });
 
 
-// Gemini AI Proxy (Placeholder)
+// Gemini AI Proxy
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
-  // const { textList, supplierId, supplierName } = req.body;
-  // if (!GEMINI_API_KEY || !ai) {
-  //   return res.status(500).json({ message: "Gemini AI Service not configured on backend." });
-  // }
-  // try {
-  //   // Construct prompt, call ai.models.generateContent as shown in guidelines
-  //   // Example (very basic, adapt from AppService.tsx):
-  //   // const prompt = `Parse this for ${supplierName}: ${textList} ... return JSON array.`;
-  //   // const response = await ai.models.generateContent({ model: "gemini-2.5-flash-preview-04-17", contents: prompt, config: { responseMimeType: "application/json" }});
-  //   // const parsedData = JSON.parse(response.text); // Simplified, add robust parsing
-  //   // res.json(parsedData);
-  //   res.status(501).json({ message: "Gemini parsing not fully implemented on backend." });
-  // } catch (error) {
-  //   console.error("Backend Gemini Error:", error);
-  //   res.status(500).json({ message: "Error processing list with Gemini on backend." });
-  // }
-  console.warn("/api/gemini/parse-supplier-list called, but backend Gemini integration is a placeholder.");
-  res.status(501).json({ message: "Backend Gemini parsing not fully implemented yet." });
+  const { textList, supplierId, supplierName } = req.body;
+  if (!ai) {
+    return res.status(500).json({ message: 'Gemini AI Service not configured on backend.' });
+  }
+  if (!textList || !supplierId || !supplierName) {
+    return res.status(400).json({ message: 'Parâmetros insuficientes para análise.' });
+  }
+  try {
+    const model = ai.getGenerativeModel({ model: 'gemini-pro' });
+    const prompt = `Você é um assistente que extrai produtos de listas de preços de fornecedores.\n` +
+      `A saída deve ser somente um JSON Array. Cada objeto deve conter as chaves:` +
+      ` produto, modelo, capacidade, condicao, cor, pais, precoBRL.\n` +
+      `Lista do fornecedor ${supplierName}:\n${textList}`;
+    const result = await model.generateContent(prompt);
+    let text = result.response.text();
+    try {
+      const json = JSON.parse(text.trim());
+      res.json(json);
+    } catch (e) {
+      try {
+        const start = text.indexOf('[');
+        const end = text.lastIndexOf(']') + 1;
+        const sliced = text.slice(start, end);
+        const json = JSON.parse(sliced);
+        res.json(json);
+      } catch (parseErr) {
+        console.error('Gemini JSON parse error:', parseErr, 'raw:', text);
+        res.status(500).json({ message: 'Falha ao interpretar resposta da IA.' });
+      }
+    }
+  } catch (error) {
+    console.error('Backend Gemini Error:', error);
+    res.status(500).json({ message: 'Erro ao processar lista com Gemini.' });
+  }
 });
 
 
