@@ -8,20 +8,20 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const db = require('./database'); // SQLite database connection
-const { GoogleGenAI } = require('@google/genai'); // Gemini SDK
+const { GoogleGenAI } = require('@google/genai');
 
 const app =express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
 const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
-const GEMINI_API_KEY = process.env.API_KEY; // Gemini API key
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Ou process.env.API_KEY, conforme seu .env
 
-let ai = null;
+let genAI;
 if (GEMINI_API_KEY) {
-  ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  console.log('Gemini AI Service initialized on backend.');
+  genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  console.log('Cliente Gemini AI inicializado no backend.');
 } else {
-  console.warn('Gemini API Key not found on backend. AI features will be disabled.');
+  console.warn('Chave da API do Gemini não encontrada. Funcionalidades de IA estarão desabilitadas.');
 }
 
 
@@ -828,39 +828,62 @@ app.get('/api/dashboard/weekly-summary', authenticateToken, (req, res) => {
 
 // Gemini AI Proxy
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
-  const { textList, supplierId, supplierName } = req.body;
-  if (!ai) {
-    return res.status(500).json({ message: 'Gemini AI Service not configured on backend.' });
+  if (!genAI) {
+    return res.status(503).json({ message: 'Serviço de IA não está disponível. Verifique a chave da API no servidor.' });
   }
-  if (!textList || !supplierId || !supplierName) {
-    return res.status(400).json({ message: 'Parâmetros insuficientes para análise.' });
+
+  const { textList } = req.body;
+  if (!textList) {
+    return res.status(400).json({ message: 'A lista de texto não pode estar vazia.' });
   }
+
   try {
-    const model = ai.getGenerativeModel({ model: 'gemini-pro' });
-    const prompt = `Você é um assistente que extrai produtos de listas de preços de fornecedores.\n` +
-      `A saída deve ser somente um JSON Array. Cada objeto deve conter as chaves:` +
-      ` produto, modelo, capacidade, condicao, cor, pais, precoBRL.\n` +
-      `Lista do fornecedor ${supplierName}:\n${textList}`;
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const prompt = `
+      Você é um assistente especialista em extração de dados para a empresa Blu Imports.
+      Sua tarefa é analisar a lista de preços de um fornecedor, fornecida em texto corrido, e extrair as informações dos produtos em um formato JSON estruturado.
+
+      REGRAS IMPORTANTES:
+      1.  Ignore completamente qualquer texto introdutório, saudações, avisos, informações de contato ou regras de frete. Foque apenas nas linhas que descrevem os produtos e seus preços.
+      2.  Para cada produto, extraia: o nome do produto (produto), o modelo, a capacidade de armazenamento (capacidade), a condição (condicao) e o preço em BRL (precoBRL).
+      3.  O campo "condicao" deve incluir informações como "Lacrado", "CPO", "E-sim", "Indiano", "CH" (Chinês), "VC 🇨🇦" (Canadense), ou qualquer outra variação que descreva o estado ou origem do aparelho. Se nenhuma condição for mencionada, assuma "Lacrado".
+      4.  O campo "precoBRL" DEVE SER um número (float), não uma string. Remova "R$", "$", ".", e substitua "," por "." antes de converter para número. Ex: "R$6.650,00" se torna 6650.00. "(8,900)" se torna 8900.00.
+      5.  A saída DEVE ser um array JSON válido. Nada além do array.
+
+      Exemplo de Saída Esperada:
+      [
+        {
+          "produto": "iPhone",
+          "modelo": "16 Pro Max",
+          "capacidade": "256GB",
+          "condicao": "E-SIM Natural",
+          "precoBRL": 6650.00
+        },
+        {
+          "produto": "iPhone",
+          "modelo": "13 Pro",
+          "capacidade": "128GB",
+          "condicao": "CPO Verde",
+          "precoBRL": 3450.00
+        }
+      ]
+
+      Agora, analise o seguinte texto e retorne o array JSON:
+      ---
+      ${textList}
+      ---
+    `;
+
     const result = await model.generateContent(prompt);
-    let text = result.response.text;
-    try {
-      const json = JSON.parse(text.trim());
-      res.json(json);
-    } catch (e) {
-      try {
-        const start = text.indexOf('[');
-        const end = text.lastIndexOf(']') + 1;
-        const sliced = text.slice(start, end);
-        const json = JSON.parse(sliced);
-        res.json(json);
-      } catch (parseErr) {
-        console.error('Gemini JSON parse error:', parseErr, 'raw:', text);
-        res.status(500).json({ message: 'Falha ao interpretar resposta da IA.' });
-      }
-    }
+    const response = await result.response;
+    const jsonText = response.text().replace(/^```json\n/, '').replace(/\n```$/, '');
+
+    const parsedData = JSON.parse(jsonText);
+    res.json(parsedData);
+
   } catch (error) {
-    console.error('Backend Gemini Error:', error);
-    res.status(500).json({ message: 'Erro ao processar lista com Gemini.' });
+    console.error('Erro no backend ao chamar a API do Gemini:', error);
+    res.status(500).json({ message: 'Falha ao processar a lista com a IA. Verifique o log do servidor.', details: error.message });
   }
 });
 
