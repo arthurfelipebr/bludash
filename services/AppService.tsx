@@ -39,14 +39,23 @@ async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promis
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: `API request failed: ${response.statusText}` }));
+    const errorData = await response
+      .json()
+      .catch(() => ({ message: `API request failed: ${response.statusText}` }));
     const detailInfo = errorData.details ? ` (${errorData.details})` : '';
     const msg = errorData.message || `API request failed: ${response.status}`;
     throw new Error(`${msg}${detailInfo}`);
   }
-  if (response.status === 204) { // No Content
+
+  if (response.status === 204) {
     return undefined as T;
   }
+
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 
@@ -384,14 +393,24 @@ export const deleteAllHistoricalProductsForUser = async (): Promise<void> => {
 export const aggregateSupplierData = async (historicalData: HistoricalParsedProduct[]): Promise<AggregatedProductPrice[]> => {
     // This logic can remain client-side, but it now depends on fetched historicalData and supplierData
     if (historicalData.length === 0) return [];
+
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const filteredForMonth = historicalData.filter(item => {
+        const d = new Date(item.dateRecorded);
+        return d.getMonth() === month && d.getFullYear() === year;
+    });
+    const dataToUse = filteredForMonth.length > 0 ? filteredForMonth : historicalData;
+
     const allSuppliers = await getSuppliers(); // Potentially fetch suppliers if not already available
     const supplierDetailsMap = new Map<string, Supplier>();
     allSuppliers.forEach(s => supplierDetailsMap.set(s.id, s));
 
     const productMap = new Map<string, { pricesBySupplier: Map<string, { price: number, supplierId: string }>, itemsInfo: Partial<HistoricalParsedProduct> }>();
     const latestPricesMap = new Map<string, HistoricalParsedProduct>();
-    historicalData.sort((a, b) => new Date(b.dateRecorded).getTime() - new Date(a.dateRecorded).getTime());
-    historicalData.forEach(item => {
+    dataToUse.sort((a, b) => new Date(b.dateRecorded).getTime() - new Date(a.dateRecorded).getTime());
+    dataToUse.forEach(item => {
         if (!item.supplierId) return;
         const normCond = normalizeProductCondition(item.condition);
         const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
