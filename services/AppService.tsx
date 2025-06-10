@@ -188,16 +188,19 @@ export const parseSupplierListWithGemini = async ( textList: string, supplier: S
     
     if (parsedItems && Array.isArray(parsedItems)) {
       return parsedItems.map(p => ({
-        id: uuidv4(), 
+        id: uuidv4(),
         supplierId: supplier.id,
-        supplierName: supplier.name, 
+        supplierName: supplier.name,
         product: p.produto || 'N/A',
         model: p.modelo || 'N/A',
         capacity: p.capacidade || 'N/A',
+        color: p.cor || undefined,
+        characteristics: p.caracteristicas || undefined,
+        country: p.pais || undefined,
         condition: p.condicao || 'N/A',
         priceBRL: p.precoBRL !== undefined ? p.precoBRL : null,
         priceUSD: p.precoUSD !== undefined ? p.precoUSD : null,
-        originalTextLine: "Não disponível nesta versão do parser" 
+        originalTextLine: "Não disponível nesta versão do parser"
       }));
     }
     console.error("Backend response for Gemini parsing was not a valid array:", parsedItems);
@@ -378,7 +381,7 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
     historicalData.sort((a, b) => new Date(b.dateRecorded).getTime() - new Date(a.dateRecorded).getTime());
     historicalData.forEach(item => {
         if (!item.supplierId) return;
-        const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.condition?.toLowerCase().trim()}`;
+        const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${item.condition?.toLowerCase().trim()}`;
         const supplierProductKey = `${item.supplierId}-${productKey}`;
         if (!latestPricesMap.has(supplierProductKey) && item.priceBRL !== null && item.priceBRL !== undefined) {
             latestPricesMap.set(supplierProductKey, item);
@@ -386,9 +389,9 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
     });
     const latestPriceItems = Array.from(latestPricesMap.values());
     latestPriceItems.forEach(item => {
-        const key = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.condition?.toLowerCase().trim()}`;
+        const key = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${item.condition?.toLowerCase().trim()}`;
         if (!productMap.has(key)) {
-            productMap.set(key, { pricesBySupplier: new Map(), itemsInfo: { productName: item.productName, model: item.model, capacity: item.capacity, condition: item.condition } });
+            productMap.set(key, { pricesBySupplier: new Map(), itemsInfo: { productName: item.productName, model: item.model, capacity: item.capacity, color: item.color, characteristics: item.characteristics, country: item.country, condition: item.condition } });
         }
         const currentEntry = productMap.get(key)!;
         if(item.supplierId && item.priceBRL !== null && item.priceBRL !== undefined) {
@@ -406,8 +409,19 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
         const cheapestSupplierInfo = pricesInfo.find(p => p.price === minPriceBRL);
         const cheapestSupplier = cheapestSupplierInfo ? supplierDetailsMap.get(cheapestSupplierInfo.supplierId) : null;
         aggregatedList.push({
-            key, productName: data.itemsInfo.productName!, model: data.itemsInfo.model!, capacity: data.itemsInfo.capacity!, condition: data.itemsInfo.condition!,
-            avgPriceBRL: parseFloat(avgPriceBRL.toFixed(2)), minPriceBRL, cheapestSupplierId: cheapestSupplier?.id || 'N/A', cheapestSupplierName: cheapestSupplier?.name || 'N/A', supplierCount: data.pricesBySupplier.size,
+            key,
+            productName: data.itemsInfo.productName!,
+            model: data.itemsInfo.model!,
+            capacity: data.itemsInfo.capacity!,
+            color: data.itemsInfo.color,
+            characteristics: data.itemsInfo.characteristics,
+            country: data.itemsInfo.country,
+            condition: data.itemsInfo.condition!,
+            avgPriceBRL: parseFloat(avgPriceBRL.toFixed(2)),
+            minPriceBRL,
+            cheapestSupplierId: cheapestSupplier?.id || 'N/A',
+            cheapestSupplierName: cheapestSupplier?.name || 'N/A',
+            supplierCount: data.pricesBySupplier.size,
             allPrices: pricesInfo.map(pInfo => ({ supplierId: pInfo.supplierId, supplierName: supplierDetailsMap.get(pInfo.supplierId)?.name || 'N/A', priceBRL: pInfo.price }))
         });
     });

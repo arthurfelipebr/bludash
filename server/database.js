@@ -40,6 +40,9 @@ function initializeDatabase() {
     db.run('ALTER TABLE clients ADD COLUMN cep TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN watchSize TEXT', [], () => {});
     db.run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'", [], () => {});
+    db.run('ALTER TABLE historicalPrices ADD COLUMN color TEXT', [], () => {});
+    db.run('ALTER TABLE historicalPrices ADD COLUMN characteristics TEXT', [], () => {});
+    db.run('ALTER TABLE historicalPrices ADD COLUMN originCountry TEXT', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -61,6 +64,9 @@ function initializeDatabase() {
         productName TEXT NOT NULL,
         model TEXT NOT NULL,
         capacity TEXT,
+        color TEXT,
+        characteristics TEXT,
+        originCountry TEXT,
         condition TEXT,
         priceBRL REAL,
         dateRecorded TEXT NOT NULL,

@@ -69,6 +69,9 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
   const aggregatedColumns = useMemo(() => [
     { header: 'Produto', accessor: (i: AggregatedProductPrice): ReactNode => `${i.productName} ${i.model}` },
     { header: 'Capacidade', accessor: 'capacity' as keyof AggregatedProductPrice },
+    { header: 'Cor', accessor: 'color' as keyof AggregatedProductPrice },
+    { header: 'Características', accessor: 'characteristics' as keyof AggregatedProductPrice },
+    { header: 'País', accessor: 'country' as keyof AggregatedProductPrice },
     { header: 'Condição', accessor: 'condition' as keyof AggregatedProductPrice },
     { header: 'Mínimo (R$)', accessor: (i: AggregatedProductPrice): ReactNode => formatCurrencyBRL(i.minPriceBRL), className: 'font-semibold text-green-600' },
     { header: 'Fornecedor +Barato', accessor: 'cheapestSupplierName' as keyof AggregatedProductPrice },
@@ -86,6 +89,9 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
       h.productName === product.productName &&
       h.model === product.model &&
       h.capacity === product.capacity &&
+      h.color === product.color &&
+      h.characteristics === product.characteristics &&
+      h.country === product.country &&
       h.condition === product.condition
     );
     const dateMap: Record<string, any> = {};
@@ -105,6 +111,9 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
         h.productName === product.productName &&
         h.model === product.model &&
         h.capacity === product.capacity &&
+        h.color === product.color &&
+        h.characteristics === product.characteristics &&
+        h.country === product.country &&
         h.condition === product.condition
       ) {
         suppliersSet.add(suppliers.find(s => s.id === h.supplierId)?.name || h.supplierId);

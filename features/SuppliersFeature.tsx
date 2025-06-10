@@ -193,6 +193,9 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
   const aggregatedColumns = useMemo(() => [
     { header: 'Produto', accessor: (item: AggregatedProductPrice): ReactNode => `${item.productName} ${item.model}`, className: 'font-medium' },
     { header: 'Capacidade', accessor: 'capacity' as keyof AggregatedProductPrice },
+    { header: 'Cor', accessor: 'color' as keyof AggregatedProductPrice },
+    { header: 'Características', accessor: 'characteristics' as keyof AggregatedProductPrice },
+    { header: 'País', accessor: 'country' as keyof AggregatedProductPrice },
     { header: 'Condição', accessor: 'condition' as keyof AggregatedProductPrice },
     { header: 'Média (R$)', accessor: (item: AggregatedProductPrice): ReactNode => formatCurrencyBRL(item.avgPriceBRL) },
     { header: 'Menor Preço (R$)', accessor: (item: AggregatedProductPrice): ReactNode => formatCurrencyBRL(item.minPriceBRL), className: 'font-semibold text-green-600' },
@@ -211,6 +214,9 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
       h.productName === product.productName &&
       h.model === product.model &&
       h.capacity === product.capacity &&
+      h.color === product.color &&
+      h.characteristics === product.characteristics &&
+      h.country === product.country &&
       h.condition === product.condition
     );
     const dateMap: Record<string, any> = {};
@@ -230,6 +236,9 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
         h.productName === product.productName &&
         h.model === product.model &&
         h.capacity === product.capacity &&
+        h.color === product.color &&
+        h.characteristics === product.characteristics &&
+        h.country === product.country &&
         h.condition === product.condition
       ) {
         suppliersSet.add(suppliers.find(s => s.id === h.supplierId)?.name || h.supplierId);
@@ -276,7 +285,7 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
         </Card>
     </div>
     {selectedProduct && (
-        <Modal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} title={`Histórico: ${selectedProduct.productName} ${selectedProduct.model} ${selectedProduct.capacity} (${selectedProduct.condition})`} size="xl">
+        <Modal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} title={`Histórico: ${selectedProduct.productName} ${selectedProduct.model} ${selectedProduct.capacity} ${selectedProduct.color || ''} ${selectedProduct.characteristics || ''} ${selectedProduct.country || ''} (${selectedProduct.condition})`} size="xl">
             <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={buildChartData(selectedProduct)}>
@@ -364,6 +373,9 @@ export const SuppliersPage: React.FC<{}> = () => {
               productName: p.product,
               model: p.model,
               capacity: p.capacity,
+              color: p.color,
+              characteristics: p.characteristics,
+              country: p.country,
               condition: p.condition,
               priceBRL: p.priceBRL,
               dateRecorded: new Date().toISOString(),
@@ -379,21 +391,39 @@ export const SuppliersPage: React.FC<{}> = () => {
           await fetchAllHistoricalDataAndAggregate(); // Refresh data
       } 
   };
-  const handleExportAggregated = (profitMargin: number) => { const dataToExport = aggregatedData.map(item => ({ Produto: item.productName, Modelo: item.model, Capacidade: item.capacity, Condicao: item.condition, PrecoMedio_BRL: item.avgPriceBRL, MenorPreco_BRL: item.minPriceBRL, FornecedorMaisBarato: item.cheapestSupplierName, QtdFornecedores: item.supplierCount, PrecoComMargem_BRL: profitMargin > 0 ? parseFloat((item.minPriceBRL * (1 + profitMargin / 100)).toFixed(2)) : item.minPriceBRL, })); exportToCSV(dataToExport, `analise_fornecedores_${new Date().toISOString().split('T')[0]}.csv`); };
+  const handleExportAggregated = (profitMargin: number) => {
+      const dataToExport = aggregatedData.map(item => ({
+          Produto: item.productName,
+          Modelo: item.model,
+          Capacidade: item.capacity,
+          Cor: item.color,
+          Caracteristicas: item.characteristics,
+          Pais: item.country,
+          Condicao: item.condition,
+          PrecoMedio_BRL: item.avgPriceBRL,
+          MenorPreco_BRL: item.minPriceBRL,
+          FornecedorMaisBarato: item.cheapestSupplierName,
+          QtdFornecedores: item.supplierCount,
+          PrecoComMargem_BRL: profitMargin > 0 ? parseFloat((item.minPriceBRL * (1 + profitMargin / 100)).toFixed(2)) : item.minPriceBRL,
+      }));
+      exportToCSV(dataToExport, `analise_fornecedores_${new Date().toISOString().split('T')[0]}.csv`);
+  };
   
   const handleExportRaw = () => { 
-      const dataToExport = historicalProducts.map(item => ({ 
-          ID_Historico: item.id, 
+      const dataToExport = historicalProducts.map(item => ({
+          ID_Historico: item.id,
           ID_Fornecedor: item.supplierId,
-          // Supplier Name could be joined here if needed, but for raw, supplierId is key
-          Produto: item.productName, 
-          Modelo: item.model, 
-          Capacidade: item.capacity, 
-          Condicao: item.condition, 
-          Preco_BRL: item.priceBRL, 
+          Produto: item.productName,
+          Modelo: item.model,
+          Capacidade: item.capacity,
+          Cor: item.color,
+          Caracteristicas: item.characteristics,
+          Pais: item.country,
+          Condicao: item.condition,
+          Preco_BRL: item.priceBRL,
           DataRegistro: formatDateBR(item.dateRecorded, true),
           ID_Lista: item.listId || "N/A"
-      })); 
+      }));
       exportToCSV(dataToExport, `dados_historicos_precos_${new Date().toISOString().split('T')[0]}.csv`); 
   };
 

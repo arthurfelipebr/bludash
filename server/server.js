@@ -595,8 +595,9 @@ app.post('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
 
     const insertSql = `INSERT INTO historicalPrices (
         id, userId, supplierId, listId, productName, model, capacity,
+        color, characteristics, originCountry,
         condition, priceBRL, dateRecorded
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     // Use the underlying sqlite3 database instance for transactional inserts
     db.db.serialize(() => {
@@ -610,6 +611,9 @@ app.post('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
                 p.productName,
                 p.model,
                 p.capacity,
+                p.color || null,
+                p.characteristics || null,
+                p.originCountry || null,
                 p.condition,
                 p.priceBRL !== undefined && p.priceBRL !== null ? parseFloat(p.priceBRL) : null,
                 p.dateRecorded || new Date().toISOString(),
@@ -913,8 +917,8 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
 
       REGRAS IMPORTANTES:
       1.  Ignore completamente qualquer texto introdutório, saudações, avisos, informações de contato ou regras de frete. Foque apenas nas linhas que descrevem os produtos e seus preços.
-      2.  Para cada produto, extraia: o nome do produto (produto), o modelo, a capacidade de armazenamento (capacidade), a condição (condicao) e o preço em BRL (precoBRL).
-      3.  O campo "condicao" deve incluir informações como "Lacrado", "CPO", "E-sim", "Indiano", "CH" (Chinês), "VC 🇨🇦" (Canadense), ou qualquer outra variação que descreva o estado ou origem do aparelho. Se nenhuma condição for mencionada, assuma "Lacrado".
+      2.  Para cada produto, extraia: o nome do produto (produto), o modelo, a capacidade (capacidade), a condição (condicao), características como "e-sim" ou "chip físico" (caracteristicas), o país de fabricação (pais, ex: HN, CN, US), a cor (cor) e o preço em BRL (precoBRL).
+      3.  "Condicao" deve conter apenas o estado do aparelho (ex: "Lacrado", "Novo", "CPO", "Seminovo"). Informações como "e-sim" ou "chip físico" vão para "caracteristicas" e abreviações como "HN" ou "CN" vão para "pais".
       4.  O campo "precoBRL" DEVE SER um número (float), não uma string. Remova "R$", "$", ".", e substitua "," por "." antes de converter para número. Ex: "R$6.650,00" se torna 6650.00. "(8,900)" se torna 8900.00.
       5.  A saída DEVE ser um array JSON válido. Nada além do array.
 
@@ -924,14 +928,20 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
           "produto": "iPhone",
           "modelo": "16 Pro Max",
           "capacidade": "256GB",
-          "condicao": "E-SIM Natural",
+          "condicao": "Lacrado",
+          "caracteristicas": "E-SIM",
+          "pais": "HN",
+          "cor": "Natural Titanium",
           "precoBRL": 6650.00
         },
         {
           "produto": "iPhone",
           "modelo": "13 Pro",
           "capacidade": "128GB",
-          "condicao": "CPO Verde",
+          "condicao": "CPO",
+          "caracteristicas": "Chip Físico",
+          "pais": "CN",
+          "cor": "Verde",
           "precoBRL": 3450.00
         }
       ]
