@@ -413,7 +413,7 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
     dataToUse.forEach(item => {
         if (!item.supplierId) return;
         const normCond = normalizeProductCondition(item.condition);
-        const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
+        const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
         const supplierProductKey = `${item.supplierId}-${productKey}`;
         if (!latestPricesMap.has(supplierProductKey) && item.priceBRL !== null && item.priceBRL !== undefined) {
             latestPricesMap.set(supplierProductKey, item);
@@ -422,7 +422,7 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
     const latestPriceItems = Array.from(latestPricesMap.values());
     latestPriceItems.forEach(item => {
         const normCond = normalizeProductCondition(item.condition);
-        const key = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
+        const key = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
         if (!productMap.has(key)) {
             productMap.set(key, { pricesBySupplier: new Map(), itemsInfo: { productName: item.productName, model: item.model, capacity: item.capacity, color: item.color, characteristics: item.characteristics, country: item.country, condition: normCond } });
         }

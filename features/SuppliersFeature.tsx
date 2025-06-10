@@ -216,7 +216,6 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
       h.model === product.model &&
       h.capacity === product.capacity &&
       h.color === product.color &&
-      h.characteristics === product.characteristics &&
       h.country === product.country &&
       normalizeProductCondition(h.condition) === product.condition
     );
@@ -238,7 +237,6 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
         h.model === product.model &&
         h.capacity === product.capacity &&
         h.color === product.color &&
-        h.characteristics === product.characteristics &&
         h.country === product.country &&
         normalizeProductCondition(h.condition) === product.condition
       ) {
