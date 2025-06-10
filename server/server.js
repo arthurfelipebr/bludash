@@ -598,8 +598,9 @@ app.post('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
         condition, priceBRL, dateRecorded
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    db.serialize(() => {
-        const stmt = db.prepare(insertSql);
+    // Use the underlying sqlite3 database instance for transactional inserts
+    db.db.serialize(() => {
+        const stmt = db.db.prepare(insertSql);
         products.forEach(p => {
             stmt.run([
                 p.id || uuidv4(),
