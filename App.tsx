@@ -14,6 +14,7 @@ import { FinancialReportsPageContainer } from './features/FinancialReportsFeatur
 import { UserManagementPage } from './features/UserManagementFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
+import PendingOrdersWidget from './components/PendingOrdersWidget';
 import { 
     APP_NAME, 
     getDashboardStatistics, formatCurrencyBRL, getTodaysTasks, formatDateBR, getOrderById, 
@@ -281,6 +282,7 @@ const DashboardHomePage: React.FC<{}> = () => {
     return ( <div> <PageTitle title="Painel Principal" subtitle={`Bem-vindo, ${currentUser?.email || 'Usuário'}!`} actions={<Button onClick={() => setIsAddCostModalOpen(true)} leftIcon={<PlusCircleIcon className="h-5 w-5"/>}>Registrar Custo</Button>} /> 
         <DolarHojeWidget />
         <RemindersWidget />
+        <PendingOrdersWidget />
         <Tabs className="mb-6"> <Tab label="Visão Geral" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} /> <Tab label="Para Hoje" isActive={activeTab === 'today'} onClick={() => setActiveTab('today')} /> </Tabs>
         {activeTab === 'overview' && (
             <>

@@ -494,10 +494,15 @@ interface OrderProgressBarProps {
 const ORDER_PROGRESS_STEPS = [
   { label: 'Contrato assinado', statuses: [OrderStatus.PEDIDO_CRIADO] },
   { label: 'Pagamento recebido', statuses: [OrderStatus.PAGAMENTO_CONFIRMADO] },
-  { label: 'Produto comprado', statuses: [OrderStatus.COMPRA_REALIZADA] },
+  { label: 'Produto comprado', statuses: [
+      OrderStatus.AGUARDANDO_PAGAMENTO_FORNECEDOR,
+      OrderStatus.COMPRA_REALIZADA,
+    ] },
   { label: 'Em trânsito', statuses: [
       OrderStatus.A_CAMINHO_DO_ESCRITORIO,
       OrderStatus.CHEGOU_NO_ESCRITORIO,
+      OrderStatus.AGUARDANDO_EMBALAR,
+      OrderStatus.AGUARDANDO_GERAR_NF,
       OrderStatus.AGUARDANDO_RETIRADA,
       OrderStatus.ENVIADO,
     ] },
