@@ -1030,15 +1030,23 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
     const rawText = result.text || '';
     const cleaned = rawText
       .replace(/```json\s*/i, '')
-      .replace(/```$/, '')
+      .replace(/```/g, '')
       .trim();
 
-    const match = cleaned.match(/\[.*\]/s);
-    if (!match) {
+    const startIdx = cleaned.indexOf('[');
+    const endIdx = cleaned.lastIndexOf(']');
+    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
       throw new Error('Resposta da IA não continha um array JSON válido');
     }
 
-    const parsedData = JSON.parse(match[0]);
+    const jsonString = cleaned.slice(startIdx, endIdx + 1);
+    let parsedData;
+    try {
+      parsedData = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('Falha ao parsear JSON da resposta da IA:', jsonString, parseError);
+      throw new Error('Resposta da IA não continha um array JSON válido');
+    }
     res.json(parsedData);
 
   } catch (error) {
