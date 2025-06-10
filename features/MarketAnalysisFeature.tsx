@@ -6,6 +6,7 @@ import {
   getHistoricalParsedProducts,
   formatCurrencyBRL,
   deleteAllHistoricalProductsForUser,
+  normalizeProductCondition,
 } from '../services/AppService';
 import {
   Button,
@@ -92,7 +93,7 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
       h.color === product.color &&
       h.characteristics === product.characteristics &&
       h.country === product.country &&
-      h.condition === product.condition
+      normalizeProductCondition(h.condition) === product.condition
     );
     const dateMap: Record<string, any> = {};
     filtered.forEach(item => {
@@ -114,7 +115,7 @@ export const MarketAnalysisPage: React.FC<{}> = () => {
         h.color === product.color &&
         h.characteristics === product.characteristics &&
         h.country === product.country &&
-        h.condition === product.condition
+        normalizeProductCondition(h.condition) === product.condition
       ) {
         suppliersSet.add(suppliers.find(s => s.id === h.supplierId)?.name || h.supplierId);
       }
