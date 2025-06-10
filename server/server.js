@@ -936,14 +936,84 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
           "precoBRL": 6650.00
         },
         {
-          "produto": "iPhone",
-          "modelo": "13 Pro",
-          "capacidade": "128GB",
-          "condicao": "CPO",
-          "caracteristicas": "Chip Físico",
+          "produto": "MacBook",
+          "modelo": "Pro 14",
+          "capacidade": "512GB",
+          "condicao": "Lacrado",
+          "caracteristicas": "",
+          "pais": "US",
+          "cor": "Space Gray",
+          "precoBRL": 13500.00
+        },
+        {
+          "produto": "iMac",
+          "modelo": "24\"",
+          "capacidade": "256GB",
+          "condicao": "Lacrado",
+          "caracteristicas": "",
+          "pais": "US",
+          "cor": "Silver",
+          "precoBRL": 10500.00
+        },
+        {
+          "produto": "Apple Watch",
+          "modelo": "Series 9 45mm",
+          "capacidade": "",
+          "condicao": "Novo",
+          "caracteristicas": "GPS",
           "pais": "CN",
-          "cor": "Verde",
-          "precoBRL": 3450.00
+          "cor": "Starlight",
+          "precoBRL": 3500.00
+        },
+        {
+          "produto": "AirPods",
+          "modelo": "Pro 2",
+          "capacidade": "",
+          "condicao": "Novo",
+          "caracteristicas": "",
+          "pais": "HN",
+          "cor": "",
+          "precoBRL": 1200.00
+        },
+        {
+          "produto": "Mac Mini",
+          "modelo": "M2",
+          "capacidade": "512GB",
+          "condicao": "Lacrado",
+          "caracteristicas": "",
+          "pais": "US",
+          "cor": "",
+          "precoBRL": 6500.00
+        },
+        {
+          "produto": "iPad",
+          "modelo": "Air",
+          "capacidade": "64GB",
+          "condicao": "Lacrado",
+          "caracteristicas": "Wi-Fi",
+          "pais": "CN",
+          "cor": "Space Gray",
+          "precoBRL": 4500.00
+        },
+        {
+          "produto": "Apple Pencil",
+          "modelo": "2ª Geração",
+          "capacidade": "",
+          "condicao": "Novo",
+          "caracteristicas": "",
+          "pais": "CN",
+          "cor": "Branco",
+          "precoBRL": 950.00
+        },
+        {
+          "produto": "Magic Mouse",
+          "modelo": "2",
+          "capacidade": "",
+          "condicao": "Novo",
+          "caracteristicas": "",
+          "pais": "CN",
+          "cor": "Branco",
+          "precoBRL": 650.00
         }
       ]
 
