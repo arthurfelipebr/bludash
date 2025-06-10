@@ -219,7 +219,7 @@ export const LoginPage: React.FC<{}> = () => {
           subtitle={isRegisterMode ? "Criar Nova Conta" : "Acesso ao Painel Interno"} 
           className="text-center mb-6 text-gray-800" 
         />
-        <img src="https://picsum.photos/seed/bluimportslogo/300/100" alt="Blu Imports Logo Placeholder" className="mx-auto mb-6 h-16 object-contain"/>
+        <img src="https://bluimports.com.br/blu-branco.svg" alt="Blu Imports Logo" className="mx-auto mb-6 h-16 object-contain"/>
 
         <form onSubmit={handleAuthAction} className="space-y-4">
           {isRegisterMode && (

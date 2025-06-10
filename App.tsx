@@ -183,18 +183,10 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
       >
         <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4">
           <img
-            src="https://picsum.photos/seed/bluimportslogo/150/50"
+            src="https://bluimports.com.br/blu-branco.svg"
             alt="Blu Imports Logo"
             className="h-10 object-contain"
           />
-          {currentUser && (
-            <span
-              className="text-xs text-white/80 truncate"
-              title={currentUser.email || 'Usuário'}
-            >
-              {currentUser.email || 'Usuário'}
-            </span>
-          )}
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {NAV_ITEMS.filter(i => !i.adminOnly || currentUser?.role === 'admin').map((item) => (
