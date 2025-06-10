@@ -4,12 +4,13 @@ import {
   parseSupplierListWithGemini, 
   aggregateSupplierData,
   formatCurrencyBRL, exportToCSV,
-  getSuppliers, saveSupplier, deleteSupplier, getSupplierById, 
-  isGeminiAvailable, 
-  formatDateBR, 
+  getSuppliers, saveSupplier, deleteSupplier, getSupplierById,
+  isGeminiAvailable,
+  formatDateBR,
   saveHistoricalParsedProducts, // For saving new parsed data
   getHistoricalParsedProducts,  // For fetching all data for aggregation
-  deleteAllHistoricalProductsForUser // For clearing data
+  deleteAllHistoricalProductsForUser, // For clearing data
+  normalizeProductCondition
 } from '../services/AppService';
 import { Button, Textarea, Card, PageTitle, Alert, ResponsiveTable, Input, Modal, Select, Tabs, Tab } from '../components/SharedComponents';
 import {
@@ -217,7 +218,7 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
       h.color === product.color &&
       h.characteristics === product.characteristics &&
       h.country === product.country &&
-      h.condition === product.condition
+      normalizeProductCondition(h.condition) === product.condition
     );
     const dateMap: Record<string, any> = {};
     filtered.forEach(item => {
@@ -239,7 +240,7 @@ const AnalyzePricesTab: React.FC<AnalyzePricesTabProps> = ({
         h.color === product.color &&
         h.characteristics === product.characteristics &&
         h.country === product.country &&
-        h.condition === product.condition
+        normalizeProductCondition(h.condition) === product.condition
       ) {
         suppliersSet.add(suppliers.find(s => s.id === h.supplierId)?.name || h.supplierId);
       }

@@ -161,6 +161,18 @@ export const formatNumberToBRLCurrencyInput = (num: number | null | undefined): 
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
 };
 
+export const normalizeProductCondition = (condition?: string): string => {
+  if (!condition) return '';
+  const cleaned = condition.trim().toLowerCase();
+  if (cleaned === 'novo' || cleaned === 'lacrado' || cleaned === 'novo lacrado') {
+    return ProductCondition.LACRADO;
+  }
+  if (cleaned === 'caixa aberta' || cleaned === 'novo (caixa aberta)') {
+    return ProductCondition.NOVO_CAIXA_ABERTA;
+  }
+  return condition;
+};
+
 // --- Gemini AI Service ---
 // The actual Gemini API call will now happen on the backend.
 // This function will call our backend, which then calls Gemini.
@@ -381,7 +393,8 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
     historicalData.sort((a, b) => new Date(b.dateRecorded).getTime() - new Date(a.dateRecorded).getTime());
     historicalData.forEach(item => {
         if (!item.supplierId) return;
-        const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${item.condition?.toLowerCase().trim()}`;
+        const normCond = normalizeProductCondition(item.condition);
+        const productKey = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
         const supplierProductKey = `${item.supplierId}-${productKey}`;
         if (!latestPricesMap.has(supplierProductKey) && item.priceBRL !== null && item.priceBRL !== undefined) {
             latestPricesMap.set(supplierProductKey, item);
@@ -389,9 +402,10 @@ export const aggregateSupplierData = async (historicalData: HistoricalParsedProd
     });
     const latestPriceItems = Array.from(latestPricesMap.values());
     latestPriceItems.forEach(item => {
-        const key = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${item.condition?.toLowerCase().trim()}`;
+        const normCond = normalizeProductCondition(item.condition);
+        const key = `${item.productName?.toLowerCase().trim()}-${item.model?.toLowerCase().trim()}-${item.capacity?.toLowerCase().trim()}-${item.color?.toLowerCase().trim() || ''}-${item.characteristics?.toLowerCase().trim() || ''}-${item.country?.toLowerCase().trim() || ''}-${normCond.toLowerCase()}`;
         if (!productMap.has(key)) {
-            productMap.set(key, { pricesBySupplier: new Map(), itemsInfo: { productName: item.productName, model: item.model, capacity: item.capacity, color: item.color, characteristics: item.characteristics, country: item.country, condition: item.condition } });
+            productMap.set(key, { pricesBySupplier: new Map(), itemsInfo: { productName: item.productName, model: item.model, capacity: item.capacity, color: item.color, characteristics: item.characteristics, country: item.country, condition: normCond } });
         }
         const currentEntry = productMap.get(key)!;
         if(item.supplierId && item.priceBRL !== null && item.priceBRL !== undefined) {
