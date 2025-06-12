@@ -74,6 +74,7 @@ export interface HistoricalParsedProduct {
   capacity: string;
   color?: string;
   characteristics?: string;
+  chip?: string;
   country?: string;
   condition: string;
   priceBRL: number | null;
