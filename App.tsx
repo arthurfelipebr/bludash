@@ -266,7 +266,18 @@ const DashboardHomePage: React.FC<{}> = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'today'>('overview');
     const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false);
     
-    const refreshData = useCallback(async () => { setIsLoadingStats(true); try { setStats(await getDashboardStatistics()); setAlerts(await getDashboardAlerts()); } catch (error) { console.error("Error refreshing dashboard data:", error); } finally { setIsLoadingStats(false); } }, []);
+    const refreshData = useCallback(async () => {
+        setIsLoadingStats(true);
+        try {
+            setStats(await getDashboardStatistics());
+            const fetchedAlerts = await getDashboardAlerts();
+            setAlerts(Array.isArray(fetchedAlerts) ? fetchedAlerts : []);
+        } catch (error) {
+            console.error("Error refreshing dashboard data:", error);
+        } finally {
+            setIsLoadingStats(false);
+        }
+    }, []);
     useEffect(() => { if(currentUser) refreshData(); }, [currentUser, refreshData]);
     
     const handleAlertAction = (alert: DashboardAlert) => { if (alert.action?.onClick) { alert.action.onClick(); } else if (alert.action?.path) { if (alert.action.orderId) { navigate(`${alert.action.path}?viewOrderId=${alert.action.orderId}`); } else { navigate(alert.action.path); } } };
