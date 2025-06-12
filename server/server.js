@@ -595,9 +595,9 @@ app.post('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
 
     const insertSql = `INSERT INTO historicalPrices (
         id, userId, supplierId, listId, productName, model, capacity,
-        color, characteristics, originCountry,
+        color, characteristics, chip, originCountry,
         condition, priceBRL, dateRecorded
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     // Use the underlying sqlite3 database instance for transactional inserts
     db.db.serialize(() => {
@@ -613,6 +613,7 @@ app.post('/api/suppliers/prices/historical', authenticateToken, (req, res) => {
                 p.capacity,
                 p.color || null,
                 p.characteristics || null,
+                p.chip || null,
                 p.originCountry || null,
                 p.condition,
                 p.priceBRL !== undefined && p.priceBRL !== null ? parseFloat(p.priceBRL) : null,

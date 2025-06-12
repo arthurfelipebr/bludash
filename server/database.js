@@ -43,6 +43,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE historicalPrices ADD COLUMN color TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN characteristics TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN originCountry TEXT', [], () => {});
+    db.run('ALTER TABLE historicalPrices ADD COLUMN chip TEXT', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -66,6 +67,7 @@ function initializeDatabase() {
         capacity TEXT,
         color TEXT,
         characteristics TEXT,
+        chip TEXT,
         originCountry TEXT,
         condition TEXT,
         priceBRL REAL,
