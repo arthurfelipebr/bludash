@@ -913,107 +913,27 @@ app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) 
 
   try {
     const prompt = `
-      Você é um assistente especialista em extração de dados para a empresa Blu Imports.
-      Sua tarefa é analisar a lista de preços de um fornecedor, fornecida em texto corrido, e extrair as informações dos produtos em um formato JSON estruturado.
+Você é um especialista em extração de dados de texto não estruturado de listas de preço de produtos Apple. Sua tarefa é analisar o texto e convertê-lo em um array JSON. O formato de cada objeto no array deve ser: { "produto": string, "modelo": string, "chip": string | null, "capacidade": string, "condicao": string, "precoBRL": number }.
 
-      REGRAS IMPORTANTES:
-      1.  Ignore completamente qualquer texto introdutório, saudações, avisos, informações de contato ou regras de frete. Foque apenas nas linhas que descrevem os produtos e seus preços.
-      2.  Para cada produto, extraia: o nome do produto (produto), o modelo, a capacidade (capacidade), a condição (condicao), características como "e-sim" ou "chip físico" (caracteristicas), o país de fabricação (pais, ex: HN, CN, US) e o preço em BRL (precoBRL). Ignore completamente a cor do produto.
-      3.  "Condicao" deve conter apenas o estado do aparelho (ex: "Lacrado", "Novo", "CPO", "Seminovo"). Informações como "e-sim" ou "chip físico" vão para "caracteristicas" e abreviações como "HN" ou "CN" vão para "pais".
-      4.  O campo "precoBRL" DEVE SER um número (float), não uma string. Remova "R$", "$", ".", e substitua "," por "." antes de converter para número. Ex: "R$6.650,00" se torna 6650.00. "(8,900)" se torna 8900.00.
-      5.  A saída DEVE ser um array JSON válido. Nada além do array.
-      6.  Se o mesmo modelo e capacidade for listado com diferentes preços para cada cor, use somente o maior preço encontrado.
-      7.  Para MacBook, Mac mini e iMac, registre em "caracteristicas" o processador seguido do tamanho da tela (quando houver), por exemplo "M4 13\"" ou "M3 24\"".
+Siga estas regras rigorosamente:
 
-      Exemplo de Saída Esperada:
-      [
-        {
-          "produto": "iPhone",
-          "modelo": "16 Pro Max",
-          "capacidade": "256GB",
-          "condicao": "Lacrado",
-          "caracteristicas": "E-SIM",
-          "pais": "HN",
-          "precoBRL": 6650.00
-        },
-        {
-          "produto": "MacBook",
-          "modelo": "Pro 14",
-          "capacidade": "512GB",
-          "condicao": "Lacrado",
-          "caracteristicas": "M4 14\"",
-          "pais": "US",
-          "precoBRL": 13500.00
-        },
-        {
-          "produto": "iMac",
-          "modelo": "24\"",
-          "capacidade": "256GB",
-          "condicao": "Lacrado",
-          "caracteristicas": "M3 24\"",
-          "pais": "US",
-          "precoBRL": 10500.00
-        },
-        {
-          "produto": "Apple Watch",
-          "modelo": "Series 9 45mm",
-          "capacidade": "",
-          "condicao": "Novo",
-          "caracteristicas": "GPS",
-          "pais": "CN",
-          "precoBRL": 3500.00
-        },
-        {
-          "produto": "AirPods",
-          "modelo": "Pro 2",
-          "capacidade": "",
-          "condicao": "Novo",
-          "caracteristicas": "",
-          "pais": "HN",
-          "precoBRL": 1200.00
-        },
-        {
-          "produto": "Mac Mini",
-          "modelo": "M2",
-          "capacidade": "512GB",
-          "condicao": "Lacrado",
-          "caracteristicas": "M2",
-          "pais": "US",
-          "precoBRL": 6500.00
-        },
-        {
-          "produto": "iPad",
-          "modelo": "Air",
-          "capacidade": "64GB",
-          "condicao": "Lacrado",
-          "caracteristicas": "Wi-Fi",
-          "pais": "CN",
-          "precoBRL": 4500.00
-        },
-        {
-          "produto": "Apple Pencil",
-          "modelo": "2ª Geração",
-          "capacidade": "",
-          "condicao": "Novo",
-          "caracteristicas": "",
-          "pais": "CN",
-          "precoBRL": 950.00
-        },
-        {
-          "produto": "Magic Mouse",
-          "modelo": "2",
-          "capacidade": "",
-          "condicao": "Novo",
-          "caracteristicas": "",
-          "pais": "CN",
-          "precoBRL": 650.00
-        }
-      ]
+Ignore Linhas Irrelevantes: Ignore cabeçalhos, contatos, regras de garantia e qualquer linha que não seja um produto com preço.
+Normalização de produto: Padronize os nomes: 'iPhone', 'MacBook', 'iMac', 'iPad', 'Apple Watch', 'AirPods'.
+Extração de modelo e chip:
+Para MacBooks: o campo modelo deve ser 'Air' ou 'Pro'. O campo chip deve ser 'M1', 'M2', 'M3', 'M4', 'M4 Pro', etc.
+Para iPads: o modelo deve ser 'Pro', 'Air' ou 'Mini'. Se for um iPad padrão, extraia a geração (ex: '10ª Geração', '11ª Geração'). O chip deve ser 'M2', 'M3', 'M4', 'A16', etc.
+Para Apple Watch: o modelo deve ser 'Ultra 2', 'SE 2', 'S9', 'S10', etc. O campo chip pode ser nulo.
+Para iPhones: o modelo deve ser '16 Pro Max', '16 Pro', '16 Plus', '16', '16E', etc. O campo chip pode ser nulo.
+Extração de capacidade e condicao:
+capacidade: Encontre '64GB', '128GB', '256GB', '512GB', '1TB'.
+condicao: Mapeie CPO para 'CPO (Certified Pre-Owned)', SEMINOVO para 'Seminovo', e ASIS para 'Novo (Caixa Aberta)'. Se nada for especificado, assuma 'Lacrado'.
+Extração de precoBRL: Extraia o número do preço. Ignore R$, 💲, 💰, parênteses, pontos de milhar, e $R.
+Regra de Agrupamento por Cor (IMPORTANTE): Se um mesmo item (produto, modelo, chip, capacidade e condição) for listado com várias cores e preços, encontre o preço mais alto entre eles e retorne apenas uma entrada para esse item com o preço mais alto.
 
-      Agora, analise o seguinte texto e retorne o array JSON:
-      ---
-      ${textList}
-      ---
+Agora, analise o seguinte texto e retorne apenas o array JSON:
+---
+${textList}
+---
     `;
 
     const result = await genAI.models.generateContent({
