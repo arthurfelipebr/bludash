@@ -6,3 +6,8 @@ body {
   background-color: #ffffff;
   color: #000000;
 }
+
+/* Utility class to hide elements when generating screenshots */
+.screenshot-hidden {
+  display: none !important;
+}
