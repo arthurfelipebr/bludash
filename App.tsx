@@ -10,6 +10,7 @@ import MarketAnalysisPage from './features/MarketAnalysisFeature';
 import { BluFacilitaPage } from './features/BluFacilitaFeature';
 import { ClientsPage } from './features/ClientsFeature'; 
 import { CardFeeCalculatorPage } from './features/CardFeeCalculatorFeature';
+import { SaleCalculatorPage } from './features/SaleCalculatorFeature';
 import { TradeInEvaluationPage } from './features/TradeInEvaluationFeature';
 import { FinancialReportsPageContainer } from './features/FinancialReportsFeature';
 import { UserManagementPage } from './features/UserManagementFeature';
@@ -59,6 +60,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Análise de Mercado', path: '/market-analysis', icon: LineChartIcon },
   { name: 'Relatórios', path: '/financial-reports', icon: PieChart },
   { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
+  { name: 'Calculadora Venda', path: '/sale-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
   { name: 'Usuários', path: '/user-management', icon: Users, adminOnly: true },
 ];
@@ -371,6 +373,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/market-analysis" element={<MarketAnalysisPage />} />
                     <Route path="/blufacilita" element={<BluFacilitaPage />} />
                     <Route path="/card-calculator" element={<CardFeeCalculatorPage />} />
+                    <Route path="/sale-calculator" element={<SaleCalculatorPage />} />
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
                     <Route path="/user-management" element={<UserManagementPage />} />
