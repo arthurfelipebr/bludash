@@ -31,6 +31,7 @@ export const ValuesStep: React.FC<ValuesStepProps> = ({
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="Valores, Fornecedor e Prazos" className="h-full">
+          <h4 className="font-semibold text-gray-700 mb-2 mt-4 first:mt-0">Valores e Fornecedor</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Fornecedor"
@@ -64,16 +65,19 @@ export const ValuesStep: React.FC<ValuesStepProps> = ({
             required
             containerClassName="mt-4"
           />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <Input
-              label="Valor de Venda (R$) (Opcional)"
-              id="sellingPrice"
-              name="sellingPrice"
-              type="number"
-              step="0.01"
-              value={String(state.sellingPrice || '')}
-              onChange={handleChange}
-            />
+          <Input
+            label="Valor de Venda (R$) (Opcional)"
+            id="sellingPrice"
+            name="sellingPrice"
+            type="number"
+            step="0.01"
+            value={String(state.sellingPrice || '')}
+            onChange={handleChange}
+            containerClassName="mt-4"
+          />
+
+          <h4 className="font-semibold text-gray-700 mb-2 mt-4 first:mt-0">Prazos e Status</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select
               label="Status Inicial"
               id="status"
@@ -112,7 +116,8 @@ export const ValuesStep: React.FC<ValuesStepProps> = ({
               containerClassName="mt-4"
             />
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <h4 className="font-semibold text-gray-700 mb-2 mt-4 first:mt-0">Custos de Logística</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Custo Frete Fornecedor → Blu (R$)"
               id="shippingCostSupplierToBlu"
