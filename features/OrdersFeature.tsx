@@ -767,10 +767,15 @@ export const OrdersPage = () => {
     }
   };
 
-  const columns = [ 
-    { header: 'Cliente', accessor: (item: Order): ReactNode => item.clientId ? getClientName(item.clientId) : item.customerName, className: 'font-medium' }, 
-    { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model}`}, 
-    { header: 'Fornecedor', accessor: (item: Order): ReactNode => item.supplierName || 'N/A'},
+  const columns = [
+    { header: 'Cliente', accessor: (item: Order): ReactNode => item.clientId ? getClientName(item.clientId) : item.customerName, className: 'font-medium' },
+    { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model}` },
+    { header: 'Dados Financeiros (Fornecedor)', accessor: (item: Order): ReactNode => (
+        <div className="leading-tight text-sm">
+          <div>{item.supplierName || 'N/A'}</div>
+          <div>{formatCurrencyBRL(item.purchasePrice)}</div>
+        </div>
+    )},
     { header: 'Status', accessor: (item: Order): ReactNode => (
       <span
         className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -801,8 +806,12 @@ export const OrdersPage = () => {
           <OrderProgressBar status={item.status} />
         </div>
     )},
-    { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order},
-    { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} /> }, 
+    { header: 'Pagamento', accessor: 'paymentMethod' as keyof Order },
+    { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => {
+        const delivered = getDeliveryDate(item);
+        if (delivered) return <span className="text-gray-700">Entregue: {formatDateBR(delivered)}</span>;
+        return item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} />;
+      } },
     { header: 'Ações', accessor: (item: Order): ReactNode => (
         <div className="flex flex-wrap items-center space-x-1">
             <Button
@@ -868,29 +877,6 @@ export const OrdersPage = () => {
             </Button>
         </div>
     )},
-    { header: 'Prazo/Chegada', accessor: (item: Order): ReactNode => {
-        const delivered = getDeliveryDate(item);
-        if (delivered) return <span className="text-gray-700">Entregue: {formatDateBR(delivered)}</span>;
-        return item.arrivalDate ? <span className="text-gray-700">Chegou: {formatDateBR(item.arrivalDate)}</span> : <CountdownDisplay targetDate={item.estimatedDeliveryDate} />;
-      } },
-    { header: 'Ações', accessor: (item: Order): ReactNode => (
-        <div className="flex flex-wrap items-center space-x-1">
-            <Button variant="ghost" size="sm" onClick={async (e) => { e.stopPropagation(); setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); }} title="Ver Detalhes"><i className="heroicons-outline-eye h-4 w-4"></i></Button>
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenForm(item);}} title="Editar"><i className="heroicons-outline-pencil-square h-4 w-4"></i></Button>
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOrderToRegisterArrival(item);}} title="Registrar Chegada"><i className="heroicons-outline-archive-box-arrow-down h-4 w-4"></i></Button>
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleSendContract(item); }} title="Enviar Contrato"><DocumentTextIcon className="h-4 w-4"/></Button>
-            {item.paymentMethod === PaymentMethod.BLU_FACILITA && item.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && item.imei && (
-                <Button variant={item.imeiBlocked ? "secondary" : "danger"} size="sm" onClick={(e) => { e.stopPropagation(); handleToggleImeiLockAction(item);}} title={item.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"}>
-                    {item.imeiBlocked ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />}
-                </Button>
-            )}
-            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={async (e) => { e.stopPropagation(); await handleDeleteOrder(item.id);}} title="Excluir"><i className="heroicons-outline-trash h-4 w-4"></i></Button>
-        </div>
-    )},
-      
-  
-  
-  
   ];
   
   const handleExport = async () => { 
@@ -936,71 +922,105 @@ export const OrdersPage = () => {
       {isFormOpen && <OrderForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingOrder(null); }} onSave={handleSaveOrder} initialOrder={editingOrder} prefillData={(location.state as any)?.prefillOrderData as OrderFormPrefillData | undefined} />}
       {orderToView && (
         <Modal isOpen={!!orderToView} onClose={() => setOrderToView(null)} title={`Detalhes da Encomenda: ${orderToView.productName} ${orderToView.model}`} size="3xl">
-            <div className="space-y-4 text-sm">
-                <p className="text-gray-700"><strong>Cliente:</strong> {orderToView.clientId ? getClientName(orderToView.clientId) : orderToView.customerName}</p>
-                <p className="text-gray-700"><strong>Produto:</strong> {orderToView.productName} {orderToView.model} {orderToView.watchSize && `(${orderToView.watchSize})`} ({orderToView.capacity}) - {orderToView.color} [{orderToView.condition}]</p>
-                <div className="flex items-center text-gray-700"> <strong>Fornecedor:</strong>&nbsp; {supplierNameVisible ? (<span>{orderToView.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)} <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1"> {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
-                <div className="flex items-center text-gray-700"> <strong>Custo (Fornecedor):</strong>&nbsp; {purchasePriceVisible ? (<span>{formatCurrencyBRL(orderToView.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(orderToView.purchasePrice)}</span>)} <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1"> {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />} </Button> </div>
-                {orderToView.sellingPrice !== undefined && <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(orderToView.sellingPrice)}</p>}
-                <p className="text-gray-700"><strong>Forma de Pagamento:</strong> {orderToView.paymentMethod || 'N/A'}</p>
-                {orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && (
-                    <div className="p-3 border-l-4 border-blue-500 bg-blue-50 text-gray-700 rounded-md">
-                        <h4 className="font-semibold text-blue-700 mb-1">Detalhes BluFacilita</h4>
-                        {orderToView.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {orderToView.bluFacilitaSpecialAnnualRate?.toFixed(2)}% a.a. (Especial)</p>}
-                        {!orderToView.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE * 100}% a.a. (Padrão)</p>}
-                        <p><strong>Entrada:</strong> {formatCurrencyBRL(orderToView.downPayment)}</p>
-                        <p><strong>Valor Financiado:</strong> {formatCurrencyBRL(orderToView.financedAmount)}</p>
-                        <p><strong>Total com Juros (Financiado):</strong> {formatCurrencyBRL(orderToView.totalWithInterest)}</p>
-                        <p><strong>Nº de Parcelas:</strong> {orderToView.installments || 'N/A'}</p>
-                        <p><strong>Valor da Parcela:</strong> {formatCurrencyBRL(orderToView.installmentValue)}</p>
-                        <p><strong>Status Contrato:</strong> <span className={`font-medium ${orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO ? 'text-red-600' : orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.EM_DIA ? 'text-green-600' : 'text-gray-700'}`}>{orderToView.bluFacilitaContractStatus || 'N/A'}</span></p>
-                        {orderToView.imeiBlocked && <p className="text-red-600 font-semibold">IMEI BLOQUEADO INTERNAMENTE</p>}
-                        {orderToView.imei && orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && ( <Button variant={orderToView.imeiBlocked ? "secondary" : "danger"} size="sm" className="mt-2" onClick={() => handleToggleImeiLockAction(orderToView)} > {orderToView.imeiBlocked ? <LockOpenIcon className="h-4 w-4 mr-1" /> : <LockClosedIcon className="h-4 w-4 mr-1" />} {orderToView.imeiBlocked ? "Desbloquear IMEI" : "Bloquear IMEI"} </Button> )}
-                        {orderToView.bluFacilitaInstallments && orderToView.bluFacilitaInstallments.length > 0 && (
-                            <details className="mt-2 text-xs"><summary className="cursor-pointer text-blue-600 hover:underline">Ver Parcelas Detalhadas</summary>
-                                <ul className="list-disc pl-5 mt-1 space-y-0.5"> {orderToView.bluFacilitaInstallments.map(inst => ( <li key={inst.installmentNumber}> Parcela {inst.installmentNumber}: {formatCurrencyBRL(inst.amount)} (Venc: {formatDateBR(inst.dueDate)}) - Status: {inst.status} {inst.amountPaid ? `(Pago ${formatCurrencyBRL(inst.amountPaid)} em ${formatDateBR(inst.paymentDate)})` : ''} </li> ))} </ul>
-                            </details>
-                        )}
-                    </div>
-                )}
-                <p className="text-gray-700"><strong>Data do Pedido:</strong> {formatDateBR(orderToView.orderDate)}</p>
-                <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(orderToView.estimatedDeliveryDate)}</p>
-                {(() => { const d = getDeliveryDate(orderToView); if(d) { const onTime = orderToView.estimatedDeliveryDate ? new Date(d) <= new Date(orderToView.estimatedDeliveryDate + "T23:59:59") : true; return <p className="text-gray-700"><strong>Data de Entrega:</strong> {formatDateBR(d)} {orderToView.estimatedDeliveryDate && (<span className={onTime ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>({onTime ? 'Em dia' : 'Atraso'})</span>)}</p>; } else { return <p className="text-gray-700"><CountdownDisplay targetDate={orderToView.estimatedDeliveryDate} /></p>; } })()}
-                {orderToView.arrivalDate && <p className="text-gray-700"><strong>Data de Chegada:</strong> {formatDateBR(orderToView.arrivalDate)}</p>}
-                {orderToView.imei && <p className="text-gray-700"><strong>IMEI:</strong> {orderToView.imei}</p>}
-                {orderToView.batteryHealth !== undefined && <p className="text-gray-700"><strong>Saúde da Bateria:</strong> {orderToView.batteryHealth}%</p>}
-                {orderToView.readyForDelivery && <p className="font-semibold text-green-600">Produto pronto para entrega!</p>}
-                {orderToView.shippingCostSupplierToBlu !== undefined && <p className="text-gray-700"><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(orderToView.shippingCostSupplierToBlu)}</p>}
-                {orderToView.shippingCostBluToClient !== undefined && <p className="text-gray-700"><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(orderToView.shippingCostBluToClient)}</p>}
-                {orderToView.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {orderToView.notes}</p>}
-                {orderToView.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {orderToView.arrivalNotes}</p>}
-                {orderToView.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {orderToView.whatsAppHistorySummary}</p>}
-                {orderToView.internalNotes && orderToView.internalNotes.length > 0 && ( <div><h4 className="text-md font-semibold mb-1 text-gray-800">Notas Internas:</h4> <div className="max-h-40 overflow-y-auto bg-gray-50 p-2 rounded border"> {orderToView.internalNotes.slice().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(note => ( <div key={note.id} className="mb-1.5 pb-1.5 border-b border-gray-200 last:border-b-0"> <p className="text-xs text-gray-500">{formatDateBR(note.date, true)}</p> <p className="whitespace-pre-wrap">{note.note}</p> </div> ))} </div> </div> )}
-                
-                <div> <h4 className="text-md font-semibold mb-1 text-gray-800">Pagamentos Recebidos:</h4>
-                    {clientPayments.length > 0 ? (
-                        <ul className="list-disc pl-5 text-xs bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto">
-                            {clientPayments.map(p => (
-                                <li key={p.id}>
-                                    {formatDateBR(p.paymentDate)}: {formatCurrencyBRL(p.amountPaid)} ({p.paymentMethodUsed})
-                                    {p.notes && <span className="text-gray-500"> - {p.notes}</span>}
-                                </li>
-                            ))}
-                        </ul>
-                    ) : <span className="text-xs text-gray-500">Nenhum pagamento registrado para esta encomenda.</span>}
-                     <Button variant="ghost" size="sm" onClick={() => setOrderToRegisterPayment(orderToView)} leftIcon={<CreditCardIcon className="h-4 w-4"/>} className="mt-1">
-                        Registrar Recebimento
+          <div className="space-y-4 text-sm">
+            <Card>
+              <h3 className="text-lg font-semibold mb-2">Informações Gerais</h3>
+              <p className="text-gray-700"><strong>Cliente:</strong> {orderToView.clientId ? getClientName(orderToView.clientId) : orderToView.customerName}</p>
+              <p className="text-gray-700"><strong>Produto:</strong> {orderToView.productName} {orderToView.model} {orderToView.watchSize && `(${orderToView.watchSize})`} ({orderToView.capacity}) - {orderToView.color} [{orderToView.condition}]</p>
+              <div className="flex items-center text-gray-700"><strong>Fornecedor:</strong>&nbsp;{supplierNameVisible ? (<span>{orderToView.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)}<Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1">{supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}</Button></div>
+              <div className="flex items-center text-gray-700"><strong>Custo (Fornecedor):</strong>&nbsp;{purchasePriceVisible ? (<span>{formatCurrencyBRL(orderToView.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(orderToView.purchasePrice)}</span>)}<Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1">{purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}</Button></div>
+            </Card>
+
+            <Card>
+              <h3 className="text-lg font-semibold mb-2">Detalhes Financeiros</h3>
+              {orderToView.sellingPrice !== undefined && <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(orderToView.sellingPrice)}</p>}
+              <p className="text-gray-700"><strong>Forma de Pagamento:</strong> {orderToView.paymentMethod || 'N/A'}</p>
+              {orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && (
+                <div className="p-3 border-l-4 border-blue-500 bg-blue-50 text-gray-700 rounded-md">
+                  <h4 className="font-semibold text-blue-700 mb-1">Detalhes BluFacilita</h4>
+                  {orderToView.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {orderToView.bluFacilitaSpecialAnnualRate?.toFixed(2)}% a.a. (Especial)</p>}
+                  {!orderToView.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE * 100}% a.a. (Padrão)</p>}
+                  <p><strong>Entrada:</strong> {formatCurrencyBRL(orderToView.downPayment)}</p>
+                  <p><strong>Valor Financiado:</strong> {formatCurrencyBRL(orderToView.financedAmount)}</p>
+                  <p><strong>Total com Juros (Financiado):</strong> {formatCurrencyBRL(orderToView.totalWithInterest)}</p>
+                  <p><strong>Nº de Parcelas:</strong> {orderToView.installments || 'N/A'}</p>
+                  <p><strong>Valor da Parcela:</strong> {formatCurrencyBRL(orderToView.installmentValue)}</p>
+                  <p><strong>Status Contrato:</strong> <span className={`font-medium ${orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO ? 'text-red-600' : orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.EM_DIA ? 'text-green-600' : 'text-gray-700'}`}>{orderToView.bluFacilitaContractStatus || 'N/A'}</span></p>
+                  {orderToView.imeiBlocked && <p className="text-red-600 font-semibold">IMEI BLOQUEADO INTERNAMENTE</p>}
+                  {orderToView.imei && orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && (
+                    <Button variant={orderToView.imeiBlocked ? 'secondary' : 'danger'} size="sm" className="mt-2" onClick={() => handleToggleImeiLockAction(orderToView)}>
+                      {orderToView.imeiBlocked ? <LockOpenIcon className="h-4 w-4 mr-1" /> : <LockClosedIcon className="h-4 w-4 mr-1" />} {orderToView.imeiBlocked ? 'Desbloquear IMEI' : 'Bloquear IMEI'}
                     </Button>
+                  )}
+                  {orderToView.bluFacilitaInstallments && orderToView.bluFacilitaInstallments.length > 0 && (
+                    <details className="mt-2 text-xs"><summary className="cursor-pointer text-blue-600 hover:underline">Ver Parcelas Detalhadas</summary>
+                      <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                        {orderToView.bluFacilitaInstallments.map(inst => (
+                          <li key={inst.installmentNumber}>Parcela {inst.installmentNumber}: {formatCurrencyBRL(inst.amount)} (Venc: {formatDateBR(inst.dueDate)}) - Status: {inst.status} {inst.amountPaid ? `(Pago ${formatCurrencyBRL(inst.amountPaid)} em ${formatDateBR(inst.paymentDate)})` : ''}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </div>
-                
-                <div><h4 className="text-md font-semibold mb-1 text-gray-800">Documentos:</h4> {orderToView.documents.length > 0 ? orderToView.documents.map(d => <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>) : <span className="text-xs text-gray-500">Nenhum.</span>}</div>
-                <div><h4 className="text-md font-semibold mb-1 text-gray-800">Linha do Tempo:</h4><OrderStatusTimeline order={orderToView} /></div>
-                 <div className="flex justify-end space-x-2 mt-6">
-                    <Button variant="secondary" onClick={() => { setOrderToView(null); handleOpenForm(orderToView); }}>Editar Encomenda</Button>
-                    <Button variant="secondary" onClick={() => { setOrderToView(null); navigate(`/orders/${orderToView.id}/occurrences`); }}>Ocorrências</Button>
-                    <Button onClick={() => setOrderToView(null)}>Fechar</Button>
-                 </div>
+              )}
+              {orderToView.shippingCostSupplierToBlu !== undefined && <p className="text-gray-700"><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(orderToView.shippingCostSupplierToBlu)}</p>}
+              {orderToView.shippingCostBluToClient !== undefined && <p className="text-gray-700"><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(orderToView.shippingCostBluToClient)}</p>}
+            </Card>
+
+            <Card>
+              <h3 className="text-lg font-semibold mb-2">Status e Histórico</h3>
+              <p className="text-gray-700"><strong>Data do Pedido:</strong> {formatDateBR(orderToView.orderDate)}</p>
+              <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(orderToView.estimatedDeliveryDate)}</p>
+              {(() => { const d = getDeliveryDate(orderToView); if(d) { const onTime = orderToView.estimatedDeliveryDate ? new Date(d) <= new Date(orderToView.estimatedDeliveryDate + 'T23:59:59') : true; return <p className="text-gray-700"><strong>Data de Entrega:</strong> {formatDateBR(d)} {orderToView.estimatedDeliveryDate && (<span className={onTime ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>({onTime ? 'Em dia' : 'Atraso'})</span>)}</p>; } else { return <p className="text-gray-700"><CountdownDisplay targetDate={orderToView.estimatedDeliveryDate} /></p>; } })()}
+              {orderToView.arrivalDate && <p className="text-gray-700"><strong>Data de Chegada:</strong> {formatDateBR(orderToView.arrivalDate)}</p>}
+              {orderToView.imei && <p className="text-gray-700"><strong>IMEI:</strong> {orderToView.imei}</p>}
+              {orderToView.batteryHealth !== undefined && <p className="text-gray-700"><strong>Saúde da Bateria:</strong> {orderToView.batteryHealth}%</p>}
+              {orderToView.readyForDelivery && <p className="font-semibold text-green-600">Produto pronto para entrega!</p>}
+              <div><h4 className="text-md font-semibold mb-1 text-gray-800">Linha do Tempo:</h4><OrderStatusTimeline order={orderToView} /></div>
+            </Card>
+
+            <Card>
+              <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
+              {orderToView.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {orderToView.notes}</p>}
+              {orderToView.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {orderToView.arrivalNotes}</p>}
+              {orderToView.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {orderToView.whatsAppHistorySummary}</p>}
+              {orderToView.internalNotes && orderToView.internalNotes.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-semibold">Notas Internas</summary>
+                  <div className="max-h-40 overflow-y-auto bg-gray-50 p-2 rounded border mt-1">
+                    {orderToView.internalNotes.slice().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(note => (
+                      <div key={note.id} className="mb-1.5 pb-1.5 border-b border-gray-200 last:border-b-0">
+                        <p className="text-xs text-gray-500">{formatDateBR(note.date, true)}</p>
+                        <p className="whitespace-pre-wrap">{note.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              <details className="mt-2">
+                <summary className="cursor-pointer font-semibold">Pagamentos Recebidos</summary>
+                {clientPayments.length > 0 ? (
+                  <ul className="list-disc pl-5 text-xs bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto mt-1">
+                    {clientPayments.map(p => (
+                      <li key={p.id}>
+                        {formatDateBR(p.paymentDate)}: {formatCurrencyBRL(p.amountPaid)} ({p.paymentMethodUsed}){p.notes && <span className="text-gray-500"> - {p.notes}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <span className="text-xs text-gray-500 mt-1 block">Nenhum pagamento registrado para esta encomenda.</span>}
+                <Button variant="ghost" size="sm" onClick={() => setOrderToRegisterPayment(orderToView)} leftIcon={<CreditCardIcon className="h-4 w-4"/>} className="mt-1">Registrar Recebimento</Button>
+              </details>
+
+              <div className="mt-2"><h4 className="text-md font-semibold mb-1 text-gray-800">Documentos:</h4>{orderToView.documents.length > 0 ? orderToView.documents.map(d => <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>) : <span className="text-xs text-gray-500">Nenhum.</span>}</div>
+            </Card>
+
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button variant="secondary" onClick={() => { setOrderToView(null); handleOpenForm(orderToView); }}>Editar Encomenda</Button>
+              <Button variant="secondary" onClick={() => { setOrderToView(null); navigate(`/orders/${orderToView.id}/occurrences`); }}>Ocorrências</Button>
+              <Button onClick={() => setOrderToView(null)}>Fechar</Button>
             </div>
+          </div>
         </Modal>
       )}
       {orderToRegisterArrival && (
