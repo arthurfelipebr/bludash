@@ -995,7 +995,11 @@ export const OrdersPage = () => {
                 
                 <div><h4 className="text-md font-semibold mb-1 text-gray-800">Documentos:</h4> {orderToView.documents.length > 0 ? orderToView.documents.map(d => <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>) : <span className="text-xs text-gray-500">Nenhum.</span>}</div>
                 <div><h4 className="text-md font-semibold mb-1 text-gray-800">Linha do Tempo:</h4><OrderStatusTimeline order={orderToView} /></div>
-                 <div className="flex justify-end space-x-2 mt-6"> <Button variant="secondary" onClick={() => { setOrderToView(null); handleOpenForm(orderToView); }}>Editar Encomenda</Button> <Button onClick={() => setOrderToView(null)}>Fechar</Button> </div>
+                 <div className="flex justify-end space-x-2 mt-6">
+                    <Button variant="secondary" onClick={() => { setOrderToView(null); handleOpenForm(orderToView); }}>Editar Encomenda</Button>
+                    <Button variant="secondary" onClick={() => { setOrderToView(null); navigate(`/orders/${orderToView.id}/occurrences`); }}>Ocorrências</Button>
+                    <Button onClick={() => setOrderToView(null)}>Fechar</Button>
+                 </div>
             </div>
         </Modal>
       )}

@@ -2,10 +2,11 @@
 import { 
     Order, OrderStatus, ProductCondition, ParsedSupplierProduct, GeminiParsedProduct, 
     AggregatedProductPrice, Client, ClientType, PaymentMethod, BluFacilitaContractStatus, 
-    DocumentFile, Supplier, TodayTask, TaskType, CreditCardRate, CalculatedCardFeeResult, 
-    OrderCostItem, CostType, InternalNote, DashboardAlert, WeeklySummaryStats, 
-    DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST, 
-    ClientPayment, User, HistoricalParsedProduct 
+    DocumentFile, Supplier, TodayTask, TaskType, CreditCardRate, CalculatedCardFeeResult,
+    OrderCostItem, CostType, InternalNote, DashboardAlert, WeeklySummaryStats,
+    OrderOccurrence, OccurrenceStatus, OccurrenceType,
+    DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
+    ClientPayment, User, HistoricalParsedProduct
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -476,6 +477,32 @@ export const addClientPayment = async (paymentData: Omit<ClientPayment, 'id'|'us
     // For now, client side BluFacilita update logic after payment is removed from here.
     // Assume backend handles it or order is re-fetched.
     return newPayment;
+};
+
+// --- Order Occurrence Services ---
+export const getOrderOccurrences = async (orderId: string): Promise<OrderOccurrence[]> => {
+    return apiClient<OrderOccurrence[]>(`/orders/${orderId}/occurrences`);
+};
+
+export const saveOrderOccurrence = async (
+    orderId: string,
+    occurrence: Omit<OrderOccurrence, 'id' | 'createdAt' | 'updatedAt' | 'orderId'> | OrderOccurrence
+): Promise<OrderOccurrence> => {
+    if ('id' in occurrence && occurrence.id) {
+        return apiClient<OrderOccurrence>(
+            `/orders/${orderId}/occurrences/${occurrence.id}`,
+            { method: 'PUT', body: JSON.stringify(occurrence) }
+        );
+    } else {
+        return apiClient<OrderOccurrence>(
+            `/orders/${orderId}/occurrences`,
+            { method: 'POST', body: JSON.stringify(occurrence) }
+        );
+    }
+};
+
+export const deleteOrderOccurrence = async (orderId: string, occurrenceId: string): Promise<void> => {
+    return apiClient<void>(`/orders/${orderId}/occurrences/${occurrenceId}`, { method: 'DELETE' });
 };
 
 // --- Order Cost Services ---

@@ -4,6 +4,7 @@ import React, { useState, ReactNode, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, LoginPage, AuthGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
+import OrderOccurrencesPage from './features/OrderOccurrencesFeature';
 import { CalendarPage } from './features/CalendarFeature';
 import { SuppliersPage } from './features/SuppliersFeature';
 import MarketAnalysisPage from './features/MarketAnalysisFeature';
@@ -368,6 +369,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/" element={<DashboardHomePage />} />
                     <Route path="/clients/*" element={<ClientsPage />} />
                     <Route path="/orders/*" element={<OrdersPage />} />
+                    <Route path="/orders/:orderId/occurrences" element={<OrderOccurrencesPage />} />
                     <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/suppliers" element={<SuppliersPage />} />
                     <Route path="/market-analysis" element={<MarketAnalysisPage />} />
