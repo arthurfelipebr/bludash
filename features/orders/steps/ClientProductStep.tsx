@@ -101,11 +101,13 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch, onAddNewCl
 
   return (
     <Card title="Detalhes do Cliente e Produto" className="h-full">
+      <h4 className="font-semibold text-gray-700 mb-2 mt-4 first:mt-0">Dados do Cliente</h4>
       <Combobox value={query} onChange={setQuery} onSelect={handleSelect} onAddNew={onAddNewClient} results={options} />
       {selectedClient?.isDefaulter && (
         <Alert type="warning" message={`Atenção: Cliente ${selectedClient.fullName} está marcado como inadimplente.`}
                details={selectedClient.defaulterNotes} className="mt-2" />
       )}
+      <h4 className="font-semibold text-gray-700 mb-2 mt-4 first:mt-0">Detalhes do Produto</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <Select
           label="Produto"
