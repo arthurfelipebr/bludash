@@ -116,6 +116,7 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch, onAddNewCl
           value={state.productName}
           onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'productName', value: e.target.value })}
           options={PRODUCT_OPTIONS.map(p => ({ value: p, label: p }))}
+          containerClassName="flex-grow"
         />
         <Select
           label="Modelo"
@@ -129,7 +130,10 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch, onAddNewCl
               ? PRODUCT_MODELS[state.productName].map(m => ({ value: m, label: m }))
               : [{ value: '', label: 'Selecione um produto...' }]
           }
+          containerClassName="flex-grow"
         />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
         <Select
           label="Armazenamento"
           id="capacity"
@@ -137,24 +141,15 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch, onAddNewCl
           value={state.capacity}
           onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'capacity', value: e.target.value })}
           options={CAPACITY_OPTIONS.map(c => ({ value: c, label: c }))}
+          containerClassName="flex-grow"
         />
-        {state.productName === 'Apple Watch' && (
-          <Select
-            label="Tamanho (mm)"
-            id="watchSize"
-            name="watchSize"
-            value={state.watchSize}
-            onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'watchSize', value: e.target.value })}
-            options={WATCH_SIZE_OPTIONS.map(s => ({ value: s, label: s }))}
-            disabled={state.model.includes('Ultra')}
-          />
-        )}
         <Input
           label="Cor"
           id="color"
           name="color"
           value={state.color}
           onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'color', value: e.target.value })}
+          containerClassName="flex-grow"
         />
         <Select
           label="Condição"
@@ -163,8 +158,23 @@ export const ClientProductStep: React.FC<Props> = ({ state, dispatch, onAddNewCl
           value={state.condition}
           onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'condition', value: e.target.value as ProductCondition })}
           options={PRODUCT_CONDITION_OPTIONS.map((c: ProductCondition) => ({ value: c, label: c }))}
+          containerClassName="flex-grow"
         />
       </div>
+      {state.productName === 'Apple Watch' && (
+        <div className="mt-4">
+          <Select
+            label="Tamanho (mm)"
+            id="watchSize"
+            name="watchSize"
+            value={state.watchSize}
+            onChange={(e) => dispatch({ type: 'UPDATE_FIELD', field: 'watchSize', value: e.target.value })}
+            options={WATCH_SIZE_OPTIONS.map(s => ({ value: s, label: s }))}
+            disabled={state.model.includes('Ultra')}
+            containerClassName="flex-grow"
+          />
+        </div>
+      )}
     </Card>
   );
 };
