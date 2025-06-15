@@ -84,9 +84,39 @@ export interface HistoricalParsedProduct {
 
 export interface InternalNote {
     id: string;
-    date: string; 
+    date: string;
     note: string;
-    userId?: string; 
+    userId?: string;
+}
+
+export enum OccurrenceType {
+    PRODUTO_COM_DEFEITO = 'Produto com defeito',
+    BATERIA_NAO_DURA = 'Bateria não dura',
+    PRODUTO_DANIFICADO = 'Produto danificado',
+    DEVOLUCAO_REEMBOLSO = 'Devolução/reembolso',
+    OUTRO = 'Outro',
+}
+export const OCCURRENCE_TYPE_OPTIONS: OccurrenceType[] = Object.values(OccurrenceType);
+
+export enum OccurrenceStatus {
+    ABERTO = 'Aberto',
+    EM_ANALISE = 'Em análise',
+    SOLUCIONADO = 'Solucionado',
+    REEMBOLSADO = 'Reembolsado',
+    SEM_SOLUCAO = 'Sem solução',
+}
+export const OCCURRENCE_STATUS_OPTIONS: OccurrenceStatus[] = Object.values(OccurrenceStatus);
+
+export interface OrderOccurrence {
+    id: string;
+    orderId: string;
+    type: OccurrenceType;
+    description: string;
+    status: OccurrenceStatus;
+    responsible?: string;
+    createdAt: string;
+    updatedAt: string;
+    attachments?: DocumentFile[];
 }
 
 export interface BluFacilitaInstallment {
