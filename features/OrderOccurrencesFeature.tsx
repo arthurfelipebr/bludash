@@ -42,7 +42,12 @@ const OrderOccurrencesPage: React.FC = () => {
       getOrderById(orderId)
         .then(o => setOrder(o || null))
         .catch(console.error);
-      getOrderOccurrences(orderId).then(setOccurrences).catch(console.error);
+      getOrderOccurrences(orderId)
+        .then(data => setOccurrences(Array.isArray(data) ? data : []))
+        .catch(err => {
+          console.error(err);
+          setOccurrences([]);
+        });
     }
   }, [orderId]);
 
