@@ -648,7 +648,6 @@ export const OrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [orderToView, setOrderToView] = useState<Order | null>(null);
   const [orderToRegisterArrival, setOrderToRegisterArrival] = useState<Order | null>(null);
   const [orderToToggleImeiLock, setOrderToToggleImeiLock] = useState<Order | null>(null);
   const [orderToRegisterPayment, setOrderToRegisterPayment] = useState<Order | null>(null);
@@ -656,11 +655,7 @@ export const OrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
   const location = useLocation(); const navigate = useNavigate();
-  const [supplierNameVisible, setSupplierNameVisible] = useState(false);
-  const [purchasePriceVisible, setPurchasePriceVisible] = useState(false);
-  const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
-  const [correiosEvents, setCorreiosEvents] = useState<any[]>([]);
-  const [isLoadingCorreios, setIsLoadingCorreios] = useState(false);
+
   const [toastData, setToastData] = useState<{message:string; action: () => void} | null>(null);
 
 
@@ -685,22 +680,6 @@ export const OrdersPage = () => {
     }
   }, [fetchAllData, location, navigate]);
   
-  useEffect(() => { 
-    const params = new URLSearchParams(location.search); 
-    const viewOrderId = params.get('viewOrderId'); 
-    const loadOrderDetails = async (id: string) => {
-        const orderFromParam = await getOrderByIdService(id); 
-        if (orderFromParam) { 
-            setOrderToView(orderFromParam); 
-            setSupplierNameVisible(false); 
-            setPurchasePriceVisible(false); 
-            setClientPayments(await getClientPaymentsByOrderId(orderFromParam.id)); 
-        }
-    };
-    if (viewOrderId && orders.length > 0) { 
-      loadOrderDetails(viewOrderId);
-    }
-  }, [location.search, orders]); // Removed navigate from dependency array as it's stable
   
   const handleSaveOrder = async (order: Order) => { 
     await saveOrder(order); 
@@ -708,22 +687,16 @@ export const OrdersPage = () => {
     setIsFormOpen(false); 
     setEditingOrder(null); 
     if(orderToRegisterArrival?.id === order.id) setOrderToRegisterArrival(null); 
-    if(orderToToggleImeiLock?.id === order.id) setOrderToToggleImeiLock(null); 
-    if(orderToView?.id === order.id) { 
-        const updatedOrder = await getOrderByIdService(order.id); 
-        if(updatedOrder) setOrderToView(updatedOrder); 
-        setClientPayments(await getClientPaymentsByOrderId(order.id));
-    } 
-    if(orderToRegisterPayment?.id === order.id) setOrderToRegisterPayment(null); 
+    if(orderToToggleImeiLock?.id === order.id) setOrderToToggleImeiLock(null);
+    if(orderToRegisterPayment?.id === order.id) setOrderToRegisterPayment(null);
   };
 
   const handleOpenForm = (order?: Order) => { setEditingOrder(order || null); setIsFormOpen(true); };
   
   const handleDeleteOrder = async (orderId: string) => { 
     if (window.confirm('Tem certeza que deseja excluir esta encomenda?')) { 
-        await deleteOrder(orderId); 
-        await fetchAllData(); 
-        if (orderToView?.id === orderId) setOrderToView(null); 
+        await deleteOrder(orderId);
+        await fetchAllData();
     } 
   };
   
@@ -754,11 +727,6 @@ export const OrdersPage = () => {
   
   const handlePaymentSaved = async () => {
     await fetchAllData();
-    if(orderToView) {
-      const updatedOrder = await getOrderByIdService(orderToView.id);
-      if (updatedOrder) setOrderToView(updatedOrder);
-      setClientPayments(await getClientPaymentsByOrderId(orderToView.id));
-    }
     setOrderToRegisterPayment(null);
   };
 
@@ -775,12 +743,6 @@ export const OrdersPage = () => {
   const columns = [
     { header: 'Cliente', accessor: (item: Order): ReactNode => item.clientId ? getClientName(item.clientId) : item.customerName, className: 'font-medium' },
     { header: 'Produto', accessor: (item: Order): ReactNode => `${item.productName} ${item.model}` },
-    { header: 'Dados Financeiros (Fornecedor)', accessor: (item: Order): ReactNode => (
-        <div className="leading-tight text-sm">
-          <div>{item.supplierName || 'N/A'}</div>
-          <div>{formatCurrencyBRL(item.purchasePrice)}</div>
-        </div>
-    )},
     { header: 'Status', accessor: (item: Order): ReactNode => (
       <span
         className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -822,12 +784,9 @@ export const OrdersPage = () => {
             <Button
                 variant="ghost"
                 size="sm"
-                onClick={async (e) => {
+                onClick={(e) => {
                     e.stopPropagation();
-                    setOrderToView(item);
-                    setSupplierNameVisible(false);
-                    setPurchasePriceVisible(false);
-                    setClientPayments(await getClientPaymentsByOrderId(item.id));
+                    navigate(`/orders/${item.id}`);
                 }}
                 title="Ver Detalhes"
             >
@@ -923,154 +882,8 @@ export const OrdersPage = () => {
             }
         />
         <Card className="mb-6"> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end"> <Input id="searchOrders" placeholder="Buscar por cliente, produto, IMEI..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} inputClassName="h-10" containerClassName="lg:col-span-2" /> <Select id="statusFilter" placeholder="Filtrar por status..." options={[{value: '', label: 'Todos os Status'}, ...ORDER_STATUS_OPTIONS.map(s => ({ value: s, label: s }))]} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} selectClassName="h-10" /> <Select id="paymentMethodFilter" placeholder="Filtrar por Pagamento..." options={[{value: '', label: 'Todas Formas Pgto.'}, ...PAYMENT_METHOD_OPTIONS.map(p => ({ value: p, label: p}))]} value={paymentMethodFilter} onChange={(e) => setPaymentMethodFilter(e.target.value)} selectClassName="h-10" /> </div> <div className="mt-4"> <Button onClick={handleClearFilters} variant="ghost" size="sm">Limpar Filtros</Button> </div> </Card> 
-        <ResponsiveTable columns={columns} data={filteredOrders} isLoading={isLoading} emptyStateMessage="Nenhuma encomenda encontrada." onRowClick={async (item) => {setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); if(item.trackingCode){ setIsLoadingCorreios(true); try { setCorreiosEvents(await getCorreiosAREvents(item.trackingCode)); } catch(e){ console.error(e); setCorreiosEvents([]);} setIsLoadingCorreios(false);} else { setCorreiosEvents([]);} }} rowKeyAccessor="id" />
+        <ResponsiveTable columns={columns} data={filteredOrders} isLoading={isLoading} emptyStateMessage="Nenhuma encomenda encontrada." onRowClick={(item) => navigate(`/orders/${item.id}`)} rowKeyAccessor="id" />
       {isFormOpen && <OrderForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingOrder(null); }} onSave={handleSaveOrder} initialOrder={editingOrder} prefillData={(location.state as any)?.prefillOrderData as OrderFormPrefillData | undefined} />}
-      {orderToView && (
-        <Modal isOpen={!!orderToView} onClose={() => { setOrderToView(null); setCorreiosEvents([]); }} title={`Detalhes da Encomenda: ${orderToView.productName} ${orderToView.model}`} size="3xl">
-          <div className="space-y-4 text-sm">
-            <Card>
-              <h3 className="text-lg font-semibold mb-2">Informações Gerais</h3>
-              <p className="text-gray-700"><strong>Cliente:</strong> {orderToView.clientId ? getClientName(orderToView.clientId) : orderToView.customerName}</p>
-              <p className="text-gray-700"><strong>Produto:</strong> {orderToView.productName} {orderToView.model} {orderToView.watchSize && `(${orderToView.watchSize})`} ({orderToView.capacity}) - {orderToView.color} [{orderToView.condition}]</p>
-              <div className="flex items-center text-gray-700"><strong>Fornecedor:</strong>&nbsp;{supplierNameVisible ? (<span>{orderToView.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)}<Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1">{supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}</Button></div>
-              <div className="flex items-center text-gray-700"><strong>Custo (Fornecedor):</strong>&nbsp;{purchasePriceVisible ? (<span>{formatCurrencyBRL(orderToView.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(orderToView.purchasePrice)}</span>)}<Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1">{purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}</Button></div>
-            </Card>
-
-            <Card>
-              <h3 className="text-lg font-semibold mb-2">Detalhes Financeiros</h3>
-              {orderToView.sellingPrice !== undefined && <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(orderToView.sellingPrice)}</p>}
-              <p className="text-gray-700"><strong>Forma de Pagamento:</strong> {orderToView.paymentMethod || 'N/A'}</p>
-              {orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && (
-                <div className="p-3 border-l-4 border-blue-500 bg-blue-50 text-gray-700 rounded-md">
-                  <h4 className="font-semibold text-blue-700 mb-1">Detalhes BluFacilita</h4>
-                  {orderToView.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {orderToView.bluFacilitaSpecialAnnualRate?.toFixed(2)}% a.a. (Especial)</p>}
-                  {!orderToView.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE * 100}% a.a. (Padrão)</p>}
-                  <p><strong>Entrada:</strong> {formatCurrencyBRL(orderToView.downPayment)}</p>
-                  <p><strong>Valor Financiado:</strong> {formatCurrencyBRL(orderToView.financedAmount)}</p>
-                  <p><strong>Total com Juros (Financiado):</strong> {formatCurrencyBRL(orderToView.totalWithInterest)}</p>
-                  <p><strong>Nº de Parcelas:</strong> {orderToView.installments || 'N/A'}</p>
-                  <p><strong>Valor da Parcela:</strong> {formatCurrencyBRL(orderToView.installmentValue)}</p>
-                  <p><strong>Status Contrato:</strong> <span className={`font-medium ${orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO ? 'text-red-600' : orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.EM_DIA ? 'text-green-600' : 'text-gray-700'}`}>{orderToView.bluFacilitaContractStatus || 'N/A'}</span></p>
-                  {orderToView.imeiBlocked && <p className="text-red-600 font-semibold">IMEI BLOQUEADO INTERNAMENTE</p>}
-                  {orderToView.imei && orderToView.paymentMethod === PaymentMethod.BLU_FACILITA && orderToView.bluFacilitaContractStatus === BluFacilitaContractStatus.ATRASADO && (
-                    <Button variant={orderToView.imeiBlocked ? 'secondary' : 'danger'} size="sm" className="mt-2" onClick={() => handleToggleImeiLockAction(orderToView)}>
-                      {orderToView.imeiBlocked ? <LockOpenIcon className="h-4 w-4 mr-1" /> : <LockClosedIcon className="h-4 w-4 mr-1" />} {orderToView.imeiBlocked ? 'Desbloquear IMEI' : 'Bloquear IMEI'}
-                    </Button>
-                  )}
-                  {orderToView.bluFacilitaInstallments && orderToView.bluFacilitaInstallments.length > 0 && (
-                    <details className="mt-2 text-xs"><summary className="cursor-pointer text-blue-600 hover:underline">Ver Parcelas Detalhadas</summary>
-                      <ul className="list-disc pl-5 mt-1 space-y-0.5">
-                        {orderToView.bluFacilitaInstallments.map(inst => (
-                          <li key={inst.installmentNumber}>Parcela {inst.installmentNumber}: {formatCurrencyBRL(inst.amount)} (Venc: {formatDateBR(inst.dueDate)}) - Status: {inst.status} {inst.amountPaid ? `(Pago ${formatCurrencyBRL(inst.amountPaid)} em ${formatDateBR(inst.paymentDate)})` : ''}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                </div>
-              )}
-              {orderToView.shippingCostSupplierToBlu !== undefined && <p className="text-gray-700"><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(orderToView.shippingCostSupplierToBlu)}</p>}
-              {orderToView.shippingCostBluToClient !== undefined && <p className="text-gray-700"><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(orderToView.shippingCostBluToClient)}</p>}
-            </Card>
-
-            {orderToView.trackingCode && (
-            <Card>
-              <h3 className="text-lg font-semibold mb-2">Rastreamento Correios</h3>
-              <p className="text-gray-700"><strong>Código:</strong> {orderToView.trackingCode}</p>
-              <Button variant="ghost" size="sm" className="mt-1" onClick={async () => { if(orderToView.trackingCode){ setIsLoadingCorreios(true); try { setCorreiosEvents(await getCorreiosAREvents(orderToView.trackingCode)); } catch(e){ console.error(e); setCorreiosEvents([]); } setIsLoadingCorreios(false);} }}>
-                Atualizar
-              </Button>
-              {isLoadingCorreios ? (
-                <div className="mt-2"><Spinner size="sm" /></div>
-              ) : (
-                correiosEvents.length > 0 ? (
-                  <ul className="mt-2 space-y-1 text-sm max-h-40 overflow-y-auto">
-                    {correiosEvents.map((ev, i) => (
-                      <li key={i}>{formatDateBR(ev.dataCriacao, true)} - {ev.descricaoEvento}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-gray-500 mt-2">Nenhum evento.</p>
-                )
-              )}
-            </Card>
-            )}
-
-            <Card>
-              <h3 className="text-lg font-semibold mb-2">Status e Histórico</h3>
-              <p className="text-gray-700"><strong>Data do Pedido:</strong> {formatDateBR(orderToView.orderDate)}</p>
-              <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(orderToView.estimatedDeliveryDate)}</p>
-              {(() => { const d = getDeliveryDate(orderToView); if(d) { const onTime = orderToView.estimatedDeliveryDate ? new Date(d) <= new Date(orderToView.estimatedDeliveryDate + 'T23:59:59') : true; return <p className="text-gray-700"><strong>Data de Entrega:</strong> {formatDateBR(d)} {orderToView.estimatedDeliveryDate && (<span className={onTime ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>({onTime ? 'Em dia' : 'Atraso'})</span>)}</p>; } else { return <p className="text-gray-700"><CountdownDisplay targetDate={orderToView.estimatedDeliveryDate} /></p>; } })()}
-              {orderToView.arrivalDate && <p className="text-gray-700"><strong>Data de Chegada:</strong> {formatDateBR(orderToView.arrivalDate)}</p>}
-              {orderToView.imei && <p className="text-gray-700"><strong>IMEI:</strong> {orderToView.imei}</p>}
-              {orderToView.batteryHealth !== undefined && <p className="text-gray-700"><strong>Saúde da Bateria:</strong> {orderToView.batteryHealth}%</p>}
-              {orderToView.readyForDelivery && <p className="font-semibold text-green-600">Produto pronto para entrega!</p>}
-              <div><h4 className="text-md font-semibold mb-1 text-gray-800">Linha do Tempo:</h4><OrderStatusTimeline order={orderToView} /></div>
-            </Card>
-
-            <Card>
-              <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
-              {orderToView.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {orderToView.notes}</p>}
-              {orderToView.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {orderToView.arrivalNotes}</p>}
-              {orderToView.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {orderToView.whatsAppHistorySummary}</p>}
-              {orderToView.internalNotes && orderToView.internalNotes.length > 0 && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer font-semibold">Notas Internas</summary>
-                  <div className="max-h-40 overflow-y-auto bg-gray-50 p-2 rounded border mt-1">
-                    {orderToView.internalNotes.slice().sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(note => (
-                      <div key={note.id} className="mb-1.5 pb-1.5 border-b border-gray-200 last:border-b-0">
-                        <p className="text-xs text-gray-500">{formatDateBR(note.date, true)}</p>
-                        <p className="whitespace-pre-wrap">{note.note}</p>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              )}
-
-              <details className="mt-2">
-                <summary className="cursor-pointer font-semibold">Pagamentos Recebidos</summary>
-                {clientPayments.length > 0 ? (
-                  <ul className="list-disc pl-5 text-xs bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto mt-1">
-                    {clientPayments.map(p => (
-                      <li key={p.id}>
-                        {formatDateBR(p.paymentDate)}: {formatCurrencyBRL(p.amountPaid)} ({p.paymentMethodUsed}){p.notes && <span className="text-gray-500"> - {p.notes}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                ) : <span className="text-xs text-gray-500 mt-1 block">Nenhum pagamento registrado para esta encomenda.</span>}
-                <Button variant="ghost" size="sm" onClick={() => setOrderToRegisterPayment(orderToView)} leftIcon={<CreditCardIcon className="h-4 w-4"/>} className="mt-1">Registrar Recebimento</Button>
-              </details>
-
-              <div className="mt-2"><h4 className="text-md font-semibold mb-1 text-gray-800">Documentos:</h4>{orderToView.documents.length > 0 ? orderToView.documents.map(d => <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>) : <span className="text-xs text-gray-500">Nenhum.</span>}</div>
-            </Card>
-
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="secondary" onClick={() => { setOrderToView(null); handleOpenForm(orderToView); }}>Editar Encomenda</Button>
-              <Button variant="secondary" onClick={() => { setOrderToView(null); navigate(`/orders/${orderToView.id}/occurrences`); }}>Ocorrências</Button>
-              <Button onClick={() => { setOrderToView(null); setCorreiosEvents([]); }}>Fechar</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
-      {orderToRegisterArrival && (
-        <RegisterArrivalModal
-          order={orderToRegisterArrival}
-          isOpen={!!orderToRegisterArrival}
-          onClose={() => setOrderToRegisterArrival(null)}
-          onSave={handleSaveOrder}
-          onArrivalRegistered={(o) => {
-            const client = clients.find(c => c.id === o.clientId);
-            const phone = client ? client.phone : '';
-            setToastData({
-              message: 'Chegada registrada com sucesso.',
-              action: () => {
-                const msg = `Olá, ${client ? client.fullName : o.customerName}! Boas notícias, seu ${o.productName} chegou e já está disponível. Podemos combinar a entrega?`;
-                const link = `https://wa.me/${cleanPhoneNumberForWhatsApp(phone)}?text=${encodeURIComponent(msg)}`;
-                window.open(link, '_blank');
-              }
-            });
-          }}
-        />
-      )}
       {orderToToggleImeiLock && ( <Modal isOpen={!!orderToToggleImeiLock} onClose={() => setOrderToToggleImeiLock(null)} title={`${orderToToggleImeiLock.imeiBlocked ? 'Confirmar Desbloqueio' : 'Confirmar Bloqueio'} de IMEI`} size="md" footer={ <> <Button variant="secondary" onClick={() => setOrderToToggleImeiLock(null)}>Cancelar</Button> <Button variant={orderToToggleImeiLock.imeiBlocked ? "primary" : "danger"} onClick={confirmToggleImeiLock}> {orderToToggleImeiLock.imeiBlocked ? 'Sim, Desbloquear' : 'Sim, Bloquear'} </Button> </> } > <p className="text-gray-700"> Tem certeza que deseja <strong>{orderToToggleImeiLock.imeiBlocked ? 'desbloquear' : 'bloquear'}</strong> o IMEI <span className="font-semibold"> {orderToToggleImeiLock.imei}</span> para o pedido de <span className="font-semibold">{orderToToggleImeiLock.clientId ? getClientName(orderToToggleImeiLock.clientId) : orderToToggleImeiLock.customerName}</span>? </p> <p className="text-sm text-gray-600 mt-2"> Esta ação é para controle interno e não realiza bloqueio/desbloqueio real na operadora. </p> </Modal> )}
       {orderToRegisterPayment && ( <RegisterPaymentModal order={orderToRegisterPayment} isOpen={!!orderToRegisterPayment} onClose={() => setOrderToRegisterPayment(null)} onPaymentSaved={handlePaymentSaved} /> )}
       {toastData && (

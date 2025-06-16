@@ -46,7 +46,7 @@ const PendingOrdersWidget: React.FC = () => {
   }
 
   const viewOrder = (id: string) => {
-    navigate(`/orders?viewOrderId=${id}`);
+    navigate(`/orders/${id}`);
   };
 
   return (
