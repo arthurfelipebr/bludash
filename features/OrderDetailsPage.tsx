@@ -296,7 +296,7 @@ const OrderDetailsPage: React.FC = () => {
         </Card>
 
         <div className="flex justify-end space-x-2 mt-6">
-          <Button variant="secondary" onClick={() => navigate('/orders', { state: { prefillOrderData: order } })}>Editar Encomenda</Button>
+          <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/edit`)}>Editar Encomenda</Button>
           <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/occurrences`)}>Ocorrências</Button>
           <Button onClick={() => navigate('/orders')}>Voltar</Button>
           <Button variant="secondary" onClick={handleSendContract}>Enviar Contrato</Button>

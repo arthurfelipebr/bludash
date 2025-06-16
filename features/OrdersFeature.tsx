@@ -243,7 +243,18 @@ const orderFormReducer = (state: OrderFormState, action: OrderFormAction): Order
 const initialState: OrderFormState = { ...initialFormData, currentStep: 0 };
 
 
-interface OrderFormProps { isOpen: boolean; onClose: () => void; onSave: (order: Order) => Promise<void>; initialOrder?: Order | null; prefillData?: Partial<OrderFormPrefillData>; }
+interface OrderFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (order: Order) => Promise<void>;
+  initialOrder?: Order | null;
+  prefillData?: Partial<OrderFormPrefillData>;
+  /**
+   * When true the form is wrapped in a modal (default behaviour).
+   * When false the form is rendered inline on the page.
+   */
+  useModal?: boolean;
+}
 interface OrderFormPrefillData {
     sellingPrice?: number;
     downPayment?: number;
@@ -254,7 +265,7 @@ interface OrderFormPrefillData {
 }
 
 
-const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialOrder, prefillData }) => {
+export const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialOrder, prefillData, useModal = true }) => {
   const [state, dispatch] = useReducer(orderFormReducer, initialState);
   const formData = state;
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
@@ -548,9 +559,7 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
   const selectedClientDetails = formData.clientId ? clients.find(c => c.id === formData.clientId) : null;
 
 
-  return (
-    <>
-    <Modal isOpen={isOpen} onClose={onClose} title={initialOrder ? 'Editar Encomenda' : 'Adicionar Nova Encomenda'} size="3xl">
+  const formBody = (
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
         <Stepper steps={FORM_STEPS} currentStep={currentStep} />
@@ -600,7 +609,17 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
             </div>
         </div>
       </form>
-    </Modal>
+  );
+
+  return (
+    <>
+    {useModal ? (
+      <Modal isOpen={isOpen} onClose={onClose} title={initialOrder ? 'Editar Encomenda' : 'Adicionar Nova Encomenda'} size="3xl">
+        {formBody}
+      </Modal>
+    ) : (
+      isOpen && <div className="max-w-3xl mx-auto">{formBody}</div>
+    )}
     {isProductNFModalOpen && (
       <Modal
         isOpen={isProductNFModalOpen}
