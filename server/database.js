@@ -45,6 +45,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE historicalPrices ADD COLUMN characteristics TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN originCountry TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN chip TEXT', [], () => {});
+    db.run('ALTER TABLE clientPayments ADD COLUMN installments INTEGER', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -188,6 +189,7 @@ function initializeDatabase() {
         "paymentDate" TEXT NOT NULL,
         "amountPaid" REAL NOT NULL,
         "paymentMethodUsed" TEXT NOT NULL,
+        installments INTEGER,
         notes TEXT,
         FOREIGN KEY ("userId") REFERENCES users(id),
         FOREIGN KEY ("orderId") REFERENCES orders(id) ON DELETE CASCADE

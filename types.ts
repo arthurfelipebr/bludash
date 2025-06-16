@@ -366,11 +366,12 @@ export interface WeeklySummaryStats {
 }
 
 export interface ClientPayment {
-    id: string; 
+    id: string;
     userId?: string;
     orderId: string;
     paymentDate: string; // ISO Date string
     amountPaid: number;
-    paymentMethodUsed: 'PIX' | 'Transferência Bancária' | 'Dinheiro' | 'Outro';
+    paymentMethodUsed: 'PIX' | 'Transferência Bancária' | 'Dinheiro' | 'Cartão de Crédito' | 'Outro';
+    installments?: number;
     notes?: string;
 }

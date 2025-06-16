@@ -276,7 +276,7 @@ const OrderDetailsPage: React.FC = () => {
               <ul className="list-disc pl-5 text-xs bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto mt-1">
                 {clientPayments.map(p => (
                   <li key={p.id}>
-                    {formatDateBR(p.paymentDate)}: {formatCurrencyBRL(p.amountPaid)} ({p.paymentMethodUsed}){p.notes && <span className="text-gray-500"> - {p.notes}</span>}
+                    {formatDateBR(p.paymentDate)}: {formatCurrencyBRL(p.amountPaid)} ({p.paymentMethodUsed}{p.installments ? ` - ${p.installments}x` : ''}){p.notes && <span className="text-gray-500"> - {p.notes}</span>}
                   </li>
                 ))}
               </ul>

@@ -135,7 +135,8 @@ interface RegisterPaymentModalProps { order: Order | null; isOpen: boolean; onCl
 export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({ order, isOpen, onClose, onPaymentSaved }) => {
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
     const [amountPaidInput, setAmountPaidInput] = useState('R$ 0,00');
-    const [paymentMethodUsed, setPaymentMethodUsed] = useState<'PIX' | 'Transferência Bancária' | 'Dinheiro' | 'Outro'>('PIX');
+    const [paymentMethodUsed, setPaymentMethodUsed] = useState<'PIX' | 'Transferência Bancária' | 'Dinheiro' | 'Cartão de Crédito' | 'Outro'>('PIX');
+    const [installments, setInstallments] = useState(2);
     const [notes, setNotes] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -163,15 +164,69 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({ orde
                 const suggestedAmount = nextPendingInstallment ? (nextPendingInstallment.amount - (nextPendingInstallment.amountPaid || 0)) : (order.installmentValue || 0);
                 setAmountPaidInput(formatNumberToBRLCurrencyInput(suggestedAmount > 0 ? suggestedAmount : 0));
             } else { setAmountPaidInput(formatNumberToBRLCurrencyInput(order.sellingPrice || 0)); }
-            setPaymentMethodUsed('PIX'); setNotes(''); setError(null);
+            setPaymentMethodUsed('PIX'); setInstallments(2); setNotes(''); setError(null);
         }
     }, [isOpen, order]);
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => setAmountPaidInput(e.target.value);
     const handleAmountBlur = () => setAmountPaidInput(formatNumberToBRLCurrencyInput(parseBRLCurrencyStringToNumber(amountPaidInput)));
-    const handleSubmit = async () => { if (!order) { setError("Encomenda não especificada."); return; } const amountPaid = parseBRLCurrencyStringToNumber(amountPaidInput); if (amountPaid <= 0) { setError("O valor pago deve ser maior que zero."); return; } setError(null); setIsLoading(true); try { const paymentData: Omit<ClientPayment, 'id'|'userId'> = { orderId: order.id, paymentDate, amountPaid, paymentMethodUsed, notes }; const savedPayment = await addClientPayment(paymentData); onPaymentSaved(savedPayment); onClose(); } catch (err) { setError("Falha ao registrar pagamento: " + (err instanceof Error ? err.message : String(err))); } finally { setIsLoading(false); } };
-    const paymentMethodOptions = [ { value: 'PIX', label: 'PIX' }, { value: 'Transferência Bancária', label: 'Transferência Bancária' }, { value: 'Dinheiro', label: 'Dinheiro' }, { value: 'Outro', label: 'Outro' }, ];
-    return ( <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Recebimento`} size="lg"> <div className="space-y-4"> {error && <Alert type="error" message={error} onClose={() => setError(null)} />} <p><strong>Cliente:</strong> {clientName}</p> <p><strong>Produto:</strong> {order?.productName} {order?.model}</p> <SharedInput label="Data do Recebimento" id="paymentDate" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required /> <SharedInput label="Valor Recebido (R$)" id="amountPaid" value={amountPaidInput} onChange={handleAmountChange} onBlur={handleAmountBlur} required /> <SharedSelect label="Forma de Pagamento Usada" id="paymentMethodUsed" value={paymentMethodUsed} onChange={(e) => setPaymentMethodUsed(e.target.value as any)} options={paymentMethodOptions} required /> <SharedTextarea label="Observações (Opcional)" id="paymentNotes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /> <div className="flex justify-end space-x-2"> <Button variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Recebimento</Button> </div> </div> </Modal> );
+    const handleSubmit = async () => {
+        if (!order) { setError("Encomenda não especificada."); return; }
+        const amountPaid = parseBRLCurrencyStringToNumber(amountPaidInput);
+        if (amountPaid <= 0) { setError("O valor pago deve ser maior que zero."); return; }
+        setError(null);
+        setIsLoading(true);
+        try {
+            const paymentData: Omit<ClientPayment, 'id'|'userId'> = {
+                orderId: order.id,
+                paymentDate,
+                amountPaid,
+                paymentMethodUsed,
+                installments: paymentMethodUsed === 'Cartão de Crédito' ? installments : undefined,
+                notes
+            };
+            const savedPayment = await addClientPayment(paymentData);
+            onPaymentSaved(savedPayment);
+            onClose();
+        } catch (err) {
+            setError("Falha ao registrar pagamento: " + (err instanceof Error ? err.message : String(err)));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    const paymentMethodOptions = [
+        { value: 'PIX', label: 'PIX' },
+        { value: 'Transferência Bancária', label: 'Transferência Bancária' },
+        { value: 'Dinheiro', label: 'Dinheiro' },
+        { value: 'Cartão de Crédito', label: 'Cartão de Crédito' },
+        { value: 'Outro', label: 'Outro' },
+    ];
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Recebimento`} size="lg">
+            <div className="space-y-4">
+                {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+                <p><strong>Cliente:</strong> {clientName}</p>
+                <p><strong>Produto:</strong> {order?.productName} {order?.model}</p>
+                <SharedInput label="Data do Recebimento" id="paymentDate" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required />
+                <SharedInput label="Valor Recebido (R$)" id="amountPaid" value={amountPaidInput} onChange={handleAmountChange} onBlur={handleAmountBlur} required />
+                <SharedSelect label="Forma de Pagamento Usada" id="paymentMethodUsed" value={paymentMethodUsed} onChange={(e) => setPaymentMethodUsed(e.target.value as any)} options={paymentMethodOptions} required />
+                {paymentMethodUsed === 'Cartão de Crédito' && (
+                    <SharedSelect
+                        label="Número de Parcelas"
+                        id="installments"
+                        value={String(installments)}
+                        onChange={(e) => setInstallments(parseInt(e.target.value))}
+                        options={Array.from({ length: 11 }, (_, i) => ({ value: i + 2, label: `${i + 2}x` }))}
+                    />
+                )}
+                <SharedTextarea label="Observações (Opcional)" id="paymentNotes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+                <div className="flex justify-end space-x-2">
+                    <Button variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button>
+                    <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Recebimento</Button>
+                </div>
+            </div>
+        </Modal>
+    );
 };
 
 
