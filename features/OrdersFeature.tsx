@@ -11,6 +11,7 @@ import {
   cleanPhoneNumberForWhatsApp,
   calculateBluFacilitaDetails,
   getClientPaymentsByOrderId,
+  getCorreiosAREvents,
   sendOrderContractToAutentique,
 } from '../services/AppService';
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast, OrderProgressBar } from '../components/SharedComponents';
@@ -201,6 +202,7 @@ const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'cus
   arrivalDate: undefined, imei: undefined, arrivalPhotos: [], arrivalNotes: undefined, batteryHealth: undefined, readyForDelivery: false,
   deliveryDate: undefined,
   shippingCostSupplierToBlu: undefined, shippingCostBluToClient: undefined,
+  trackingCode: '',
   whatsAppHistorySummary: undefined,
   bluFacilitaUsesSpecialRate: false, bluFacilitaSpecialAnnualRate: undefined,
 };
@@ -319,6 +321,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, initialO
             imeiBlocked: initialOrder.imeiBlocked || false,
             shippingCostSupplierToBlu: initialOrder.shippingCostSupplierToBlu,
             shippingCostBluToClient: initialOrder.shippingCostBluToClient,
+            trackingCode: initialOrder.trackingCode || '',
             whatsAppHistorySummary: initialOrder.whatsAppHistorySummary,
             bluFacilitaUsesSpecialRate: initialOrder.bluFacilitaUsesSpecialRate || false,
             bluFacilitaSpecialAnnualRate: initialOrder.bluFacilitaSpecialAnnualRate,
@@ -656,6 +659,8 @@ export const OrdersPage = () => {
   const [supplierNameVisible, setSupplierNameVisible] = useState(false);
   const [purchasePriceVisible, setPurchasePriceVisible] = useState(false);
   const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
+  const [correiosEvents, setCorreiosEvents] = useState<any[]>([]);
+  const [isLoadingCorreios, setIsLoadingCorreios] = useState(false);
   const [toastData, setToastData] = useState<{message:string; action: () => void} | null>(null);
 
 
@@ -918,10 +923,10 @@ export const OrdersPage = () => {
             }
         />
         <Card className="mb-6"> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end"> <Input id="searchOrders" placeholder="Buscar por cliente, produto, IMEI..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} inputClassName="h-10" containerClassName="lg:col-span-2" /> <Select id="statusFilter" placeholder="Filtrar por status..." options={[{value: '', label: 'Todos os Status'}, ...ORDER_STATUS_OPTIONS.map(s => ({ value: s, label: s }))]} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} selectClassName="h-10" /> <Select id="paymentMethodFilter" placeholder="Filtrar por Pagamento..." options={[{value: '', label: 'Todas Formas Pgto.'}, ...PAYMENT_METHOD_OPTIONS.map(p => ({ value: p, label: p}))]} value={paymentMethodFilter} onChange={(e) => setPaymentMethodFilter(e.target.value)} selectClassName="h-10" /> </div> <div className="mt-4"> <Button onClick={handleClearFilters} variant="ghost" size="sm">Limpar Filtros</Button> </div> </Card> 
-        <ResponsiveTable columns={columns} data={filteredOrders} isLoading={isLoading} emptyStateMessage="Nenhuma encomenda encontrada." onRowClick={async (item) => {setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id));}} rowKeyAccessor="id" /> 
+        <ResponsiveTable columns={columns} data={filteredOrders} isLoading={isLoading} emptyStateMessage="Nenhuma encomenda encontrada." onRowClick={async (item) => {setOrderToView(item); setSupplierNameVisible(false); setPurchasePriceVisible(false); setClientPayments(await getClientPaymentsByOrderId(item.id)); if(item.trackingCode){ setIsLoadingCorreios(true); try { setCorreiosEvents(await getCorreiosAREvents(item.trackingCode)); } catch(e){ console.error(e); setCorreiosEvents([]);} setIsLoadingCorreios(false);} else { setCorreiosEvents([]);} }} rowKeyAccessor="id" />
       {isFormOpen && <OrderForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingOrder(null); }} onSave={handleSaveOrder} initialOrder={editingOrder} prefillData={(location.state as any)?.prefillOrderData as OrderFormPrefillData | undefined} />}
       {orderToView && (
-        <Modal isOpen={!!orderToView} onClose={() => setOrderToView(null)} title={`Detalhes da Encomenda: ${orderToView.productName} ${orderToView.model}`} size="3xl">
+        <Modal isOpen={!!orderToView} onClose={() => { setOrderToView(null); setCorreiosEvents([]); }} title={`Detalhes da Encomenda: ${orderToView.productName} ${orderToView.model}`} size="3xl">
           <div className="space-y-4 text-sm">
             <Card>
               <h3 className="text-lg font-semibold mb-2">Informações Gerais</h3>
@@ -966,6 +971,29 @@ export const OrdersPage = () => {
               {orderToView.shippingCostSupplierToBlu !== undefined && <p className="text-gray-700"><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(orderToView.shippingCostSupplierToBlu)}</p>}
               {orderToView.shippingCostBluToClient !== undefined && <p className="text-gray-700"><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(orderToView.shippingCostBluToClient)}</p>}
             </Card>
+
+            {orderToView.trackingCode && (
+            <Card>
+              <h3 className="text-lg font-semibold mb-2">Rastreamento Correios</h3>
+              <p className="text-gray-700"><strong>Código:</strong> {orderToView.trackingCode}</p>
+              <Button variant="ghost" size="sm" className="mt-1" onClick={async () => { if(orderToView.trackingCode){ setIsLoadingCorreios(true); try { setCorreiosEvents(await getCorreiosAREvents(orderToView.trackingCode)); } catch(e){ console.error(e); setCorreiosEvents([]); } setIsLoadingCorreios(false);} }}>
+                Atualizar
+              </Button>
+              {isLoadingCorreios ? (
+                <div className="mt-2"><Spinner size="sm" /></div>
+              ) : (
+                correiosEvents.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm max-h-40 overflow-y-auto">
+                    {correiosEvents.map((ev, i) => (
+                      <li key={i}>{formatDateBR(ev.dataCriacao, true)} - {ev.descricaoEvento}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-2">Nenhum evento.</p>
+                )
+              )}
+            </Card>
+            )}
 
             <Card>
               <h3 className="text-lg font-semibold mb-2">Status e Histórico</h3>
@@ -1018,7 +1046,7 @@ export const OrdersPage = () => {
             <div className="flex justify-end space-x-2 mt-6">
               <Button variant="secondary" onClick={() => { setOrderToView(null); handleOpenForm(orderToView); }}>Editar Encomenda</Button>
               <Button variant="secondary" onClick={() => { setOrderToView(null); navigate(`/orders/${orderToView.id}/occurrences`); }}>Ocorrências</Button>
-              <Button onClick={() => setOrderToView(null)}>Fechar</Button>
+              <Button onClick={() => { setOrderToView(null); setCorreiosEvents([]); }}>Fechar</Button>
             </div>
           </div>
         </Modal>

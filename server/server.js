@@ -257,6 +257,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       "totalWithInterest", "installmentValue", "bluFacilitaContractStatus", "imeiBlocked", 
       "arrivalDate", imei, "arrivalNotes", "batteryHealth", "readyForDelivery", 
       "shippingCostSupplierToBlu", "shippingCostBluToClient", "whatsAppHistorySummary",
+      trackingCode,
       "bluFacilitaUsesSpecialRate", "bluFacilitaSpecialAnnualRate",
       documents, "trackingHistory", "bluFacilitaInstallments", "internalNotes", "arrivalPhotos"
   ) VALUES (
@@ -264,7 +265,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
       $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
-      $41
+      $41, $42
   )`;
 
   const params = [
@@ -278,6 +279,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
       orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.trackingCode,
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
       documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON, internalNotesJSON, arrivalPhotosJSON
   ];
@@ -351,10 +353,10 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       "bluFacilitaContractStatus"=$23, "imeiBlocked"=$24, "arrivalDate"=$25, imei=$26,
       "arrivalNotes"=$27, "batteryHealth"=$28, "readyForDelivery"=$29,
       "shippingCostSupplierToBlu"=$30, "shippingCostBluToClient"=$31,
-      "whatsAppHistorySummary"=$32, "bluFacilitaUsesSpecialRate"=$33,
-      "bluFacilitaSpecialAnnualRate"=$34, documents=$35, "trackingHistory"=$36,
-      "bluFacilitaInstallments"=$37, "internalNotes"=$38, "arrivalPhotos"=$39
-      WHERE id=$40 AND "userId"=$41`;
+      "whatsAppHistorySummary"=$32, trackingCode=$33, "bluFacilitaUsesSpecialRate"=$34,
+      "bluFacilitaSpecialAnnualRate"=$35, documents=$36, "trackingHistory"=$37,
+      "bluFacilitaInstallments"=$38, "internalNotes"=$39, "arrivalPhotos"=$40
+      WHERE id=$41 AND "userId"=$42`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
@@ -368,6 +370,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
       orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.trackingCode,
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
       documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON,
       internalNotesJSON, arrivalPhotosJSON,
