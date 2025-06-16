@@ -719,11 +719,11 @@ app.get('/api/orders/:orderId/payments', authenticateToken, (req, res) => {
 
 app.post('/api/orders/:orderId/payments', authenticateToken, (req, res) => {
     const orderId = req.params.orderId;
-    const { paymentDate, amountPaid, paymentMethodUsed, notes } = req.body;
+    const { paymentDate, amountPaid, paymentMethodUsed, installments, notes } = req.body;
     const paymentId = uuidv4();
-    const sql = `INSERT INTO clientPayments (id, "userId", "orderId", "paymentDate", "amountPaid", "paymentMethodUsed", notes)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`;
-    const params = [paymentId, req.user.id, orderId, paymentDate || new Date().toISOString(), amountPaid, paymentMethodUsed, notes];
+    const sql = `INSERT INTO clientPayments (id, "userId", "orderId", "paymentDate", "amountPaid", "paymentMethodUsed", installments, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`;
+    const params = [paymentId, req.user.id, orderId, paymentDate || new Date().toISOString(), amountPaid, paymentMethodUsed, installments, notes];
     db.run(sql, params, function(err) {
         if (err) {
             console.error('Error saving client payment:', err.message);
