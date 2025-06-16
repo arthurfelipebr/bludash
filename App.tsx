@@ -5,6 +5,7 @@ import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } f
 import { AuthProvider, LoginPage, AuthGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
 import OrderDetailsPage from './features/OrderDetailsPage';
+import OrderEditPage from './features/OrderEditPage';
 import OrderOccurrencesPage from './features/OrderOccurrencesFeature';
 import { CalendarPage } from './features/CalendarFeature';
 import { SuppliersPage } from './features/SuppliersFeature';
@@ -426,6 +427,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/clients/*" element={<ClientsPage />} />
                     <Route path="/orders" element={<OrdersPage />} />
                     <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
+                    <Route path="/orders/:orderId/edit" element={<OrderEditPage />} />
                     <Route path="/orders/:orderId/occurrences" element={<OrderOccurrencesPage />} />
                     <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/suppliers" element={<SuppliersPage />} />
