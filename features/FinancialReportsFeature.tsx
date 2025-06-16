@@ -232,7 +232,7 @@ const ReportByOrderTab: React.FC = () => {
                     />
                 )}
                 <div className="mt-6">
-                    <Button onClick={() => navigate(`/orders?viewOrderId=${selectedOrderId}`)} variant="secondary">
+                    <Button onClick={() => navigate(`/orders/${selectedOrderId}`)} variant="secondary">
                         Ver Detalhes da Encomenda
                     </Button>
                 </div>

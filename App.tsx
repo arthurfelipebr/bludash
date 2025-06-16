@@ -4,6 +4,7 @@ import React, { useState, ReactNode, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, LoginPage, AuthGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
+import OrderDetailsPage from './features/OrderDetailsPage';
 import OrderOccurrencesPage from './features/OrderOccurrencesFeature';
 import { CalendarPage } from './features/CalendarFeature';
 import { SuppliersPage } from './features/SuppliersFeature';
@@ -254,7 +255,7 @@ const TodayTasksDisplay: React.FC = () => {
     useEffect(() => { const fetchTasks = async () => { setIsLoading(true); try { setTasks(await getTodaysTasks()); } catch(e) { console.error("Failed to fetch today's tasks", e); } finally { setIsLoading(false); }}; fetchTasks(); }, []);
     if (isLoading) return <div className="flex justify-center items-center p-6"><Spinner /> <span className="ml-2">Carregando tarefas...</span></div>;
     if (tasks.length === 0) return <Card><p className="text-center text-gray-500 py-4">Nenhuma tarefa prioritária para hoje.</p></Card>;
-    const handleViewOrder = (orderId: string) => navigate(`/orders?viewOrderId=${orderId}`);
+    const handleViewOrder = (orderId: string) => navigate(`/orders/${orderId}`);
     return ( <div className="space-y-4"> {tasks.map(task => ( <Card key={task.id} className={`border-l-4 ${task.priority === 1 ? 'border-red-500' : 'border-yellow-500'}`}> <div className="flex justify-between items-start"> <div> <p className="font-semibold text-gray-800">{task.type}</p> <p className="text-sm text-gray-600">{task.description}</p> <p className="text-xs text-gray-500"> {task.type === 'Prazo de Entrega' || task.type === 'Chegou Hoje' ? `Data: ${formatDateBR(task.relevantDate)}` : `Status: ${task.relatedOrder.status}`} </p> </div> <Button variant="link" size="sm" onClick={() => handleViewOrder(task.relatedOrder.id)}> Ver Encomenda </Button> </div> </Card> ))} </div> );
 };
 
@@ -283,7 +284,7 @@ const DashboardHomePage: React.FC<{}> = () => {
     }, []);
     useEffect(() => { if(currentUser) refreshData(); }, [currentUser, refreshData]);
     
-    const handleAlertAction = (alert: DashboardAlert) => { if (alert.action?.onClick) { alert.action.onClick(); } else if (alert.action?.path) { if (alert.action.orderId) { navigate(`${alert.action.path}?viewOrderId=${alert.action.orderId}`); } else { navigate(alert.action.path); } } };
+    const handleAlertAction = (alert: DashboardAlert) => { if (alert.action?.onClick) { alert.action.onClick(); } else if (alert.action?.path) { if (alert.action.orderId) { navigate(`${alert.action.path}/${alert.action.orderId}`); } else { navigate(alert.action.path); } } };
     interface StatCardProps { title: string; value: string | number; colorClass: string; description: string; iconClass?: string; }
     const StatCard: React.FC<StatCardProps> = ({title, value, colorClass, description, iconClass}) => (
         <Card className="shadow-lg text-center">
@@ -368,7 +369,8 @@ const App: React.FC<{}> = () => {
                   <Routes>
                     <Route path="/" element={<DashboardHomePage />} />
                     <Route path="/clients/*" element={<ClientsPage />} />
-                    <Route path="/orders/*" element={<OrdersPage />} />
+                    <Route path="/orders" element={<OrdersPage />} />
+                    <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
                     <Route path="/orders/:orderId/occurrences" element={<OrderOccurrencesPage />} />
                     <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/suppliers" element={<SuppliersPage />} />
