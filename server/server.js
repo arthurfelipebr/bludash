@@ -15,6 +15,40 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
 const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Ou process.env.API_KEY, conforme seu .env
+const CORREIOS_API_KEY = process.env.CORREIOS_API_KEY;
+
+let correiosToken = null;
+let correiosTokenExpiry = 0; // epoch milliseconds
+
+async function getCorreiosToken() {
+    if (!CORREIOS_API_KEY) {
+        throw new Error('CORREIOS_API_KEY not configured.');
+    }
+    const now = Date.now();
+    if (correiosToken && now < correiosTokenExpiry - 5 * 60 * 1000) {
+        return correiosToken;
+    }
+    const credentials = Buffer.from(CORREIOS_API_KEY).toString('base64');
+    const response = await fetch('https://api.correios.com.br/token/v1/autentica', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${credentials}`
+        }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data?.message || 'Correios token request failed');
+    }
+    correiosToken = data.token || data.access_token || data.accessToken;
+    // expiraEm can be string date or epoch seconds
+    if (data.expiraEm) {
+        const expiry = new Date(data.expiraEm).getTime();
+        if (!isNaN(expiry)) {
+            correiosTokenExpiry = expiry;
+        }
+    }
+    return correiosToken;
+}
 
 let genAI;
 if (GEMINI_API_KEY) {
@@ -223,6 +257,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       "totalWithInterest", "installmentValue", "bluFacilitaContractStatus", "imeiBlocked", 
       "arrivalDate", imei, "arrivalNotes", "batteryHealth", "readyForDelivery", 
       "shippingCostSupplierToBlu", "shippingCostBluToClient", "whatsAppHistorySummary",
+      trackingCode,
       "bluFacilitaUsesSpecialRate", "bluFacilitaSpecialAnnualRate",
       documents, "trackingHistory", "bluFacilitaInstallments", "internalNotes", "arrivalPhotos"
   ) VALUES (
@@ -230,7 +265,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
       $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
-      $41
+      $41, $42
   )`;
 
   const params = [
@@ -244,6 +279,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
       orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.trackingCode,
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
       documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON, internalNotesJSON, arrivalPhotosJSON
   ];
@@ -317,10 +353,10 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       "bluFacilitaContractStatus"=$23, "imeiBlocked"=$24, "arrivalDate"=$25, imei=$26,
       "arrivalNotes"=$27, "batteryHealth"=$28, "readyForDelivery"=$29,
       "shippingCostSupplierToBlu"=$30, "shippingCostBluToClient"=$31,
-      "whatsAppHistorySummary"=$32, "bluFacilitaUsesSpecialRate"=$33,
-      "bluFacilitaSpecialAnnualRate"=$34, documents=$35, "trackingHistory"=$36,
-      "bluFacilitaInstallments"=$37, "internalNotes"=$38, "arrivalPhotos"=$39
-      WHERE id=$40 AND "userId"=$41`;
+      "whatsAppHistorySummary"=$32, trackingCode=$33, "bluFacilitaUsesSpecialRate"=$34,
+      "bluFacilitaSpecialAnnualRate"=$35, documents=$36, "trackingHistory"=$37,
+      "bluFacilitaInstallments"=$38, "internalNotes"=$39, "arrivalPhotos"=$40
+      WHERE id=$41 AND "userId"=$42`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
@@ -334,6 +370,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
       orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
+      orderData.trackingCode,
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
       documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON,
       internalNotesJSON, arrivalPhotosJSON,
@@ -801,6 +838,80 @@ app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
             }
         });
     });
+});
+
+// Correios Token Generation
+app.post('/api/correios/token', authenticateToken, async (req, res) => {
+    try {
+        const token = await getCorreiosToken();
+        res.json({ token, expiresAt: correiosTokenExpiry });
+    } catch (error) {
+        console.error('Correios token error:', error);
+        res.status(500).json({ message: 'Failed to obtain Correios token.' });
+    }
+});
+
+const correiosArBase = 'https://apps3.correios.com.br/areletronico/v1/ars';
+
+async function requestAREndpoint(endpoint, objetos) {
+    const token = await getCorreiosToken();
+    const response = await fetch(`${correiosArBase}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ objetos })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        const err = new Error('Correios AR request failed');
+        err.details = data;
+        throw err;
+    }
+    return data;
+}
+
+app.post('/api/correios/ar/eventos', authenticateToken, async (req, res) => {
+    try {
+        const objetos = req.body.objetos;
+        if (!Array.isArray(objetos)) {
+            return res.status(400).json({ message: 'objetos must be an array' });
+        }
+        const data = await requestAREndpoint('eventos', objetos);
+        res.json(data);
+    } catch (error) {
+        console.error('Correios AR eventos error:', error);
+        res.status(500).json({ message: 'Failed to fetch AR eventos.' });
+    }
+});
+
+app.post('/api/correios/ar/primeiroevento', authenticateToken, async (req, res) => {
+    try {
+        const objetos = req.body.objetos;
+        if (!Array.isArray(objetos)) {
+            return res.status(400).json({ message: 'objetos must be an array' });
+        }
+        const data = await requestAREndpoint('primeiroevento', objetos);
+        res.json(data);
+    } catch (error) {
+        console.error('Correios AR primeiro evento error:', error);
+        res.status(500).json({ message: 'Failed to fetch AR primeiro evento.' });
+    }
+});
+
+app.post('/api/correios/ar/ultimoevento', authenticateToken, async (req, res) => {
+    try {
+        const objetos = req.body.objetos;
+        if (!Array.isArray(objetos)) {
+            return res.status(400).json({ message: 'objetos must be an array' });
+        }
+        const data = await requestAREndpoint('ultimoevento', objetos);
+        res.json(data);
+    } catch (error) {
+        console.error('Correios AR ultimo evento error:', error);
+        res.status(500).json({ message: 'Failed to fetch AR ultimo evento.' });
+    }
 });
 
 // Dashboard Statistics

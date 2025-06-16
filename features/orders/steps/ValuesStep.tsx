@@ -137,6 +137,14 @@ export const ValuesStep: React.FC<ValuesStepProps> = ({
               onChange={handleChange}
             />
           </div>
+          <Input
+            label="Código de Rastreamento (Correios)"
+            id="trackingCode"
+            name="trackingCode"
+            value={state.trackingCode || ''}
+            onChange={handleChange}
+            containerClassName="mt-4"
+          />
         </Card>
       </div>
       <Card title="Forma de Pagamento">

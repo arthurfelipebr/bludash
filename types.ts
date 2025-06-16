@@ -172,6 +172,7 @@ export interface Order {
 
   shippingCostSupplierToBlu?: number;
   shippingCostBluToClient?: number;
+  trackingCode?: string;
   internalNotes?: InternalNote[];
   whatsAppHistorySummary?: string;
 

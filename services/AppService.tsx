@@ -479,6 +479,19 @@ export const addClientPayment = async (paymentData: Omit<ClientPayment, 'id'|'us
     return newPayment;
 };
 
+// --- Correios Integration ---
+export const getCorreiosAREvents = async (trackingCode: string): Promise<any[]> => {
+    if (!trackingCode) return [];
+    const data = await apiClient<any>('/correios/ar/eventos', {
+        method: 'POST',
+        body: JSON.stringify({ objetos: [trackingCode] })
+    });
+    if (Array.isArray(data) && data.length > 0) {
+        return data[0].eventos || [];
+    }
+    return [];
+};
+
 // --- Order Occurrence Services ---
 export const getOrderOccurrences = async (orderId: string): Promise<OrderOccurrence[]> => {
     return apiClient<OrderOccurrence[]>(`/orders/${orderId}/occurrences`);
