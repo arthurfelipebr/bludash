@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // Fallback only, set in .env
 const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Ou process.env.API_KEY, conforme seu .env
+const CORREIOS_API_KEY = process.env.CORREIOS_API_KEY;
 
 let genAI;
 if (GEMINI_API_KEY) {
@@ -801,6 +802,29 @@ app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
             }
         });
     });
+});
+
+// Correios Token Generation
+app.post('/api/correios/token', authenticateToken, async (req, res) => {
+    if (!CORREIOS_API_KEY) {
+        return res.status(500).json({ message: 'CORREIOS_API_KEY not configured.' });
+    }
+    try {
+        const response = await fetch('https://api.correios.com.br/token/v1/autentica', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${CORREIOS_API_KEY}`
+            }
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            return res.status(response.status).json(data);
+        }
+        res.json(data);
+    } catch (error) {
+        console.error('Correios token error:', error);
+        res.status(500).json({ message: 'Failed to obtain Correios token.' });
+    }
 });
 
 // Dashboard Statistics

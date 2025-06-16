@@ -34,6 +34,7 @@ Follow the steps below in order:
    - `JWT_SECRET` – any random string used to sign tokens
    - `API_KEY` – optional Gemini API key
    - `AUTENTIQUE_TOKEN` – token de acesso à API da Autentique
+   - `CORREIOS_API_KEY` – chave para autenticação nas APIs dos Correios
 
 4. **Initialize the database**
    ```bash
@@ -81,6 +82,7 @@ DB_FILE=./database.sqlite
 JWT_SECRET=sua-chave-secreta
 API_KEY=sua-chave-gemini
 AUTENTIQUE_TOKEN=
+CORREIOS_API_KEY=
 ```
 
 After following the steps above you should be able to register a user and start managing orders, clients and suppliers through the web interface.
