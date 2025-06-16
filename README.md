@@ -34,7 +34,7 @@ Follow the steps below in order:
    - `JWT_SECRET` – any random string used to sign tokens
    - `API_KEY` – optional Gemini API key
    - `AUTENTIQUE_TOKEN` – token de acesso à API da Autentique
-   - `CORREIOS_API_KEY` – chave para autenticação nas APIs dos Correios
+   - `CORREIOS_API_KEY` – credenciais `usuario:senha` para gerar tokens das APIs dos Correios
 
 4. **Initialize the database**
    ```bash
@@ -86,3 +86,12 @@ CORREIOS_API_KEY=
 ```
 
 After following the steps above you should be able to register a user and start managing orders, clients and suppliers through the web interface.
+
+## Correios Integration
+
+The backend exposes helper routes for the Correios AR Eletrônico service:
+
+- `POST /api/correios/token` – obtém um token de acesso
+- `POST /api/correios/ar/eventos` – retorna eventos dos objetos informados
+- `POST /api/correios/ar/primeiroevento` – retorna o primeiro evento
+- `POST /api/correios/ar/ultimoevento` – retorna o último evento

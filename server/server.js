@@ -17,6 +17,39 @@ const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Ou process.env.API_KEY, conforme seu .env
 const CORREIOS_API_KEY = process.env.CORREIOS_API_KEY;
 
+let correiosToken = null;
+let correiosTokenExpiry = 0; // epoch milliseconds
+
+async function getCorreiosToken() {
+    if (!CORREIOS_API_KEY) {
+        throw new Error('CORREIOS_API_KEY not configured.');
+    }
+    const now = Date.now();
+    if (correiosToken && now < correiosTokenExpiry - 5 * 60 * 1000) {
+        return correiosToken;
+    }
+    const credentials = Buffer.from(CORREIOS_API_KEY).toString('base64');
+    const response = await fetch('https://api.correios.com.br/token/v1/autentica', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${credentials}`
+        }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data?.message || 'Correios token request failed');
+    }
+    correiosToken = data.token || data.access_token || data.accessToken;
+    // expiraEm can be string date or epoch seconds
+    if (data.expiraEm) {
+        const expiry = new Date(data.expiraEm).getTime();
+        if (!isNaN(expiry)) {
+            correiosTokenExpiry = expiry;
+        }
+    }
+    return correiosToken;
+}
+
 let genAI;
 if (GEMINI_API_KEY) {
 
@@ -806,24 +839,75 @@ app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
 
 // Correios Token Generation
 app.post('/api/correios/token', authenticateToken, async (req, res) => {
-    if (!CORREIOS_API_KEY) {
-        return res.status(500).json({ message: 'CORREIOS_API_KEY not configured.' });
-    }
     try {
-        const response = await fetch('https://api.correios.com.br/token/v1/autentica', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Basic ${CORREIOS_API_KEY}`
-            }
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            return res.status(response.status).json(data);
-        }
-        res.json(data);
+        const token = await getCorreiosToken();
+        res.json({ token, expiresAt: correiosTokenExpiry });
     } catch (error) {
         console.error('Correios token error:', error);
         res.status(500).json({ message: 'Failed to obtain Correios token.' });
+    }
+});
+
+const correiosArBase = 'https://apps3.correios.com.br/areletronico/v1/ars';
+
+async function requestAREndpoint(endpoint, objetos) {
+    const token = await getCorreiosToken();
+    const response = await fetch(`${correiosArBase}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ objetos })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        const err = new Error('Correios AR request failed');
+        err.details = data;
+        throw err;
+    }
+    return data;
+}
+
+app.post('/api/correios/ar/eventos', authenticateToken, async (req, res) => {
+    try {
+        const objetos = req.body.objetos;
+        if (!Array.isArray(objetos)) {
+            return res.status(400).json({ message: 'objetos must be an array' });
+        }
+        const data = await requestAREndpoint('eventos', objetos);
+        res.json(data);
+    } catch (error) {
+        console.error('Correios AR eventos error:', error);
+        res.status(500).json({ message: 'Failed to fetch AR eventos.' });
+    }
+});
+
+app.post('/api/correios/ar/primeiroevento', authenticateToken, async (req, res) => {
+    try {
+        const objetos = req.body.objetos;
+        if (!Array.isArray(objetos)) {
+            return res.status(400).json({ message: 'objetos must be an array' });
+        }
+        const data = await requestAREndpoint('primeiroevento', objetos);
+        res.json(data);
+    } catch (error) {
+        console.error('Correios AR primeiro evento error:', error);
+        res.status(500).json({ message: 'Failed to fetch AR primeiro evento.' });
+    }
+});
+
+app.post('/api/correios/ar/ultimoevento', authenticateToken, async (req, res) => {
+    try {
+        const objetos = req.body.objetos;
+        if (!Array.isArray(objetos)) {
+            return res.status(400).json({ message: 'objetos must be an array' });
+        }
+        const data = await requestAREndpoint('ultimoevento', objetos);
+        res.json(data);
+    } catch (error) {
+        console.error('Correios AR ultimo evento error:', error);
+        res.status(500).json({ message: 'Failed to fetch AR ultimo evento.' });
     }
 });
 
