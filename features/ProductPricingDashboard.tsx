@@ -122,6 +122,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
   }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   useEffect(() => {
     saveCategories(categories);
@@ -251,6 +252,12 @@ export const ProductPricingDashboardPage: React.FC = () => {
       console.error('Erro ao excluir produto', err);
       setToastMessage('Erro ao excluir produto');
     }
+  };
+
+  const toggleCategory = (id: string) => {
+    setExpandedCategories(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    );
   };
 
   const calcValues = (p: Product) => {
@@ -415,43 +422,60 @@ export const ProductPricingDashboardPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {products.map(p => {
-                const values = calcValues(p);
-                const isOpen = expandedId === p.id;
+              {categories.map(cat => {
+                const catProducts = products.filter(p => p.categoryId === cat.id);
+                const catOpen = expandedCategories.includes(cat.id);
                 return (
-                  <React.Fragment key={p.id}>
-                    <tr>
+                  <React.Fragment key={cat.id}>
+                    <tr className="bg-gray-100">
                       <td className="px-2 py-1 text-center">
-                        <Button variant="ghost" size="sm" onClick={() => setExpandedId(isOpen ? null : p.id)}>
-                          <i className={`heroicons-outline-${isOpen ? 'minus' : 'plus'} h-4 w-4`} />
+                        <Button variant="ghost" size="sm" onClick={() => toggleCategory(cat.id)}>
+                          <i className={`heroicons-outline-${catOpen ? 'minus' : 'plus'} h-4 w-4`} />
                         </Button>
                       </td>
-                      <td className="px-2 py-1">{p.name}</td>
-                      <td className="px-2 py-1">{categories.find(c => c.id === p.categoryId)?.name}</td>
-                      <td className="px-2 py-1 text-right">{values.valorTabela.toFixed(2)}</td>
-                      <td className="px-2 py-1 text-right">{values.lucroFinal.toFixed(2)}</td>
-                      <td className="px-2 py-1 text-right space-x-1">
-                        <Button size="sm" variant="ghost" onClick={() => startEdit(p)}>Editar</Button>
-                        <Button size="sm" variant="danger" onClick={() => deleteProduct(p.id)}>Excluir</Button>
-                      </td>
+                      <td className="px-2 py-1 font-semibold" colSpan={5}>{cat.name}</td>
                     </tr>
-                    {isOpen && (
-                      <tr>
-                        <td colSpan={6} className="bg-gray-50 p-3">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                            <span>Custo BRL: {(p.custoBRL ?? 0).toFixed(2)}</span>
-                            <span>Custo USD: {(p.custoUSD ?? 0).toFixed(2)}</span>
-                            <span>Câmbio: {p.cambio.toFixed(2)}</span>
-                            <span>Frete: {p.frete.toFixed(2)}</span>
-                            <span>Custo Operacional: {values.custoOperacional.toFixed(2)}</span>
-                            <span>NF Produto: {p.nfProduto.toFixed(2)}</span>
-                            <span>NFs (%): {p.nfPercent.toFixed(2)}</span>
-                            <span>DustBag: {p.dustBag.toFixed(2)}</span>
-                            <span>Embalagem: {p.packaging.toFixed(2)}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
+                    {catOpen &&
+                      catProducts.map(p => {
+                        const values = calcValues(p);
+                        const isOpen = expandedId === p.id;
+                        return (
+                          <React.Fragment key={p.id}>
+                            <tr>
+                              <td className="px-2 py-1 text-center">
+                                <Button variant="ghost" size="sm" onClick={() => setExpandedId(isOpen ? null : p.id)}>
+                                  <i className={`heroicons-outline-${isOpen ? 'minus' : 'plus'} h-4 w-4`} />
+                                </Button>
+                              </td>
+                              <td className="px-2 py-1">{p.name}</td>
+                              <td className="px-2 py-1">{categories.find(c => c.id === p.categoryId)?.name}</td>
+                              <td className="px-2 py-1 text-right">{values.valorTabela.toFixed(2)}</td>
+                              <td className="px-2 py-1 text-right">{values.lucroFinal.toFixed(2)}</td>
+                              <td className="px-2 py-1 text-right space-x-1">
+                                <Button size="sm" variant="ghost" onClick={() => startEdit(p)}>Editar</Button>
+                                <Button size="sm" variant="danger" onClick={() => deleteProduct(p.id)}>Excluir</Button>
+                              </td>
+                            </tr>
+                            {isOpen && (
+                              <tr>
+                                <td colSpan={6} className="bg-gray-50 p-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                    <span>Custo BRL: {(p.custoBRL ?? 0).toFixed(2)}</span>
+                                    <span>Custo USD: {(p.custoUSD ?? 0).toFixed(2)}</span>
+                                    <span>Câmbio: {p.cambio.toFixed(2)}</span>
+                                    <span>Frete: {p.frete.toFixed(2)}</span>
+                                    <span>Custo Operacional: {values.custoOperacional.toFixed(2)}</span>
+                                    <span>NF Produto: {p.nfProduto.toFixed(2)}</span>
+                                    <span>NFs (%): {p.nfPercent.toFixed(2)}</span>
+                                    <span>DustBag: {p.dustBag.toFixed(2)}</span>
+                                    <span>Embalagem: {p.packaging.toFixed(2)}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                   </React.Fragment>
                 );
               })}
