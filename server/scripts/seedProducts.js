@@ -30,17 +30,28 @@ function parseProducts(text) {
   const products = [];
 
   for (const line of lines) {
-    if (!line.startsWith('•')) {
+    if (line === '•') {
+      // skip bullet placeholder lines
+      continue;
+    }
+
+    // Category lines don't contain a price
+    if (!/ - \s*R\$/i.test(line)) {
       currentCategory = line;
       continue;
     }
 
-    const productLine = line.slice(1).trim();
-    const m = productLine.match(/(.+?)\s*-\s*R\$\s*([\d.,]+)/);
+    // Remove bullet prefix if present
+    const cleanedLine = line.startsWith('•') ? line.slice(1).trim() : line;
+
+    // Remove any bracketed notes at the end e.g. [i, j]
+    const withoutNotes = cleanedLine.replace(/\s*\[[^\]]*\]$/, '');
+
+    const m = withoutNotes.match(/(.+?)\s*-\s*R\$\s*([\d.,]+)/);
     if (!m) continue;
 
     let name = m[1].trim();
-    const price = parseFloat(m[2].replace('.', '').replace(',', '.'));
+    const price = parseFloat(m[2].replace(/\./g, '').replace(',', '.'));
 
     let category = categoryMap[currentCategory] || currentCategory || 'Outros';
 
