@@ -81,6 +81,39 @@ export interface HistoricalParsedProduct {
   dateRecorded: string; // ISO string
 }
 
+export interface PricingProduct {
+  id: string;
+  name: string;
+  categoryId: string;
+  disp: 'Brasil' | 'EUA';
+  dustBag: number;
+  packaging: number;
+  custoBRL?: number;
+  custoUSD?: number;
+  cambio: number;
+  custoOperacional: number;
+  nfPercent: number;
+  nfProduto: number;
+  frete: number;
+  valorTabela: number;
+  lucroPercent: number;
+  caixa: string;
+  freteDeclarado?: number;
+  freteEuaBr?: number;
+  freteRedirecionador?: number;
+  impostoImportacao?: number;
+  nomeDeclarado?: string;
+  precoDeclarado?: number;
+}
+
+export interface PricingHistoryEntry {
+  id: string;
+  userId?: string;
+  productId: string;
+  price: number;
+  recordedAt: string;
+}
+
 
 export interface InternalNote {
     id: string;

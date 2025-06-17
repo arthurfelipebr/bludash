@@ -227,6 +227,24 @@ function initializeDatabase() {
         FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS productPricing (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY ("userId") REFERENCES users(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS productPricingHistory (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        productId TEXT NOT NULL,
+        price REAL NOT NULL,
+        recordedAt TEXT NOT NULL,
+        FOREIGN KEY ("userId") REFERENCES users(id),
+        FOREIGN KEY (productId) REFERENCES productPricing(id) ON DELETE CASCADE
+    )`);
+
     console.log('Database schema initialized/verified.');
   });
 }

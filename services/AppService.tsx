@@ -6,7 +6,8 @@ import {
     OrderCostItem, CostType, InternalNote, DashboardAlert, WeeklySummaryStats,
     OrderOccurrence, OccurrenceStatus, OccurrenceType,
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
-    ClientPayment, User, HistoricalParsedProduct, CustomTableRow
+    ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
+    PricingProduct, PricingHistoryEntry
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -531,6 +532,27 @@ export const addOrderCostItem = async (costItemData: Omit<OrderCostItem, 'id'|'u
 export const deleteOrderCostItem = async (costItemId: string): Promise<void> => {
     // This endpoint might need adjustment, e.g. /costs/:costItemId if costs are global with orderId foreign key
     return apiClient<void>(`/costs/${costItemId}`, { method: 'DELETE' });
+};
+
+// --- Product Pricing Services ---
+export const getPricingProducts = async (): Promise<PricingProduct[]> => {
+    return apiClient<PricingProduct[]>('/product-pricing');
+};
+
+export const savePricingProduct = async (product: PricingProduct): Promise<PricingProduct> => {
+    if (product.id) {
+        return apiClient<PricingProduct>(`/product-pricing/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
+    }
+    return apiClient<PricingProduct>('/product-pricing', { method: 'POST', body: JSON.stringify(product) });
+};
+
+export const deletePricingProduct = async (id: string): Promise<void> => {
+    return apiClient<void>(`/product-pricing/${id}`, { method: 'DELETE' });
+};
+
+export const getPricingHistory = async (productId?: string): Promise<PricingHistoryEntry[]> => {
+    const endpoint = productId ? `/product-pricing/history?productId=${productId}` : '/product-pricing/history';
+    return apiClient<PricingHistoryEntry[]>(endpoint);
 };
 
 // --- Custom Table Services ---

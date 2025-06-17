@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PageTitle, Card, Button, Input, Select, Modal, Tabs, Tab, Toast } from '../components/SharedComponents';
 import { v4 as uuidv4 } from 'uuid';
+import { PricingProduct } from '../types';
+import { getPricingProducts, savePricingProduct, deletePricingProduct } from '../services/AppService';
 
 interface Category {
   id: string;
@@ -15,34 +17,9 @@ interface GlobalDefaults {
   frete: number;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  categoryId: string;
-  disp: 'Brasil' | 'EUA';
-  dustBag: number;
-  packaging: number;
-  custoBRL?: number;
-  custoUSD?: number;
-  cambio: number;
-  custoOperacional: number;
-  nfPercent: number;
-  nfProduto: number;
-  frete: number;
-  valorTabela: number;
-  lucroPercent: number;
-  caixa: string;
-  freteDeclarado?: number;
-  freteEuaBr?: number;
-  freteRedirecionador?: number;
-  impostoImportacao?: number;
-  nomeDeclarado?: string;
-  precoDeclarado?: number;
-  historicoPrecos?: string;
-}
+type Product = PricingProduct;
 
 const CATEGORY_KEY = 'productCategories';
-const PRODUCT_KEY = 'productItems';
 const GLOBAL_KEY = 'productGlobals';
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -75,18 +52,6 @@ const saveCategories = (cats: Category[]) => {
   localStorage.setItem(CATEGORY_KEY, JSON.stringify(cats));
 };
 
-const loadProducts = (): Product[] => {
-  try {
-    const raw = localStorage.getItem(PRODUCT_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveProducts = (items: Product[]) => {
-  localStorage.setItem(PRODUCT_KEY, JSON.stringify(items));
-};
 
 const loadGlobals = (): GlobalDefaults => {
   try {
@@ -127,7 +92,7 @@ const computeValorTabela = (p: Omit<Product, 'id'>): number => {
 export const ProductPricingDashboardPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(loadCategories);
   const [globals, setGlobals] = useState<GlobalDefaults>(loadGlobals);
-  const [products, setProducts] = useState<Product[]>(loadProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -167,8 +132,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
   }, [globals]);
 
   useEffect(() => {
-    saveProducts(products);
-  }, [products]);
+    getPricingProducts()
+      .then(setProducts)
+      .catch(err => console.error('Failed to load products', err));
+  }, []);
 
   const openNewCategory = () => {
     setEditingCategory({ id: '', name: '', dustBag: 0, packaging: 0 });
@@ -254,23 +221,32 @@ export const ProductPricingDashboardPage: React.FC = () => {
     setDispTab('Brasil');
   };
 
-  const saveProduct = () => {
+  const saveProduct = async () => {
     const valorTabela = computeValorTabela(productForm);
     const toSave: Product = { id: editingId ?? uuidv4(), ...productForm, valorTabela };
-    if (editingId) {
-      setProducts(prev => prev.map(p => p.id === editingId ? toSave : p));
-      setToastMessage('Produto Atualizado');
-    } else {
-      setProducts(prev => [...prev, toSave]);
-      setToastMessage('Produto Salvo');
+    try {
+      await savePricingProduct(toSave);
+      const items = await getPricingProducts();
+      setProducts(items);
+      setToastMessage(editingId ? 'Produto Atualizado' : 'Produto Salvo');
+    } catch (err) {
+      console.error('Erro ao salvar produto', err);
+      setToastMessage('Erro ao salvar produto');
     }
     resetForm();
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string) => {
     if (!window.confirm('Confirma a exclusão?')) return;
-    setProducts(prev => prev.filter(p => p.id !== id));
-    setToastMessage('Produto Excluído');
+    try {
+      await deletePricingProduct(id);
+      const items = await getPricingProducts();
+      setProducts(items);
+      setToastMessage('Produto Excluído');
+    } catch (err) {
+      console.error('Erro ao excluir produto', err);
+      setToastMessage('Erro ao excluir produto');
+    }
   };
 
   const calcValues = (p: Product) => {
