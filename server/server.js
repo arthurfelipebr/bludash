@@ -794,6 +794,101 @@ app.delete('/api/costs/:costItemId', authenticateToken, (req, res) => {
     });
 });
 
+// Custom Table CRUD
+app.get('/api/custom-table', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM customTable WHERE "userId" = $1 ORDER BY "Data" DESC', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching custom table:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch table.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.post('/api/custom-table', authenticateToken, (req, res) => {
+    const data = req.body;
+    const rowId = uuidv4();
+    const sql = `INSERT INTO customTable (
+        id, "userId", "Data", "Descrição", "Categoria", "Moeda", "Valor",
+        "Câmbio", "Valor_em_BRL", "Metodo_de_Pagamento", "Status_do_Pagamento",
+        "Fornecedor", "Cliente", "Nota_Fiscal", "Data_de_Vencimento",
+        "Data_de_Pagamento", "Juros_Multa", "Descontos", "Observacoes"
+    ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+    )`;
+    const params = [rowId, req.user.id, data.Data, data.Descrição, data.Categoria,
+        data.Moeda, data.Valor, data.Câmbio, data.Valor_em_BRL,
+        data.Metodo_de_Pagamento, data.Status_do_Pagamento, data.Fornecedor,
+        data.Cliente, data.Nota_Fiscal, data.Data_de_Vencimento,
+        data.Data_de_Pagamento, data.Juros_Multa, data.Descontos, data.Observacoes];
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error saving custom table row:', err.message);
+            return res.status(500).json({ message: 'Failed to save row.' });
+        }
+        db.get('SELECT * FROM customTable WHERE id = $1', [rowId], (err2, row) => {
+            if (err2 || !row) {
+                return res.status(500).json({ message: 'Row saved, but retrieval failed.' });
+            }
+            res.status(201).json(row);
+        });
+    });
+});
+
+app.put('/api/custom-table/:id', authenticateToken, (req, res) => {
+    const rowId = req.params.id;
+    const data = req.body;
+    db.get('SELECT * FROM customTable WHERE id = $1 AND "userId" = $2', [rowId, req.user.id], (err, existing) => {
+        if (err || !existing) {
+            return res.status(404).json({ message: 'Item not found.' });
+        }
+        db.run('INSERT INTO customTableHistory (id, rowId, data, changedAt, "userId") VALUES ($1,$2,$3,$4,$5)',
+            [uuidv4(), rowId, JSON.stringify(existing), new Date().toISOString(), req.user.id], () => {});
+        const sql = `UPDATE customTable SET
+            "Data"=$1, "Descrição"=$2, "Categoria"=$3, "Moeda"=$4, "Valor"=$5,
+            "Câmbio"=$6, "Valor_em_BRL"=$7, "Metodo_de_Pagamento"=$8,
+            "Status_do_Pagamento"=$9, "Fornecedor"=$10, "Cliente"=$11, "Nota_Fiscal"=$12,
+            "Data_de_Vencimento"=$13, "Data_de_Pagamento"=$14, "Juros_Multa"=$15,
+            "Descontos"=$16, "Observacoes"=$17
+            WHERE id=$18 AND "userId"=$19`;
+        const params = [data.Data, data.Descrição, data.Categoria, data.Moeda,
+            data.Valor, data.Câmbio, data.Valor_em_BRL, data.Metodo_de_Pagamento,
+            data.Status_do_Pagamento, data.Fornecedor, data.Cliente, data.Nota_Fiscal,
+            data.Data_de_Vencimento, data.Data_de_Pagamento, data.Juros_Multa,
+            data.Descontos, data.Observacoes, rowId, req.user.id];
+        db.run(sql, params, function(err2) {
+            if (err2) {
+                console.error('Error updating custom table row:', err2.message);
+                return res.status(500).json({ message: 'Failed to update row.' });
+            }
+            db.get('SELECT * FROM customTable WHERE id = $1', [rowId], (err3, row) => {
+                if (err3 || !row) {
+                    return res.status(500).json({ message: 'Row updated, but retrieval failed.' });
+                }
+                res.json(row);
+            });
+        });
+    });
+});
+
+app.delete('/api/custom-table/:id', authenticateToken, (req, res) => {
+    const rowId = req.params.id;
+    db.get('SELECT * FROM customTable WHERE id = $1 AND "userId" = $2', [rowId, req.user.id], (err, row) => {
+        if (err || !row) {
+            return res.status(404).json({ message: 'Item not found.' });
+        }
+        db.run('INSERT INTO customTableHistory (id, rowId, data, changedAt, "userId") VALUES ($1,$2,$3,$4,$5)',
+            [uuidv4(), rowId, JSON.stringify(row), new Date().toISOString(), req.user.id], () => {});
+        db.run('DELETE FROM customTable WHERE id = $1 AND "userId" = $2', [rowId, req.user.id], function(err2) {
+            if (err2) {
+                console.error('Error deleting custom table row:', err2.message);
+                return res.status(500).json({ message: 'Failed to delete row.' });
+            }
+            res.sendStatus(204);
+        });
+    });
+});
+
 app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ message: 'orderId required' });
