@@ -146,7 +146,7 @@ const OrderDetailsPage: React.FC = () => {
         subtitle={order.customerName}
         actions={<Button onClick={() => navigate('/orders')}>Voltar</Button>}
       />
-      <div className="space-y-4 text-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
         <Card>
           <h3 className="text-lg font-semibold mb-2">Informações Gerais</h3>
           <p className="text-gray-700"><strong>Cliente:</strong> {order.clientId ? order.clientId : order.customerName}</p>
@@ -195,7 +195,7 @@ const OrderDetailsPage: React.FC = () => {
         </Card>
 
         {order.trackingCode && (
-          <Card>
+          <Card className="lg:col-span-2">
             <h3 className="text-lg font-semibold mb-2">Rastreamento Correios</h3>
             <p className="text-gray-700"><strong>Código:</strong> {order.trackingCode}</p>
             <Button
@@ -265,7 +265,7 @@ const OrderDetailsPage: React.FC = () => {
           </div>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
           {order.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {order.notes}</p>}
           {order.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
