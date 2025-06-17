@@ -227,13 +227,41 @@ function initializeDatabase() {
         FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
-    db.run(`CREATE TABLE IF NOT EXISTS productCategories (
+    db.run(`CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        is_cpo BOOLEAN,
+        categoryId INTEGER,
+        FOREIGN KEY(categoryId) REFERENCES categories(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS productPricing (
+        id TEXT PRIMARY KEY,
+        productId INTEGER NOT NULL,
+        "userId" TEXT NOT NULL,
+        custoBRL REAL,
+        custoOperacional REAL,
+        frete REAL,
+        nfPercent REAL,
+        lucroPercent REAL,
+        valorTabela REAL,
+        updatedAt TEXT,
+        FOREIGN KEY(productId) REFERENCES products(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS productPricingHistory (
         id TEXT PRIMARY KEY,
         "userId" TEXT NOT NULL,
-        name TEXT NOT NULL,
-        dustBag REAL NOT NULL,
-        packaging REAL NOT NULL,
-        FOREIGN KEY ("userId") REFERENCES users(id)
+        productId INTEGER NOT NULL,
+        price REAL NOT NULL,
+        recordedAt TEXT NOT NULL,
+        FOREIGN KEY ("userId") REFERENCES users(id),
+        FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS productPricingGlobals (
@@ -242,24 +270,6 @@ function initializeDatabase() {
         nfProduto REAL NOT NULL,
         frete REAL NOT NULL,
         FOREIGN KEY ("userId") REFERENCES users(id)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS productPricing (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL,
-        data TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        FOREIGN KEY ("userId") REFERENCES users(id)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS productPricingHistory (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL,
-        productId TEXT NOT NULL,
-        price REAL NOT NULL,
-        recordedAt TEXT NOT NULL,
-        FOREIGN KEY ("userId") REFERENCES users(id),
-        FOREIGN KEY (productId) REFERENCES productPricing(id) ON DELETE CASCADE
     )`);
 
     console.log('Database schema initialized/verified.');

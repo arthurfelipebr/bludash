@@ -7,7 +7,7 @@ import {
     OrderOccurrence, OccurrenceStatus, OccurrenceType,
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
     ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
-    PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals
+    PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -535,8 +535,8 @@ export const deleteOrderCostItem = async (costItemId: string): Promise<void> => 
 };
 
 // --- Product Pricing Services ---
-export const getPricingProducts = async (): Promise<PricingProduct[]> => {
-    return apiClient<PricingProduct[]>('/product-pricing');
+export const getPricingProducts = async (): Promise<PricingListItem[]> => {
+    return apiClient<PricingListItem[]>('/product-pricing');
 };
 
 export const savePricingProduct = async (product: PricingProduct): Promise<PricingProduct> => {

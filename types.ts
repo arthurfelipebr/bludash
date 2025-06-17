@@ -442,3 +442,13 @@ export interface CustomTableRow {
     Descontos: string;
     Observacoes: string;
 }
+
+export interface PricingListItem {
+  productId: number;
+  productName: string;
+  is_cpo?: number | boolean;
+  categoryName: string;
+  custoBRL: number | null;
+  valorTabela: number | null;
+  updatedAt?: string;
+}
