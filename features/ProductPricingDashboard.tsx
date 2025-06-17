@@ -94,6 +94,20 @@ const saveGlobals = (g: GlobalDefaults) => {
   localStorage.setItem(GLOBAL_KEY, JSON.stringify(g));
 };
 
+const computeValorTabela = (p: Omit<Product, 'id'>): number => {
+  const importCosts =
+    (p.freteDeclarado || 0) +
+    (p.freteEuaBr || 0) +
+    (p.freteRedirecionador || 0) +
+    (p.impostoImportacao || 0);
+  const custoTotal =
+    p.dustBag + p.packaging + p.frete + p.custoOperacional + p.nfProduto + importCosts;
+  const custoConvertido =
+    p.disp === 'Brasil' ? (p.custoBRL || 0) : (p.custoUSD || 0) * p.cambio;
+  const custoTotalProd = custoConvertido + custoTotal;
+  return custoTotalProd * (1 + p.lucroPercent);
+};
+
 export const ProductPricingDashboardPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(loadCategories);
   const [globals, setGlobals] = useState<GlobalDefaults>(loadGlobals);
@@ -116,6 +130,11 @@ export const ProductPricingDashboardPage: React.FC = () => {
     lucroPercent: 0,
     caixa: '',
   });
+  // initialize valorTabela based on defaults
+  useEffect(() => {
+    setProductForm(prev => ({ ...prev, valorTabela: computeValorTabela(prev) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -157,19 +176,22 @@ export const ProductPricingDashboardPage: React.FC = () => {
           updated.packaging = cat.packaging;
         }
       }
+      updated.valorTabela = computeValorTabela(updated);
       return updated;
     });
   };
 
   const startEdit = (prod: Product) => {
     setEditingId(prod.id);
-    setProductForm({ ...prod });
+    const withoutId = { ...prod } as Omit<Product, 'id'>;
+    withoutId.valorTabela = computeValorTabela(withoutId);
+    setProductForm(withoutId);
   };
 
   const resetForm = () => {
     setEditingId(null);
     const first = categories[0];
-    setProductForm({
+    const base: Omit<Product, 'id'> = {
       name: '',
       categoryId: first.id,
       disp: 'Brasil',
@@ -185,14 +207,18 @@ export const ProductPricingDashboardPage: React.FC = () => {
       valorTabela: 0,
       lucroPercent: 0,
       caixa: '',
-    });
+    };
+    base.valorTabela = computeValorTabela(base);
+    setProductForm(base);
   };
 
   const saveProduct = () => {
+    const valorTabela = computeValorTabela(productForm);
+    const toSave: Product = { id: editingId ?? uuidv4(), ...productForm, valorTabela };
     if (editingId) {
-      setProducts(prev => prev.map(p => p.id === editingId ? { id: editingId, ...productForm } as Product : p));
+      setProducts(prev => prev.map(p => p.id === editingId ? toSave : p));
     } else {
-      setProducts(prev => [...prev, { id: uuidv4(), ...productForm } as Product]);
+      setProducts(prev => [...prev, toSave]);
     }
     resetForm();
   };
@@ -203,22 +229,40 @@ export const ProductPricingDashboardPage: React.FC = () => {
   };
 
   const calcValues = (p: Product) => {
-    const valorVenda = p.valorTabela * (1 - p.nfPercent);
+    const importCosts =
+      (p.freteDeclarado || 0) +
+      (p.freteEuaBr || 0) +
+      (p.freteRedirecionador || 0) +
+      (p.impostoImportacao || 0);
+    const custoTotal = p.dustBag + p.packaging + p.frete + p.custoOperacional + p.nfProduto + importCosts;
     const custoConvertido = p.disp === 'Brasil' ? (p.custoBRL || 0) : (p.custoUSD || 0) * p.cambio;
-    const custoTotalProd = custoConvertido + p.dustBag + p.packaging + p.frete + p.custoOperacional + p.nfProduto;
+    const custoTotalProd = custoConvertido + custoTotal;
+    const valorTabela = p.valorTabela || computeValorTabela(p);
+    const valorVenda = valorTabela * (1 - p.nfPercent);
     const lucroFinal = valorVenda - custoTotalProd;
-    return { valorVenda, custoConvertido, custoTotalProd, lucroFinal, parcelado: p.valorTabela / 12 };
+    return { valorVenda, custoConvertido, custoTotalProd, lucroFinal, parcelado: valorTabela / 12, custoTotal, valorTabela };
   };
 
   const productColumns = [
     { header: 'Disp', accessor: 'disp' as keyof Product },
     { header: 'Produto', accessor: 'name' as keyof Product },
     { header: 'Categoria', accessor: (item: Product) => categories.find(c => c.id === item.categoryId)?.name || '' },
-    { header: 'Valor de Tabela', accessor: (item: Product) => item.valorTabela.toFixed(2) },
+    { header: 'Valor de Tabela', accessor: (item: Product) => calcValues(item).valorTabela.toFixed(2) },
     { header: 'Parcelado (12x)', accessor: (item: Product) => calcValues(item).parcelado.toFixed(2) },
     { header: 'Valor de Venda', accessor: (item: Product) => calcValues(item).valorVenda.toFixed(2) },
-    { header: 'Custo Total + Prod', accessor: (item: Product) => calcValues(item).custoTotalProd.toFixed(2) },
+    { header: 'Custo Total', accessor: (item: Product) => calcValues(item).custoTotal.toFixed(2) },
     { header: 'Lucro Final', accessor: (item: Product) => calcValues(item).lucroFinal.toFixed(2) },
+    { header: 'Custo BRL', accessor: (item: Product) => (item.custoBRL ?? 0).toFixed(2) },
+    { header: 'Custo USD', accessor: (item: Product) => (item.custoUSD ?? 0).toFixed(2) },
+    { header: 'Câmbio', accessor: (item: Product) => item.cambio.toFixed(2) },
+    { header: 'Custo Operacional', accessor: (item: Product) => item.custoOperacional.toFixed(2) },
+    { header: 'NFs (2%)', accessor: (item: Product) => item.nfPercent.toFixed(2) },
+    { header: 'NF Produto', accessor: (item: Product) => item.nfProduto.toFixed(2) },
+    { header: 'DustBag', accessor: (item: Product) => item.dustBag.toFixed(2) },
+    { header: 'Custos Embalagem', accessor: (item: Product) => item.packaging.toFixed(2) },
+    { header: 'Frete (Até a Blu e Até Cliente)', accessor: (item: Product) => item.frete.toFixed(2) },
+    { header: 'Custo Convertido', accessor: (item: Product) => calcValues(item).custoConvertido.toFixed(2) },
+    { header: 'Custo Total + Prod', accessor: (item: Product) => calcValues(item).custoTotalProd.toFixed(2) },
     { header: 'Ações', accessor: (item: Product) => (
       <div className="space-x-1">
         <Button size="sm" variant="ghost" onClick={() => startEdit(item)}>Editar</Button>
@@ -286,7 +330,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
           <Input id="nfPercent" label="NFs (%)" type="number" step="0.01" value={productForm.nfPercent} onChange={e => handleProductField('nfPercent', e.target.value)} />
           <Input id="nfProduto" label="NF Produto" type="number" value={productForm.nfProduto} onChange={e => handleProductField('nfProduto', e.target.value)} />
           <Input id="frete" label="Frete" type="number" value={productForm.frete} onChange={e => handleProductField('frete', e.target.value)} />
-          <Input id="valorTabela" label="Valor de Tabela" type="number" value={productForm.valorTabela} onChange={e => handleProductField('valorTabela', e.target.value)} />
+          <Input id="valorTabela" label="Valor de Tabela" type="number" value={productForm.valorTabela.toFixed(2)} disabled />
           <Input id="lucroPercent" label="% Lucro" type="number" value={productForm.lucroPercent} onChange={e => handleProductField('lucroPercent', e.target.value)} />
           <Input id="caixa" label="Caixa" value={productForm.caixa} onChange={e => handleProductField('caixa', e.target.value)} />
         </div>
