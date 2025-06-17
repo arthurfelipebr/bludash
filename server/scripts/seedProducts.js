@@ -12,15 +12,16 @@ const rawText = fs.readFileSync(dataPath, 'utf8');
 
 const categoryMap = {
   'iPhones Lacrados': 'iPhone',
+  'iPhones Seminovos (Montana Celulares)': 'OpenBox iP',
   'iPads Lacrados': 'iPad',
-  'MacBooks Lacrados': 'MacBook Air',
+  'Teclados Apple (para iPad)': 'Outros',
+  'MacBooks Lacrados': 'MacBook',
+  'Mac Mini Lacrados': 'Mac Mini',
+  'iMacs Lacrados': 'iMac',
   'Apple Watch Lacrados': 'Apple Watch',
   'AirPods Lacrados': 'AirPods',
-  'Apple Pencils Lacrados': 'Outros',
-  'Teclados Lacrados': 'Outros',
-  'Mouses Lacrados': 'Outros',
-  'AirTag Lacrados': 'Outros',
-  'Acessórios e Outros Produtos Adicionais (Lacrados e Originais Apple, se especificado)': 'Outros'
+  'Pencils Lacrados': 'Outros',
+  'AirTags Lacrados': 'Outros'
 };
 
 function parseProducts(text) {
@@ -28,28 +29,29 @@ function parseProducts(text) {
   let currentCategory = '';
   const products = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const catMatch = line.match(/^[IVX]+\.\s*(.*)$/);
-    if (catMatch) { currentCategory = catMatch[1]; continue; }
-    if (line.startsWith('•')) {
-      const name = line.slice(1).trim();
-      const avgLine = lines[i+2] && lines[i+1].includes('Média de Valores') ? lines[i+1] : null;
-      const highLine = lines[i+2] && lines[i+2].includes('Preço mais alto') ? lines[i+2] : null;
-      if (avgLine) {
-        const avgPriceMatch = avgLine.match(/R\$([\d.,]+)/);
-        const highPriceMatch = highLine ? highLine.match(/R\$([\d.,]+)/) : null;
-        const highInfo = highLine ? highLine.split(/R\$[\d.,]+\s*/)[1] || '' : '';
-        products.push({
-          name,
-          category: categoryMap[currentCategory] || 'Outros',
-          avgPrice: avgPriceMatch ? parseFloat(avgPriceMatch[1].replace('.', '').replace(',', '.')) : null,
-          highPrice: highPriceMatch ? parseFloat(highPriceMatch[1].replace('.', '').replace(',', '.')) : null,
-          highInfo: highInfo.trim()
-        });
-      }
+  for (const line of lines) {
+    if (!line.startsWith('•')) {
+      currentCategory = line;
+      continue;
     }
+
+    const productLine = line.slice(1).trim();
+    const m = productLine.match(/(.+?)\s*-\s*R\$\s*([\d.,]+)/);
+    if (!m) continue;
+
+    let name = m[1].trim();
+    const price = parseFloat(m[2].replace('.', '').replace(',', '.'));
+
+    let category = categoryMap[currentCategory] || currentCategory || 'Outros';
+
+    if (category === 'MacBook') {
+      if (/MacBook\s+Pro/i.test(name)) category = 'MacBook Pro';
+      else category = 'MacBook Air';
+    }
+
+    products.push({ name, category, avgPrice: price, highPrice: null, highInfo: '' });
   }
+
   return products;
 }
 
