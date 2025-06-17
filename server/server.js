@@ -914,19 +914,49 @@ app.get('/api/product-pricing', authenticateToken, (req, res) => {
 });
 
 app.post('/api/product-pricing', authenticateToken, (req, res) => {
-    const data = req.body;
-    const id = data.id || uuidv4();
+    const {
+        productId,
+        custoBRL,
+        custoOperacional,
+        frete,
+        nfPercent,
+        lucroPercent,
+        valorTabela
+    } = req.body;
+    if (!productId) {
+        return res.status(400).json({ message: 'productId required' });
+    }
+    const id = uuidv4();
     const now = new Date().toISOString();
-    const json = JSON.stringify({ ...data, id });
-    db.run('INSERT INTO productPricing (id, "userId", data, updatedAt) VALUES ($1,$2,$3,$4)', [id, req.user.id, json, now], function(err) {
+    const sql = `INSERT INTO productPricing (
+        id, productId, "userId", custoBRL, custoOperacional, frete,
+        nfPercent, lucroPercent, valorTabela, updatedAt
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`;
+    const params = [
+        id,
+        productId,
+        req.user.id,
+        custoBRL,
+        custoOperacional,
+        frete,
+        nfPercent,
+        lucroPercent,
+        valorTabela,
+        now
+    ];
+    db.run(sql, params, function(err) {
         if (err) {
             console.error('Error saving pricing product:', err.message);
             return res.status(500).json({ message: 'Failed to save product.' });
         }
-        if (data.valorTabela !== undefined) {
-            db.run('INSERT INTO productPricingHistory (id, "userId", productId, price, recordedAt) VALUES ($1,$2,$3,$4,$5)', [uuidv4(), req.user.id, id, parseFloat(data.valorTabela), now], () => {});
+        if (valorTabela !== undefined) {
+            db.run(
+                'INSERT INTO productPricingHistory (id, "userId", productId, price, recordedAt) VALUES ($1,$2,$3,$4,$5)',
+                [uuidv4(), req.user.id, productId, parseFloat(valorTabela), now],
+                () => {}
+            );
         }
-        res.status(201).json({ id, ...data });
+        res.status(201).json({ id, productId, custoBRL, valorTabela, custoOperacional, frete, nfPercent, lucroPercent, updatedAt: now });
     });
 });
 
@@ -934,14 +964,32 @@ app.put('/api/product-pricing/:id', authenticateToken, (req, res) => {
     const productId = req.params.id;
     const data = req.body;
     const now = new Date().toISOString();
-    const json = JSON.stringify({ ...data, id: productId });
-    db.run('UPDATE productPricing SET data=$1, updatedAt=$2 WHERE id=$3 AND "userId"=$4', [json, now, productId, req.user.id], function(err) {
+    const fields = [];
+    const params = [];
+    if (data.custoBRL !== undefined) { fields.push('custoBRL = ?'); params.push(data.custoBRL); }
+    if (data.custoOperacional !== undefined) { fields.push('custoOperacional = ?'); params.push(data.custoOperacional); }
+    if (data.frete !== undefined) { fields.push('frete = ?'); params.push(data.frete); }
+    if (data.nfPercent !== undefined) { fields.push('nfPercent = ?'); params.push(data.nfPercent); }
+    if (data.lucroPercent !== undefined) { fields.push('lucroPercent = ?'); params.push(data.lucroPercent); }
+    if (data.valorTabela !== undefined) { fields.push('valorTabela = ?'); params.push(data.valorTabela); }
+    fields.push('updatedAt = ?');
+    params.push(now);
+    params.push(productId, req.user.id);
+    if (fields.length === 1) {
+        return res.json({ id: productId, ...data });
+    }
+    const sql = `UPDATE productPricing SET ${fields.join(', ')} WHERE productId = ? AND "userId" = ?`;
+    db.run(sql, params, function(err) {
         if (err) {
             console.error('Error updating pricing product:', err.message);
             return res.status(500).json({ message: 'Failed to update product.' });
         }
         if (data.valorTabela !== undefined) {
-            db.run('INSERT INTO productPricingHistory (id, "userId", productId, price, recordedAt) VALUES ($1,$2,$3,$4,$5)', [uuidv4(), req.user.id, productId, parseFloat(data.valorTabela), now], () => {});
+            db.run(
+                'INSERT INTO productPricingHistory (id, "userId", productId, price, recordedAt) VALUES ($1,$2,$3,$4,$5)',
+                [uuidv4(), req.user.id, productId, parseFloat(data.valorTabela), now],
+                () => {}
+            );
         }
         res.json({ id: productId, ...data });
     });
@@ -949,7 +997,7 @@ app.put('/api/product-pricing/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/product-pricing/:id', authenticateToken, (req, res) => {
     const productId = req.params.id;
-    db.run('DELETE FROM productPricing WHERE id = $1 AND "userId" = $2', [productId, req.user.id], function(err) {
+    db.run('DELETE FROM productPricing WHERE productId = $1 AND "userId" = $2', [productId, req.user.id], function(err) {
         if (err) {
             console.error('Error deleting pricing product:', err.message);
             return res.status(500).json({ message: 'Failed to delete product.' });
@@ -973,65 +1021,45 @@ app.get('/api/product-pricing/history', authenticateToken, (req, res) => {
 });
 
 // Product Category CRUD
-app.get('/api/product-pricing/categories', authenticateToken, (req, res) => {
-    db.all('SELECT id, name, dustBag, packaging FROM productCategories WHERE "userId" = $1', [req.user.id], (err, rows) => {
+app.get('/api/product-pricing/categories', authenticateToken, (_req, res) => {
+    db.all('SELECT id, name FROM categories ORDER BY id', [], (err, rows) => {
         if (err) {
             console.error('Error fetching categories:', err.message);
             return res.status(500).json({ message: 'Failed to fetch categories.' });
         }
-        if (rows.length === 0) {
-            db.all('SELECT data FROM productPricing WHERE "userId" = $1', [req.user.id], (err2, prodRows) => {
-                if (err2) {
-                    console.error('Error deriving categories:', err2.message);
-                    return res.status(500).json({ message: 'Failed to fetch categories.' });
-                }
-                const seen = new Set();
-                const derived = [];
-                prodRows.forEach(r => {
-                    try {
-                        const json = JSON.parse(r.data);
-                        const id = json.categoryId || json.category;
-                        if (id && !seen.has(id)) {
-                            seen.add(id);
-                            derived.push({ id, name: id, dustBag: 0, packaging: 0 });
-                        }
-                    } catch (e) { }
-                });
-                return res.json(derived);
-            });
-        } else {
-            res.json(rows);
-        }
+        const formatted = rows.map(r => ({ id: String(r.id), name: r.name, dustBag: 0, packaging: 0 }));
+        res.json(formatted);
     });
 });
 
 app.post('/api/product-pricing/categories', authenticateToken, (req, res) => {
-    const { id, name, dustBag, packaging } = req.body;
-    const catId = id || uuidv4();
-    db.run('INSERT INTO productCategories (id, "userId", name, dustBag, packaging) VALUES ($1,$2,$3,$4,$5)', [catId, req.user.id, name, dustBag, packaging], function(err) {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: 'name required' });
+    db.run('INSERT INTO categories (name) VALUES ($1)', [name], function(err) {
         if (err) {
             console.error('Error saving category:', err.message);
             return res.status(500).json({ message: 'Failed to save category.' });
         }
-        res.status(201).json({ id: catId, name, dustBag, packaging });
+        res.status(201).json({ id: String(this.lastID), name, dustBag: 0, packaging: 0 });
     });
 });
 
 app.put('/api/product-pricing/categories/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
-    const { name, dustBag, packaging } = req.body;
-    db.run('UPDATE productCategories SET name=$1, dustBag=$2, packaging=$3 WHERE id=$4 AND "userId"=$5', [name, dustBag, packaging, id, req.user.id], function(err) {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: 'name required' });
+    db.run('UPDATE categories SET name=$1 WHERE id=$2', [name, id], function(err) {
         if (err) {
             console.error('Error updating category:', err.message);
             return res.status(500).json({ message: 'Failed to update category.' });
         }
-        res.json({ id, name, dustBag, packaging });
+        res.json({ id, name, dustBag: 0, packaging: 0 });
     });
 });
 
 app.delete('/api/product-pricing/categories/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
-    db.run('DELETE FROM productCategories WHERE id=$1 AND "userId"=$2', [id, req.user.id], function(err) {
+    db.run('DELETE FROM categories WHERE id=$1', [id], function(err) {
         if (err) {
             console.error('Error deleting category:', err.message);
             return res.status(500).json({ message: 'Failed to delete category.' });
