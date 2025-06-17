@@ -68,17 +68,28 @@ function parseProducts(text) {
 
 const products = parseProducts(rawText);
 
-const userId = 'seed-user';
 const now = new Date().toISOString();
 
-console.log(`Parsed ${products.length} products.`);
+db.get('SELECT id FROM users LIMIT 1', (err, row) => {
+  if (err) {
+    console.error('Failed to fetch a user ID:', err.message);
+    process.exit(1);
+  }
+  if (!row) {
+    console.error('No users found. Please register a user before seeding products.');
+    process.exit(1);
+  }
 
-db.serialize(() => {
-  products.forEach(p => {
-    const id = uuidv4();
-    const data = JSON.stringify({ name: p.name, categoryId: p.category, valorTabela: p.avgPrice });
-    db.run('INSERT INTO productPricing (id, "userId", data, updatedAt) VALUES (?,?,?,?)', [id, userId, data, now]);
+  const userId = row.id;
+  console.log(`Parsed ${products.length} products. Seeding for user ${userId}.`);
+
+  db.serialize(() => {
+    products.forEach(p => {
+      const id = uuidv4();
+      const data = JSON.stringify({ name: p.name, categoryId: p.category, valorTabela: p.avgPrice });
+      db.run('INSERT INTO productPricing (id, "userId", data, updatedAt) VALUES (?,?,?,?)', [id, userId, data, now]);
+    });
   });
-});
 
-db.close();
+  db.close();
+});
