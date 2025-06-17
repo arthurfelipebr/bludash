@@ -118,7 +118,10 @@ const computeValorTabela = (p: Omit<Product, 'id'>): number => {
 
   // valor de tabela contempla lucro e compensação das NFs
   const valorBase = custoTotalProd * (1 + p.lucroPercent);
-  return valorBase / (1 - p.nfPercent);
+  const bruto = valorBase / (1 - p.nfPercent);
+  // arredonda o valor para o mais próximo que termine em "70"
+  const arredondado = Math.round((bruto - 70) / 100) * 100 + 70;
+  return arredondado;
 };
 
 export const ProductPricingDashboardPage: React.FC = () => {
