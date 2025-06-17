@@ -195,6 +195,38 @@ function initializeDatabase() {
         FOREIGN KEY ("orderId") REFERENCES orders(id) ON DELETE CASCADE
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS customTable (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "Data" TEXT,
+        "Descrição" TEXT,
+        "Categoria" TEXT,
+        "Moeda" TEXT,
+        "Valor" TEXT,
+        "Câmbio" TEXT,
+        "Valor_em_BRL" TEXT,
+        "Metodo_de_Pagamento" TEXT,
+        "Status_do_Pagamento" TEXT,
+        "Fornecedor" TEXT,
+        "Cliente" TEXT,
+        "Nota_Fiscal" TEXT,
+        "Data_de_Vencimento" TEXT,
+        "Data_de_Pagamento" TEXT,
+        "Juros_Multa" TEXT,
+        "Descontos" TEXT,
+        "Observacoes" TEXT,
+        FOREIGN KEY ("userId") REFERENCES users(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS customTableHistory (
+        id TEXT PRIMARY KEY,
+        rowId TEXT NOT NULL,
+        data TEXT NOT NULL,
+        changedAt TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        FOREIGN KEY ("userId") REFERENCES users(id)
+    )`);
+
     console.log('Database schema initialized/verified.');
   });
 }

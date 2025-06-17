@@ -6,7 +6,7 @@ import {
     OrderCostItem, CostType, InternalNote, DashboardAlert, WeeklySummaryStats,
     OrderOccurrence, OccurrenceStatus, OccurrenceType,
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
-    ClientPayment, User, HistoricalParsedProduct
+    ClientPayment, User, HistoricalParsedProduct, CustomTableRow
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -531,6 +531,23 @@ export const addOrderCostItem = async (costItemData: Omit<OrderCostItem, 'id'|'u
 export const deleteOrderCostItem = async (costItemId: string): Promise<void> => {
     // This endpoint might need adjustment, e.g. /costs/:costItemId if costs are global with orderId foreign key
     return apiClient<void>(`/costs/${costItemId}`, { method: 'DELETE' });
+};
+
+// --- Custom Table Services ---
+export const getCustomTableRows = async (): Promise<CustomTableRow[]> => {
+    return apiClient<CustomTableRow[]>('/custom-table');
+};
+
+export const addCustomTableRow = async (row: Omit<CustomTableRow, 'id'>): Promise<CustomTableRow> => {
+    return apiClient<CustomTableRow>('/custom-table', { method: 'POST', body: JSON.stringify(row) });
+};
+
+export const updateCustomTableRow = async (row: CustomTableRow): Promise<CustomTableRow> => {
+    return apiClient<CustomTableRow>(`/custom-table/${row.id}`, { method: 'PUT', body: JSON.stringify(row) });
+};
+
+export const deleteCustomTableRow = async (id: string): Promise<void> => {
+    return apiClient<void>(`/custom-table/${id}`, { method: 'DELETE' });
 };
 
 // --- Dashboard Statistics --- (These will all call backend endpoints)

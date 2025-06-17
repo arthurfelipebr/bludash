@@ -375,3 +375,24 @@ export interface ClientPayment {
     installments?: number;
     notes?: string;
 }
+
+export interface CustomTableRow {
+    id: string;
+    Data: string;
+    Descrição: string;
+    Categoria: string;
+    Moeda: string;
+    Valor: string;
+    Câmbio: string;
+    Valor_em_BRL: string;
+    Metodo_de_Pagamento: string;
+    Status_do_Pagamento: string;
+    Fornecedor: string;
+    Cliente: string;
+    Nota_Fiscal: string;
+    Data_de_Vencimento: string;
+    Data_de_Pagamento: string;
+    Juros_Multa: string;
+    Descontos: string;
+    Observacoes: string;
+}
