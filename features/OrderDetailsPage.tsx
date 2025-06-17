@@ -9,6 +9,7 @@ import {
   sendOrderContractToAutentique,
   DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE,
   ORDER_STATUS_OPTIONS,
+  saveOrder,
 } from '../services/AppService';
 import {
   Order,
@@ -26,6 +27,8 @@ import {
   Tab,
 } from '../components/SharedComponents';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
+import { OrderForm } from './OrdersFeature';
+import { Pencil } from 'lucide-react';
 
 
 const OrderDetailsPage: React.FC = () => {
@@ -39,6 +42,7 @@ const OrderDetailsPage: React.FC = () => {
   const [correiosEvents, setCorreiosEvents] = useState<any[]>([]);
   const [isLoadingCorreios, setIsLoadingCorreios] = useState(false);
   const [orderToRegisterPayment, setOrderToRegisterPayment] = useState<Order | null>(null);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -56,6 +60,12 @@ const OrderDetailsPage: React.FC = () => {
       console.error('Erro ao enviar contrato', err);
       alert('Falha ao enviar contrato.');
     }
+  };
+
+  const handleSave = async (updated: Order) => {
+    await saveOrder(updated);
+    setOrder(updated);
+    setIsEditFormOpen(false);
   };
 
   if (!order) {
@@ -147,7 +157,14 @@ const OrderDetailsPage: React.FC = () => {
       <PageTitle
         title={`Encomenda: ${order.productName} ${order.model}`}
         subtitle={order.customerName}
-        actions={<Button onClick={() => navigate('/orders')}>Voltar</Button>}
+        actions={
+          <div className="flex space-x-2">
+            <Button variant="ghost" size="sm" onClick={() => setIsEditFormOpen(true)} title="Editar">
+              <Pencil className="h-5 w-5" />
+            </Button>
+            <Button onClick={() => navigate('/orders')}>Voltar</Button>
+          </div>
+        }
       />
       <Tabs className="mb-4">
         <Tab label="Resumo" isActive={activeTab === 'Resumo'} onClick={() => setActiveTab('Resumo')} />
@@ -320,7 +337,7 @@ const OrderDetailsPage: React.FC = () => {
       )}
 
       <div className="flex justify-end space-x-2 mt-6">
-        <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/edit`)}>Editar Encomenda</Button>
+        <Button variant="secondary" onClick={() => setIsEditFormOpen(true)}>Editar Encomenda</Button>
         <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/occurrences`)}>Ocorrências</Button>
         <Button onClick={() => navigate('/orders')}>Voltar</Button>
         <Button variant="secondary" onClick={handleSendContract}>Enviar Contrato</Button>
@@ -334,6 +351,15 @@ const OrderDetailsPage: React.FC = () => {
           onPaymentSaved={async () => {
             if (orderId) setClientPayments(await getClientPaymentsByOrderId(orderId));
           }}
+        />
+      )}
+
+      {isEditFormOpen && (
+        <OrderForm
+          isOpen={isEditFormOpen}
+          onClose={() => setIsEditFormOpen(false)}
+          onSave={handleSave}
+          initialOrder={order}
         />
       )}
     </div>
