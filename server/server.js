@@ -891,13 +891,25 @@ app.delete('/api/custom-table/:id', authenticateToken, (req, res) => {
 
 // Product Pricing CRUD
 app.get('/api/product-pricing', authenticateToken, (req, res) => {
-    db.all('SELECT id, data, updatedAt FROM productPricing WHERE "userId" = $1 ORDER BY updatedAt DESC', [req.user.id], (err, rows) => {
+    const sql = `SELECT
+        p.id AS productId,
+        p.name AS productName,
+        p.is_cpo,
+        c.name AS categoryName,
+        pp.custoBRL,
+        pp.valorTabela,
+        pp.updatedAt
+    FROM productPricing pp
+    JOIN products p ON pp.productId = p.id
+    JOIN categories c ON p.categoryId = c.id
+    ORDER BY c.id, p.id`;
+
+    db.all(sql, [], (err, rows) => {
         if (err) {
             console.error('Error fetching pricing products:', err.message);
             return res.status(500).json({ message: 'Failed to fetch products.' });
         }
-        const items = rows.map(r => ({ id: r.id, ...JSON.parse(r.data) }));
-        res.json(items);
+        res.json(rows);
     });
 });
 
