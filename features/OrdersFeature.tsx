@@ -14,7 +14,7 @@ import {
   getCorreiosAREvents,
   sendOrderContractToAutentique,
 } from '../services/AppService';
-import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast, OrderProgressBar } from '../components/SharedComponents';
+import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast, OrderProgressBar, Tabs, Tab } from '../components/SharedComponents';
 import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
@@ -661,6 +661,77 @@ const RegisterArrivalModal: React.FC<RegisterArrivalModalProps> = ({ order, isOp
     return ( <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Chegada: ${order.productName} ${order.model}`} size="lg"> <div className="space-y-4"> <Input id="arrivalDate" label="Data de Chegada" type="date" name="arrivalDate" value={arrivalData.arrivalDate} onChange={handleChange} required /> <Input id="imei" label="IMEI do Aparelho" name="imei" value={arrivalData.imei} onChange={handleChange} placeholder="Se aplicável" /> {(order.condition === ProductCondition.SEMINOVO || order.condition === ProductCondition.USADO_BOM || order.condition === ProductCondition.USADO_EXCELENTE) && ( <Input id="batteryHealth" label="Saúde da Bateria (%)" type="number" name="batteryHealth" min="0" max="100" value={String(arrivalData.batteryHealth || '')} onChange={handleChange} /> )} <Textarea id="arrivalNotes" label="Observações da Chegada" name="arrivalNotes" value={arrivalData.arrivalNotes} onChange={handleChange} rows={3} /> <div> <label className="block text-sm font-medium text-gray-700 mb-1">Fotos do Produto (até 5 - mock)</label> {arrivalPhotos.map(p => <span key={p.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{p.name}</span>)} <Button onClick={handleAddPhoto} size="sm" variant="ghost" className="mt-1">Adicionar Foto</Button> </div> <div className="flex items-center"> <input type="checkbox" id="readyForDelivery" name="readyForDelivery" checked={arrivalData.readyForDelivery} onChange={handleChange} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /> <label htmlFor="readyForDelivery" className="ml-2 block text-sm text-gray-900">Marcar como PRONTO PARA ENTREGA</label> </div> <div className="flex justify-end space-x-2 pt-3"> <Button variant="secondary" onClick={onClose}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Chegada</Button> </div> </div> </Modal> );
 };
 
+interface OrderViewModalProps { order: Order; isOpen: boolean; onClose: () => void; }
+const OrderViewModal: React.FC<OrderViewModalProps> = ({ order, isOpen, onClose }) => {
+  const [activeTab, setActiveTab] = useState<'Resumo' | 'Financeiro' | 'Histórico & Notas' | 'Anexos'>('Resumo');
+  const [supplierNameVisible, setSupplierNameVisible] = useState(false);
+  const [purchasePriceVisible, setPurchasePriceVisible] = useState(false);
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Detalhes: ${order.productName} ${order.model}`} size="xl">
+      <Tabs className="mb-4">
+        <Tab label="Resumo" isActive={activeTab === 'Resumo'} onClick={() => setActiveTab('Resumo')} />
+        <Tab label="Financeiro" isActive={activeTab === 'Financeiro'} onClick={() => setActiveTab('Financeiro')} />
+        <Tab label="Histórico & Notas" isActive={activeTab === 'Histórico & Notas'} onClick={() => setActiveTab('Histórico & Notas')} />
+        <Tab label="Anexos" isActive={activeTab === 'Anexos'} onClick={() => setActiveTab('Anexos')} />
+      </Tabs>
+      {activeTab === 'Resumo' && (
+        <div className="space-y-2 text-sm">
+          <p><strong>Cliente:</strong> {order.clientId || order.customerName}</p>
+          <p><strong>Produto:</strong> {order.productName} {order.model} {order.watchSize && `(${order.watchSize})`} ({order.capacity}) - {order.color} [{order.condition}]</p>
+          <div className="flex items-center">
+            <strong>Fornecedor:</strong>&nbsp;
+            {supplierNameVisible ? (<span>{order.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido</span>)}
+            <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1">
+              {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+            </Button>
+          </div>
+          <div className="flex items-center">
+            <strong>Custo (Fornecedor):</strong>&nbsp;
+            {purchasePriceVisible ? (<span>{formatCurrencyBRL(order.purchasePrice)}</span>) : (<span className="blur-sm select-none">{formatCurrencyBRL(order.purchasePrice)}</span>)}
+            <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1">
+              {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      )}
+      {activeTab === 'Financeiro' && (
+        <div className="space-y-2 text-sm">
+          {order.sellingPrice !== undefined && <p><strong>Valor de Venda:</strong> {formatCurrencyBRL(order.sellingPrice)}</p>}
+          <p><strong>Forma de Pagamento:</strong> {order.paymentMethod || 'N/A'}</p>
+          {order.paymentMethod === PaymentMethod.BLU_FACILITA && (
+            <div className="p-2 border-l-4 border-blue-500 bg-blue-50 space-y-1">
+              {order.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {order.bluFacilitaSpecialAnnualRate?.toFixed(2)}% a.a. (Especial)</p>}
+              {!order.bluFacilitaUsesSpecialRate && <p><strong>Taxa:</strong> {DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE * 100}% a.a.</p>}
+              <p><strong>Entrada:</strong> {formatCurrencyBRL(order.downPayment)}</p>
+              <p><strong>Valor Financiado:</strong> {formatCurrencyBRL(order.financedAmount)}</p>
+              <p><strong>Total com Juros:</strong> {formatCurrencyBRL(order.totalWithInterest)}</p>
+              <p><strong>Parcelas:</strong> {order.installments}</p>
+              <p><strong>Valor Parcela:</strong> {formatCurrencyBRL(order.installmentValue)}</p>
+            </div>
+          )}
+          {order.shippingCostSupplierToBlu !== undefined && <p><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(order.shippingCostSupplierToBlu)}</p>}
+          {order.shippingCostBluToClient !== undefined && <p><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(order.shippingCostBluToClient)}</p>}
+        </div>
+      )}
+      {activeTab === 'Histórico & Notas' && (
+        <div className="space-y-2 text-sm">
+          <p><strong>Status Atual:</strong> {order.status}</p>
+          {order.notes && <p><strong>Observações:</strong> {order.notes}</p>}
+          {order.arrivalNotes && <p><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
+          {order.whatsAppHistorySummary && <p><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
+        </div>
+      )}
+      {activeTab === 'Anexos' && (
+        <div className="space-y-2 text-sm">
+          {order.documents.length > 0 ? order.documents.map(d => (
+            <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>
+          )) : <span className="text-xs text-gray-500">Nenhum documento.</span>}
+        </div>
+      )}
+    </Modal>
+  );
+};
+
 export const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [clients, setClients] = useState<Client[]>([]); 
@@ -670,6 +741,7 @@ export const OrdersPage = () => {
   const [orderToRegisterArrival, setOrderToRegisterArrival] = useState<Order | null>(null);
   const [orderToToggleImeiLock, setOrderToToggleImeiLock] = useState<Order | null>(null);
   const [orderToRegisterPayment, setOrderToRegisterPayment] = useState<Order | null>(null);
+  const [orderToView, setOrderToView] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
@@ -805,7 +877,7 @@ export const OrdersPage = () => {
                 size="sm"
                 onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/orders/${item.id}`);
+                    setOrderToView(item);
                 }}
                 title="Ver Detalhes"
             >
@@ -905,6 +977,9 @@ export const OrdersPage = () => {
       {isFormOpen && <OrderForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingOrder(null); }} onSave={handleSaveOrder} initialOrder={editingOrder} prefillData={(location.state as any)?.prefillOrderData as OrderFormPrefillData | undefined} />}
       {orderToToggleImeiLock && ( <Modal isOpen={!!orderToToggleImeiLock} onClose={() => setOrderToToggleImeiLock(null)} title={`${orderToToggleImeiLock.imeiBlocked ? 'Confirmar Desbloqueio' : 'Confirmar Bloqueio'} de IMEI`} size="md" footer={ <> <Button variant="secondary" onClick={() => setOrderToToggleImeiLock(null)}>Cancelar</Button> <Button variant={orderToToggleImeiLock.imeiBlocked ? "primary" : "danger"} onClick={confirmToggleImeiLock}> {orderToToggleImeiLock.imeiBlocked ? 'Sim, Desbloquear' : 'Sim, Bloquear'} </Button> </> } > <p className="text-gray-700"> Tem certeza que deseja <strong>{orderToToggleImeiLock.imeiBlocked ? 'desbloquear' : 'bloquear'}</strong> o IMEI <span className="font-semibold"> {orderToToggleImeiLock.imei}</span> para o pedido de <span className="font-semibold">{orderToToggleImeiLock.clientId ? getClientName(orderToToggleImeiLock.clientId) : orderToToggleImeiLock.customerName}</span>? </p> <p className="text-sm text-gray-600 mt-2"> Esta ação é para controle interno e não realiza bloqueio/desbloqueio real na operadora. </p> </Modal> )}
       {orderToRegisterPayment && ( <RegisterPaymentModal order={orderToRegisterPayment} isOpen={!!orderToRegisterPayment} onClose={() => setOrderToRegisterPayment(null)} onPaymentSaved={handlePaymentSaved} /> )}
+      {orderToView && (
+        <OrderViewModal order={orderToView} isOpen={!!orderToView} onClose={() => setOrderToView(null)} />
+      )}
       {toastData && (
         <Toast message={toastData.message} actionLabel="Avisar Cliente" onAction={toastData.action} onClose={() => setToastData(null)} />
       )}
