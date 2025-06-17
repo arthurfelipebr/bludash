@@ -889,6 +889,77 @@ app.delete('/api/custom-table/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Product Pricing CRUD
+app.get('/api/product-pricing', authenticateToken, (req, res) => {
+    db.all('SELECT id, data, updatedAt FROM productPricing WHERE "userId" = $1 ORDER BY updatedAt DESC', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching pricing products:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch products.' });
+        }
+        const items = rows.map(r => ({ id: r.id, ...JSON.parse(r.data) }));
+        res.json(items);
+    });
+});
+
+app.post('/api/product-pricing', authenticateToken, (req, res) => {
+    const data = req.body;
+    const id = data.id || uuidv4();
+    const now = new Date().toISOString();
+    const json = JSON.stringify({ ...data, id });
+    db.run('INSERT INTO productPricing (id, "userId", data, updatedAt) VALUES ($1,$2,$3,$4)', [id, req.user.id, json, now], function(err) {
+        if (err) {
+            console.error('Error saving pricing product:', err.message);
+            return res.status(500).json({ message: 'Failed to save product.' });
+        }
+        if (data.valorTabela !== undefined) {
+            db.run('INSERT INTO productPricingHistory (id, "userId", productId, price, recordedAt) VALUES ($1,$2,$3,$4,$5)', [uuidv4(), req.user.id, id, parseFloat(data.valorTabela), now], () => {});
+        }
+        res.status(201).json({ id, ...data });
+    });
+});
+
+app.put('/api/product-pricing/:id', authenticateToken, (req, res) => {
+    const productId = req.params.id;
+    const data = req.body;
+    const now = new Date().toISOString();
+    const json = JSON.stringify({ ...data, id: productId });
+    db.run('UPDATE productPricing SET data=$1, updatedAt=$2 WHERE id=$3 AND "userId"=$4', [json, now, productId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error updating pricing product:', err.message);
+            return res.status(500).json({ message: 'Failed to update product.' });
+        }
+        if (data.valorTabela !== undefined) {
+            db.run('INSERT INTO productPricingHistory (id, "userId", productId, price, recordedAt) VALUES ($1,$2,$3,$4,$5)', [uuidv4(), req.user.id, productId, parseFloat(data.valorTabela), now], () => {});
+        }
+        res.json({ id: productId, ...data });
+    });
+});
+
+app.delete('/api/product-pricing/:id', authenticateToken, (req, res) => {
+    const productId = req.params.id;
+    db.run('DELETE FROM productPricing WHERE id = $1 AND "userId" = $2', [productId, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting pricing product:', err.message);
+            return res.status(500).json({ message: 'Failed to delete product.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
+app.get('/api/product-pricing/history', authenticateToken, (req, res) => {
+    const productId = req.query.productId;
+    const base = 'SELECT * FROM productPricingHistory WHERE "userId" = $1';
+    const sql = productId ? `${base} AND productId = $2 ORDER BY recordedAt DESC` : `${base} ORDER BY recordedAt DESC`;
+    const params = productId ? [req.user.id, productId] : [req.user.id];
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error fetching pricing history:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch history.' });
+        }
+        res.json(rows);
+    });
+});
+
 app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ message: 'orderId required' });
