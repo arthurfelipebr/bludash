@@ -93,26 +93,42 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label?: string;
   id: string;
   error?: string;
   inputClassName?: string;
-  containerClassName?: string; 
+  containerClassName?: string;
+  leftAddon?: React.ReactNode;
+  rightAddon?: React.ReactNode;
 }
 
-export const Input: React.FC<InputProps> = ({ label, id, error, containerClassName = '', inputClassName = '', ...props }) => {
+export const Input: React.FC<InputProps> = ({ label, id, error, containerClassName = '', inputClassName = '', leftAddon, rightAddon, ...props }) => {
   const baseInputStyles = 'block w-full px-3 py-2 border border-black/20 rounded-md shadow-sm focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
   const errorInputStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
+
+  const inputRounded = `${leftAddon ? 'rounded-r-none' : ''} ${rightAddon ? 'rounded-l-none' : ''}`;
 
   return (
     <div className={containerClassName}>
       {label && <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
-      <input
-        id={id}
-        className={`${baseInputStyles} ${errorInputStyles} ${inputClassName}`}
-        {...props}
-      />
+      <div className="flex">
+        {leftAddon && (
+          <span className="inline-flex items-center px-2 border border-r-0 border-black/20 rounded-l-md bg-gray-50 text-sm text-gray-700">
+            {leftAddon}
+          </span>
+        )}
+        <input
+          id={id}
+          className={`${baseInputStyles} ${errorInputStyles} ${inputClassName} ${inputRounded}`}
+          {...props}
+        />
+        {rightAddon && (
+          <span className="inline-flex items-center px-2 border border-l-0 border-black/20 rounded-r-md bg-gray-50 text-sm text-gray-700">
+            {rightAddon}
+          </span>
+        )}
+      </div>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
