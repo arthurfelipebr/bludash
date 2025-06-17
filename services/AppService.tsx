@@ -7,7 +7,7 @@ import {
     OrderOccurrence, OccurrenceStatus, OccurrenceType,
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
     ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
-    PricingProduct, PricingHistoryEntry
+    PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -553,6 +553,30 @@ export const deletePricingProduct = async (id: string): Promise<void> => {
 export const getPricingHistory = async (productId?: string): Promise<PricingHistoryEntry[]> => {
     const endpoint = productId ? `/product-pricing/history?productId=${productId}` : '/product-pricing/history';
     return apiClient<PricingHistoryEntry[]>(endpoint);
+};
+
+// --- Product Category & Globals Services ---
+export const getProductCategories = async (): Promise<PricingCategory[]> => {
+    return apiClient<PricingCategory[]>('/product-pricing/categories');
+};
+
+export const saveProductCategory = async (cat: PricingCategory): Promise<PricingCategory> => {
+    if (cat.id) {
+        return apiClient<PricingCategory>(`/product-pricing/categories/${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
+    }
+    return apiClient<PricingCategory>('/product-pricing/categories', { method: 'POST', body: JSON.stringify(cat) });
+};
+
+export const deleteProductCategory = async (id: string): Promise<void> => {
+    return apiClient<void>(`/product-pricing/categories/${id}`, { method: 'DELETE' });
+};
+
+export const getPricingGlobals = async (): Promise<PricingGlobals> => {
+    return apiClient<PricingGlobals>('/product-pricing/globals');
+};
+
+export const savePricingGlobals = async (g: PricingGlobals): Promise<PricingGlobals> => {
+    return apiClient<PricingGlobals>('/product-pricing/globals', { method: 'PUT', body: JSON.stringify(g) });
 };
 
 // --- Custom Table Services ---

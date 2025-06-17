@@ -1,29 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, MinusIcon } from 'lucide-react';
 import { PageTitle, Card, Button, Input, Select, Modal, Tabs, Tab, Toast } from '../components/SharedComponents';
-import { v4 as uuidv4 } from 'uuid';
-import { PricingProduct } from '../types';
-import { getPricingProducts, savePricingProduct, deletePricingProduct } from '../services/AppService';
-
-interface Category {
-  id: string;
-  name: string;
-  dustBag: number;
-  packaging: number;
-}
-
-interface GlobalDefaults {
-  nfPercent: number;
-  nfProduto: number;
-  frete: number;
-}
+import { PricingProduct, PricingCategory, PricingGlobals } from '../types';
+import {
+  getPricingProducts,
+  savePricingProduct,
+  deletePricingProduct,
+  getProductCategories,
+  saveProductCategory,
+  deleteProductCategory,
+  getPricingGlobals,
+  savePricingGlobals,
+} from '../services/AppService';
 
 type Product = PricingProduct;
 
-const CATEGORY_KEY = 'productCategories';
-const GLOBAL_KEY = 'productGlobals';
-
-const DEFAULT_CATEGORIES: Category[] = [
+const DEFAULT_CATEGORIES: PricingCategory[] = [
   { id: 'AirPods', name: 'AirPods', dustBag: 24, packaging: 26 },
   { id: 'iPad', name: 'iPad', dustBag: 19, packaging: 21 },
   { id: 'iPhone', name: 'iPhone', dustBag: 11, packaging: 13 },
@@ -38,34 +30,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'Outros', name: 'Outros', dustBag: 0, packaging: 2 },
 ];
 
-const DEFAULT_GLOBALS: GlobalDefaults = { nfPercent: 0.02, nfProduto: 30, frete: 105 };
-
-const loadCategories = (): Category[] => {
-  try {
-    const raw = localStorage.getItem(CATEGORY_KEY);
-    return raw ? JSON.parse(raw) : DEFAULT_CATEGORIES;
-  } catch {
-    return DEFAULT_CATEGORIES;
-  }
-};
-
-const saveCategories = (cats: Category[]) => {
-  localStorage.setItem(CATEGORY_KEY, JSON.stringify(cats));
-};
-
-
-const loadGlobals = (): GlobalDefaults => {
-  try {
-    const raw = localStorage.getItem(GLOBAL_KEY);
-    return raw ? JSON.parse(raw) : DEFAULT_GLOBALS;
-  } catch {
-    return DEFAULT_GLOBALS;
-  }
-};
-
-const saveGlobals = (g: GlobalDefaults) => {
-  localStorage.setItem(GLOBAL_KEY, JSON.stringify(g));
-};
+const DEFAULT_GLOBALS: PricingGlobals = { nfPercent: 0.02, nfProduto: 30, frete: 105 };
 
 const computeCustoOperacional = (p: Omit<Product, 'id'>): number => {
   const importCosts =
@@ -88,11 +53,11 @@ const computeValorTabela = (p: Omit<Product, 'id'>): number => {
 };
 
 export const ProductPricingDashboardPage: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>(loadCategories);
-  const [globals, setGlobals] = useState<GlobalDefaults>(loadGlobals);
+  const [categories, setCategories] = useState<PricingCategory[]>(DEFAULT_CATEGORIES);
+  const [globals, setGlobals] = useState<PricingGlobals>(DEFAULT_GLOBALS);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingCategory, setEditingCategory] = useState<PricingCategory | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [dispTab, setDispTab] = useState<'Brasil' | 'EUA'>('Brasil');
   const [productErrors, setProductErrors] = useState<Record<string, string>>({});
@@ -130,11 +95,16 @@ export const ProductPricingDashboardPage: React.FC = () => {
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    saveCategories(categories);
-  }, [categories]);
+    getProductCategories()
+      .then(cats => setCategories(cats.length ? cats : DEFAULT_CATEGORIES))
+      .catch(err => console.error('Failed to load categories', err));
+    getPricingGlobals()
+      .then(g => setGlobals(g))
+      .catch(err => console.error('Failed to load globals', err));
+  }, []);
 
   useEffect(() => {
-    saveGlobals(globals);
+    savePricingGlobals(globals).catch(err => console.error('Failed to save globals', err));
   }, [globals]);
 
   useEffect(() => {
@@ -146,11 +116,12 @@ export const ProductPricingDashboardPage: React.FC = () => {
           const updated = [...prev];
           items.forEach(p => {
             if (!updated.some(c => c.id === p.categoryId)) {
-              updated.push({ id: p.categoryId, name: p.categoryId, dustBag: 0, packaging: 0 });
+              const newCat = { id: p.categoryId, name: p.categoryId, dustBag: 0, packaging: 0 };
+              updated.push(newCat);
+              saveProductCategory(newCat).catch(err => console.error('Failed to auto-save category', err));
               changed = true;
             }
           });
-          if (changed) saveCategories(updated);
           return changed ? updated : prev;
         });
       })
@@ -162,30 +133,39 @@ export const ProductPricingDashboardPage: React.FC = () => {
     setCategoryModalOpen(true);
   };
 
-  const openEditCategory = (cat: Category) => {
+  const openEditCategory = (cat: PricingCategory) => {
     setEditingCategory({ ...cat });
     setCategoryModalOpen(true);
   };
 
-  const saveCategory = (cat: Category) => {
-    if (cat.id) {
-      setCategories(prev => prev.map(c => c.id === cat.id ? cat : c));
-      setToastMessage('Categoria Atualizada');
-    } else {
-      const newCat = { ...cat, id: uuidv4() };
-      setCategories(prev => [...prev, newCat]);
-      setToastMessage('Categoria Salva');
+  const saveCategory = async (cat: PricingCategory) => {
+    try {
+      const saved = await saveProductCategory(cat);
+      setCategories(prev => {
+        const exists = prev.some(c => c.id === saved.id);
+        return exists ? prev.map(c => (c.id === saved.id ? saved : c)) : [...prev, saved];
+      });
+      setToastMessage(cat.id ? 'Categoria Atualizada' : 'Categoria Salva');
+    } catch (err) {
+      console.error('Erro ao salvar categoria', err);
+      setToastMessage('Erro ao salvar categoria');
     }
     setCategoryModalOpen(false);
   };
 
-  const deleteCategory = (id: string) => {
-    setCategories(prev => prev.filter(c => c.id !== id));
+  const deleteCategory = async (id: string) => {
+    try {
+      await deleteProductCategory(id);
+      setCategories(prev => prev.filter(c => c.id !== id));
+      setToastMessage('Categoria Excluída');
+    } catch (err) {
+      console.error('Erro ao excluir categoria', err);
+      setToastMessage('Erro ao excluir categoria');
+    }
     setCategoryModalOpen(false);
-    setToastMessage('Categoria Excluída');
   };
 
-  const handleGlobalChange = (field: keyof GlobalDefaults, value: string) => {
+  const handleGlobalChange = (field: keyof PricingGlobals, value: string) => {
     if (value.trim() !== '' && isNaN(Number(value))) {
       setGlobalErrors(prev => ({ ...prev, [field]: 'Valor inválido' }));
       return;
@@ -300,7 +280,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
 
   const CategoryModal = () => {
-    const [form, setForm] = useState<Category>(editingCategory || { id: '', name: '', dustBag: 0, packaging: 0 });
+    const [form, setForm] = useState<PricingCategory>(editingCategory || { id: '', name: '', dustBag: 0, packaging: 0 });
 
     useEffect(() => {
       if (editingCategory) setForm(editingCategory);
