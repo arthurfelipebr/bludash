@@ -23,29 +23,14 @@ type Product = PricingProduct;
 const CATEGORY_KEY = 'productCategories';
 const GLOBAL_KEY = 'productGlobals';
 
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'AirPods', name: 'AirPods', dustBag: 24, packaging: 26 },
-  { id: 'iPad', name: 'iPad', dustBag: 19, packaging: 21 },
-  { id: 'iPhone', name: 'iPhone', dustBag: 11, packaging: 13 },
-  { id: 'Apple Watch', name: 'Apple Watch', dustBag: 29, packaging: 31 },
-  { id: 'Garmin', name: 'Garmin', dustBag: 10, packaging: 12 },
-  { id: 'iMac', name: 'iMac', dustBag: 40, packaging: 42 },
-  { id: 'Mac Mini', name: 'Mac Mini', dustBag: 20, packaging: 22 },
-  { id: 'Mac Studio', name: 'Mac Studio', dustBag: 45, packaging: 47 },
-  { id: 'MacBook Air', name: 'MacBook Air', dustBag: 25, packaging: 27 },
-  { id: 'MacBook Pro', name: 'MacBook Pro', dustBag: 25, packaging: 27 },
-  { id: 'OpenBox iP', name: 'OpenBox iP', dustBag: 9, packaging: 11 },
-  { id: 'Outros', name: 'Outros', dustBag: 0, packaging: 2 },
-];
-
 const DEFAULT_GLOBALS: GlobalDefaults = { nfPercent: 0.02, nfProduto: 30, frete: 105 };
 
 const loadCategories = (): Category[] => {
   try {
     const raw = localStorage.getItem(CATEGORY_KEY);
-    return raw ? JSON.parse(raw) : DEFAULT_CATEGORIES;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return DEFAULT_CATEGORIES;
+    return [];
   }
 };
 
@@ -88,7 +73,7 @@ const computeValorTabela = (p: Omit<Product, 'id'>): number => {
 };
 
 export const ProductPricingDashboardPage: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>(loadCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [globals, setGlobals] = useState<GlobalDefaults>(loadGlobals);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -98,10 +83,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
   const [productForm, setProductForm] = useState<Omit<Product, 'id'>>({
     name: '',
-    categoryId: DEFAULT_CATEGORIES[0].id,
+    categoryId: '',
     disp: 'Brasil',
-    dustBag: DEFAULT_CATEGORIES[0].dustBag,
-    packaging: DEFAULT_CATEGORIES[0].packaging,
+    dustBag: 0,
+    packaging: 0,
     custoBRL: 0,
     custoUSD: 0,
     cambio: 0,
@@ -121,6 +106,18 @@ export const ProductPricingDashboardPage: React.FC = () => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!productForm.categoryId && categories.length > 0) {
+      const first = categories[0];
+      setProductForm(prev => {
+        const updated = { ...prev, categoryId: first.id, dustBag: first.dustBag, packaging: first.packaging };
+        updated.custoOperacional = computeCustoOperacional(updated);
+        updated.valorTabela = computeValorTabela(updated);
+        return updated;
+      });
+    }
+  }, [categories]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
@@ -137,26 +134,15 @@ export const ProductPricingDashboardPage: React.FC = () => {
     getPricingProducts()
       .then(items => {
         setProducts(items);
-        setCategories(prev => {
-          let changed = false;
-          const updated = [...prev];
-          items.forEach(p => {
-            if (!updated.some(c => c.id === p.categoryId)) {
-              updated.push({ id: p.categoryId, name: p.categoryId, dustBag: 0, packaging: 0 });
-              changed = true;
-            }
-          });
-          if (changed) saveCategories(updated);
-          return changed ? updated : prev;
-        });
+        const stored = loadCategories();
+        const storedMap = new Map(stored.map(c => [c.id, c]));
+        const ids = Array.from(new Set(items.map(p => p.categoryId)));
+        const cats = ids.map(id => storedMap.get(id) || { id, name: id, dustBag: 0, packaging: 0 });
+        setCategories(cats);
+        saveCategories(cats);
       })
       .catch(err => console.error('Failed to load products', err));
   }, []);
-
-  const openNewCategory = () => {
-    setEditingCategory({ id: '', name: '', dustBag: 0, packaging: 0 });
-    setCategoryModalOpen(true);
-  };
 
   const openEditCategory = (cat: Category) => {
     setEditingCategory({ ...cat });
@@ -212,6 +198,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
     withoutId.valorTabela = computeValorTabela(withoutId);
     setProductForm(withoutId);
     setDispTab(prod.disp);
+    setExpandedId(prod.id);
   };
 
   const resetForm = () => {
@@ -219,10 +206,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
     const first = categories[0];
     const base: Omit<Product, 'id'> = {
       name: '',
-      categoryId: first.id,
+      categoryId: first ? first.id : '',
       disp: 'Brasil',
-      dustBag: first.dustBag,
-      packaging: first.packaging,
+      dustBag: first ? first.dustBag : 0,
+      packaging: first ? first.packaging : 0,
       custoBRL: 0,
       custoUSD: 0,
       cambio: 0,
@@ -238,6 +225,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
     base.valorTabela = computeValorTabela(base);
     setProductForm(base);
     setDispTab('Brasil');
+    setExpandedId(null);
   };
 
   const saveProduct = async () => {
@@ -328,9 +316,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
           <Input id="global-nfs" label="NFs (%)" type="number" step="0.01" value={globals.nfPercent} onChange={e => handleGlobalChange('nfPercent', e.target.value)} />
           <Input id="global-nfprod" label="NF Produto" type="number" value={globals.nfProduto} onChange={e => handleGlobalChange('nfProduto', e.target.value)} />
           <Input id="global-frete" label="Frete" type="number" value={globals.frete} onChange={e => handleGlobalChange('frete', e.target.value)} />
-          <div className="flex items-end">
-            <Button onClick={openNewCategory}>Adicionar Nova Categoria</Button>
-          </div>
+          <div className="flex items-end" />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full table-auto">
@@ -358,6 +344,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
         </div>
       </Card>
 
+      {editingId === null && (
       <Card title="Cadastro / Edição de Produtos" bodyClassName="space-y-6 p-4">
         <div>
           <h3 className="text-lg font-semibold">Informações Principais</h3>
@@ -422,6 +409,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
           <Button onClick={saveProduct}>{editingId ? 'Atualizar Produto' : 'Salvar Novo Produto'}</Button>
         </div>
       </Card>
+      )}
 
       <Card title="Produtos" bodyClassName="p-4">
         <div className="overflow-x-auto">
@@ -454,6 +442,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
                       catProducts.map(p => {
                         const values = calcValues(p);
                         const isOpen = expandedId === p.id;
+                        const isEditing = editingId === p.id;
                         return (
                           <React.Fragment key={p.id}>
                             <tr>
@@ -474,17 +463,42 @@ export const ProductPricingDashboardPage: React.FC = () => {
                             {isOpen && (
                               <tr>
                                 <td colSpan={6} className="bg-gray-50 p-3">
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                                    <span>Custo BRL: {(p.custoBRL ?? 0).toFixed(2)}</span>
-                                    <span>Custo USD: {(p.custoUSD ?? 0).toFixed(2)}</span>
-                                    <span>Câmbio: {p.cambio.toFixed(2)}</span>
-                                    <span>Frete: {p.frete.toFixed(2)}</span>
-                                    <span>Custo Operacional: {values.custoOperacional.toFixed(2)}</span>
-                                    <span>NF Produto: {p.nfProduto.toFixed(2)}</span>
-                                    <span>NFs (%): {p.nfPercent.toFixed(2)}</span>
-                                    <span>DustBag: {p.dustBag.toFixed(2)}</span>
-                                    <span>Embalagem: {p.packaging.toFixed(2)}</span>
-                                  </div>
+                                  {isEditing ? (
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <Input id="edit-name" label="Produto" value={productForm.name} onChange={e => handleProductField('name', e.target.value)} />
+                                        <Select id="edit-cat" label="Categoria" value={productForm.categoryId} onChange={e => handleProductField('categoryId', e.target.value)} options={categories.map(c => ({ value: c.id, label: c.name }))} />
+                                        <Input id="edit-caixa" label="Caixa" value={productForm.caixa} onChange={e => handleProductField('caixa', e.target.value)} />
+                                      </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <Input id="edit-custoBRL" label="Custo BRL" type="number" value={productForm.custoBRL ?? 0} onChange={e => handleProductField('custoBRL', e.target.value)} />
+                                        <Input id="edit-custoUSD" label="Custo USD" type="number" value={productForm.custoUSD ?? 0} onChange={e => handleProductField('custoUSD', e.target.value)} />
+                                        <Input id="edit-cambio" label="Câmbio" type="number" value={productForm.cambio} onChange={e => handleProductField('cambio', e.target.value)} />
+                                        <Input id="edit-frete" label="Frete" type="number" value={productForm.frete} onChange={e => handleProductField('frete', e.target.value)} />
+                                        <Input id="edit-nfProd" label="NF Produto" type="number" value={productForm.nfProduto} onChange={e => handleProductField('nfProduto', e.target.value)} />
+                                        <Input id="edit-nfPerc" label="NFs (%)" type="number" value={productForm.nfPercent} onChange={e => handleProductField('nfPercent', e.target.value)} />
+                                        <Input id="edit-dust" label="DustBag" type="number" value={productForm.dustBag} onChange={e => handleProductField('dustBag', e.target.value)} />
+                                        <Input id="edit-pack" label="Embalagem" type="number" value={productForm.packaging} onChange={e => handleProductField('packaging', e.target.value)} />
+                                        <Input id="edit-lucro" label="% Lucro" type="number" value={productForm.lucroPercent} onChange={e => handleProductField('lucroPercent', e.target.value)} />
+                                      </div>
+                                      <div className="flex justify-end space-x-2">
+                                        <Button size="sm" variant="secondary" onClick={resetForm}>Cancelar</Button>
+                                        <Button size="sm" onClick={saveProduct}>Salvar</Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                      <span>Custo BRL: {(p.custoBRL ?? 0).toFixed(2)}</span>
+                                      <span>Custo USD: {(p.custoUSD ?? 0).toFixed(2)}</span>
+                                      <span>Câmbio: {p.cambio.toFixed(2)}</span>
+                                      <span>Frete: {p.frete.toFixed(2)}</span>
+                                      <span>Custo Operacional: {values.custoOperacional.toFixed(2)}</span>
+                                      <span>NF Produto: {p.nfProduto.toFixed(2)}</span>
+                                      <span>NFs (%): {p.nfPercent.toFixed(2)}</span>
+                                      <span>DustBag: {p.dustBag.toFixed(2)}</span>
+                                      <span>Embalagem: {p.packaging.toFixed(2)}</span>
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
                             )}
