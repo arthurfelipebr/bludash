@@ -40,6 +40,7 @@ Follow the steps below in order:
    ```bash
    cd server
    npm run init-db            # creates tables
+   npm run seed-products      # populate productPricing
    cd ..
    ```
 
