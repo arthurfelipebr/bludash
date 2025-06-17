@@ -95,6 +95,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [dispTab, setDispTab] = useState<'Brasil' | 'EUA'>('Brasil');
+  const [productErrors, setProductErrors] = useState<Record<string, string>>({});
+  const [globalErrors, setGlobalErrors] = useState<Record<string, string>>({});
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [productForm, setProductForm] = useState<Omit<Product, 'id'>>({
     name: '',
@@ -182,6 +186,11 @@ export const ProductPricingDashboardPage: React.FC = () => {
   };
 
   const handleGlobalChange = (field: keyof GlobalDefaults, value: string) => {
+    if (value.trim() !== '' && isNaN(Number(value))) {
+      setGlobalErrors(prev => ({ ...prev, [field]: 'Valor inválido' }));
+      return;
+    }
+    setGlobalErrors(prev => { const { [field]: _, ...rest } = prev; return rest; });
     setGlobals(prev => ({ ...prev, [field]: Number(value) }));
   };
 
@@ -189,6 +198,11 @@ export const ProductPricingDashboardPage: React.FC = () => {
     const numericFields: Array<keyof Omit<Product, 'id'>> = [
       'dustBag','packaging','custoBRL','custoUSD','cambio','nfPercent','nfProduto','frete','valorTabela','lucroPercent','freteDeclarado','freteEuaBr','freteRedirecionador','impostoImportacao','precoDeclarado'
     ];
+    if (numericFields.includes(field) && value.trim() !== '' && isNaN(Number(value))) {
+      setProductErrors(prev => ({ ...prev, [field]: 'Valor inválido' }));
+      return;
+    }
+    setProductErrors(prev => { const { [field]: _, ...rest } = prev; return rest; });
     setProductForm(prev => {
       const parsed = numericFields.includes(field) ? Number(value) : value;
       const updated: Omit<Product,'id'> = { ...prev, [field]: parsed } as Omit<Product,'id'>;
@@ -257,7 +271,6 @@ export const ProductPricingDashboardPage: React.FC = () => {
   };
 
   const deleteProduct = async (id: string) => {
-    if (!window.confirm('Confirma a exclusão?')) return;
     try {
       await deletePricingProduct(id);
       const items = await getPricingProducts();
@@ -302,10 +315,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
         title={editingCategory.id ? 'Editar Categoria' : 'Nova Categoria'}
         footer={(
           <>
+            <Button variant="secondary" onClick={() => setCategoryModalOpen(false)}>Cancelar</Button>
             {editingCategory.id && (
               <Button variant="danger" onClick={() => deleteCategory(editingCategory.id)}>Excluir</Button>
             )}
-            <Button variant="secondary" onClick={() => setCategoryModalOpen(false)}>Cancelar</Button>
             <Button onClick={() => saveCategory(form)}>Salvar</Button>
           </>
         )}
@@ -319,18 +332,37 @@ export const ProductPricingDashboardPage: React.FC = () => {
     );
   };
 
+  const ConfirmDeleteModal = () => (
+    <Modal
+      isOpen={deleteId !== null}
+      onClose={() => setDeleteId(null)}
+      title="Confirmar Exclusão"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancelar</Button>
+          {deleteId && <Button variant="danger" onClick={() => { deleteProduct(deleteId); setDeleteId(null); }}>Excluir</Button>}
+        </>
+      )}
+    >
+      <p className="text-gray-700">Tem certeza que deseja excluir este produto?</p>
+    </Modal>
+  );
+
   return (
     <div className="space-y-6">
       <PageTitle title="Precificação de Produtos" />
 
       <Card title="Gestão de Categorias e Padrões" bodyClassName="space-y-4 p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Input id="global-nfs" label="NFs (%)" type="number" step="0.01" value={globals.nfPercent} onChange={e => handleGlobalChange('nfPercent', e.target.value)} />
-          <Input id="global-nfprod" label="NF Produto" type="number" value={globals.nfProduto} onChange={e => handleGlobalChange('nfProduto', e.target.value)} />
-          <Input id="global-frete" label="Frete" type="number" value={globals.frete} onChange={e => handleGlobalChange('frete', e.target.value)} />
+          <Input id="global-nfs" label="NFs" type="number" step="0.01" rightAddon="%" value={globals.nfPercent} onChange={e => handleGlobalChange('nfPercent', e.target.value)} error={globalErrors.nfPercent} />
+          <Input id="global-nfprod" label="NF Produto" type="number" leftAddon="R$" value={globals.nfProduto} onChange={e => handleGlobalChange('nfProduto', e.target.value)} error={globalErrors.nfProduto} />
+          <Input id="global-frete" label="Frete" type="number" leftAddon="R$" value={globals.frete} onChange={e => handleGlobalChange('frete', e.target.value)} error={globalErrors.frete} />
           <div className="flex items-end">
             <Button onClick={openNewCategory}>Adicionar Nova Categoria</Button>
           </div>
+        </div>
+        <div className="mb-3">
+          <Input id="search" label="Buscar Produto" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full table-auto">
@@ -375,24 +407,24 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
         {dispTab === 'Brasil' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <Input id="custoBRL" label="Custo BRL" type="number" value={productForm.custoBRL} onChange={e => handleProductField('custoBRL', e.target.value)} />
+            <Input id="custoBRL" label="Custo BRL" type="number" leftAddon="R$" value={productForm.custoBRL} onChange={e => handleProductField('custoBRL', e.target.value)} error={productErrors.custoBRL} />
           </div>
         )}
 
         {dispTab === 'EUA' && (
           <div className="space-y-4 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input id="custoUSD" label="Custo USD" type="number" value={productForm.custoUSD} onChange={e => handleProductField('custoUSD', e.target.value)} />
-              <Input id="cambio" label="Câmbio" type="number" value={productForm.cambio} onChange={e => handleProductField('cambio', e.target.value)} />
+              <Input id="custoUSD" label="Custo USD" type="number" leftAddon="US$" value={productForm.custoUSD} onChange={e => handleProductField('custoUSD', e.target.value)} error={productErrors.custoUSD} />
+              <Input id="cambio" label="Câmbio" type="number" leftAddon="R$" value={productForm.cambio} onChange={e => handleProductField('cambio', e.target.value)} error={productErrors.cambio} />
             </div>
             <h4 className="text-md font-semibold">Custos de Importação</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input id="freteDeclarado" label="Frete Declarado" type="number" value={productForm.freteDeclarado || 0} onChange={e => handleProductField('freteDeclarado', e.target.value)} />
-              <Input id="freteEuaBr" label="Frete EUA x BR" type="number" value={productForm.freteEuaBr || 0} onChange={e => handleProductField('freteEuaBr', e.target.value)} />
-              <Input id="freteRed" label="Frete P/ Redirecionador" type="number" value={productForm.freteRedirecionador || 0} onChange={e => handleProductField('freteRedirecionador', e.target.value)} />
-              <Input id="imposto" label="Imposto de Importação" type="number" value={productForm.impostoImportacao || 0} onChange={e => handleProductField('impostoImportacao', e.target.value)} />
+              <Input id="freteDeclarado" label="Frete Declarado" type="number" leftAddon="R$" value={productForm.freteDeclarado || 0} onChange={e => handleProductField('freteDeclarado', e.target.value)} error={productErrors.freteDeclarado} />
+              <Input id="freteEuaBr" label="Frete EUA x BR" type="number" leftAddon="R$" value={productForm.freteEuaBr || 0} onChange={e => handleProductField('freteEuaBr', e.target.value)} error={productErrors.freteEuaBr} />
+              <Input id="freteRed" label="Frete P/ Redirecionador" type="number" leftAddon="R$" value={productForm.freteRedirecionador || 0} onChange={e => handleProductField('freteRedirecionador', e.target.value)} error={productErrors.freteRedirecionador} />
+              <Input id="imposto" label="Imposto de Importação" type="number" leftAddon="R$" value={productForm.impostoImportacao || 0} onChange={e => handleProductField('impostoImportacao', e.target.value)} error={productErrors.impostoImportacao} />
               <Input id="nomeDec" label="Nome Declarado" value={productForm.nomeDeclarado || ''} onChange={e => handleProductField('nomeDeclarado', e.target.value)} />
-              <Input id="precoDec" label="Preço Declarado" type="number" value={productForm.precoDeclarado || 0} onChange={e => handleProductField('precoDeclarado', e.target.value)} />
+              <Input id="precoDec" label="Preço Declarado" type="number" leftAddon="US$" value={productForm.precoDeclarado || 0} onChange={e => handleProductField('precoDeclarado', e.target.value)} error={productErrors.precoDeclarado} />
             </div>
           </div>
         )}
@@ -400,20 +432,20 @@ export const ProductPricingDashboardPage: React.FC = () => {
         <div>
           <h3 className="text-lg font-semibold mt-4">Custos Base</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-            <Input id="dustBag" label="DustBag" type="number" value={productForm.dustBag} onChange={e => handleProductField('dustBag', e.target.value)} />
-            <Input id="packaging" label="Custos Embalagem" type="number" value={productForm.packaging} onChange={e => handleProductField('packaging', e.target.value)} />
-            <Input id="custoOperacional" label="Custo Operacional" type="number" value={productForm.custoOperacional.toFixed(2)} disabled />
-            <Input id="frete" label="Frete" type="number" value={productForm.frete} onChange={e => handleProductField('frete', e.target.value)} />
-            <Input id="nfProduto" label="NF Produto" type="number" value={productForm.nfProduto} onChange={e => handleProductField('nfProduto', e.target.value)} />
-            <Input id="nfPercent" label="NFs (%)" type="number" step="0.01" value={productForm.nfPercent} onChange={e => handleProductField('nfPercent', e.target.value)} />
+            <Input id="dustBag" label="DustBag" type="number" leftAddon="R$" value={productForm.dustBag} onChange={e => handleProductField('dustBag', e.target.value)} error={productErrors.dustBag} />
+            <Input id="packaging" label="Custos Embalagem" type="number" leftAddon="R$" value={productForm.packaging} onChange={e => handleProductField('packaging', e.target.value)} error={productErrors.packaging} />
+            <Input id="custoOperacional" label="Custo Operacional" type="number" leftAddon="R$" value={productForm.custoOperacional.toFixed(2)} disabled />
+            <Input id="frete" label="Frete" type="number" leftAddon="R$" value={productForm.frete} onChange={e => handleProductField('frete', e.target.value)} error={productErrors.frete} />
+            <Input id="nfProduto" label="NF Produto" type="number" leftAddon="R$" value={productForm.nfProduto} onChange={e => handleProductField('nfProduto', e.target.value)} error={productErrors.nfProduto} />
+            <Input id="nfPercent" label="NFs" type="number" step="0.01" rightAddon="%" value={productForm.nfPercent} onChange={e => handleProductField('nfPercent', e.target.value)} error={productErrors.nfPercent} />
           </div>
         </div>
 
         <div>
           <h3 className="text-lg font-semibold mt-4">Valores de Venda</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-            <Input id="lucroPercent" label="% Lucro" type="number" value={productForm.lucroPercent} onChange={e => handleProductField('lucroPercent', e.target.value)} />
-            <Input id="valorTabela" label="Valor de Tabela" type="number" value={productForm.valorTabela.toFixed(2)} disabled />
+            <Input id="lucroPercent" label="% Lucro" type="number" rightAddon="%" value={productForm.lucroPercent} onChange={e => handleProductField('lucroPercent', e.target.value)} error={productErrors.lucroPercent} />
+            <Input id="valorTabela" label="Valor de Tabela" type="number" leftAddon="R$" value={productForm.valorTabela.toFixed(2)} disabled />
           </div>
         </div>
 
@@ -438,7 +470,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
             </thead>
             <tbody>
               {categories.map(cat => {
-                const catProducts = products.filter(p => p.categoryId === cat.id);
+                const catProducts = products.filter(p => p.categoryId === cat.id && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
                 const catOpen = expandedCategories.includes(cat.id);
                 return (
                   <React.Fragment key={cat.id}>
@@ -468,7 +500,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
                               <td className="px-2 py-1 text-right">{values.lucroFinal.toFixed(2)}</td>
                               <td className="px-2 py-1 text-right space-x-1">
                                 <Button size="sm" variant="ghost" onClick={() => startEdit(p)}>Editar</Button>
-                                <Button size="sm" variant="danger" onClick={() => deleteProduct(p.id)}>Excluir</Button>
+                                <Button size="sm" variant="danger" onClick={() => setDeleteId(p.id)}>Excluir</Button>
                               </td>
                             </tr>
                             {isOpen && (
@@ -499,6 +531,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
         </div>
       </Card>
       <CategoryModal />
+      <ConfirmDeleteModal />
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
