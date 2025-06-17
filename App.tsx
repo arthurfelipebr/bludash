@@ -17,6 +17,7 @@ import { SaleCalculatorPage } from './features/SaleCalculatorFeature';
 import { TradeInEvaluationPage } from './features/TradeInEvaluationFeature';
 import { FinancialReportsPageContainer } from './features/FinancialReportsFeature';
 import { UserManagementPage } from './features/UserManagementFeature';
+import MonthlyTablePage from './features/MonthlyTableFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
 import PendingOrdersWidget from './components/PendingOrdersWidget';
@@ -42,6 +43,7 @@ import {
   LineChart as LineChartIcon,
   Menu as MenuIcon,
   LogOut,
+  Table,
 } from 'lucide-react';
 
 
@@ -62,6 +64,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Fornecedores', path: '/suppliers', icon: Handshake },
   { name: 'Análise de Mercado', path: '/market-analysis', icon: LineChartIcon },
   { name: 'Relatórios', path: '/financial-reports', icon: PieChart },
+  { name: 'Tabela do Mês', path: '/monthly-table', icon: Table },
   { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
   { name: 'Calculadora Venda', path: '/sale-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
@@ -436,6 +439,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/card-calculator" element={<CardFeeCalculatorPage />} />
                     <Route path="/sale-calculator" element={<SaleCalculatorPage />} />
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
+                    <Route path="/monthly-table" element={<MonthlyTablePage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
                     <Route path="/user-management" element={<UserManagementPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
