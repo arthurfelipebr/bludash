@@ -967,7 +967,29 @@ app.get('/api/product-pricing/categories', authenticateToken, (req, res) => {
             console.error('Error fetching categories:', err.message);
             return res.status(500).json({ message: 'Failed to fetch categories.' });
         }
-        res.json(rows);
+        if (rows.length === 0) {
+            db.all('SELECT data FROM productPricing WHERE "userId" = $1', [req.user.id], (err2, prodRows) => {
+                if (err2) {
+                    console.error('Error deriving categories:', err2.message);
+                    return res.status(500).json({ message: 'Failed to fetch categories.' });
+                }
+                const seen = new Set();
+                const derived = [];
+                prodRows.forEach(r => {
+                    try {
+                        const json = JSON.parse(r.data);
+                        const id = json.categoryId || json.category;
+                        if (id && !seen.has(id)) {
+                            seen.add(id);
+                            derived.push({ id, name: id, dustBag: 0, packaging: 0 });
+                        }
+                    } catch (e) { }
+                });
+                return res.json(derived);
+            });
+        } else {
+            res.json(rows);
+        }
     });
 });
 

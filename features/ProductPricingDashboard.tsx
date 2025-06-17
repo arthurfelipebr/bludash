@@ -15,21 +15,6 @@ import {
 
 type Product = PricingProduct;
 
-const DEFAULT_CATEGORIES: PricingCategory[] = [
-  { id: 'AirPods', name: 'AirPods', dustBag: 24, packaging: 26 },
-  { id: 'iPad', name: 'iPad', dustBag: 19, packaging: 21 },
-  { id: 'iPhone', name: 'iPhone', dustBag: 11, packaging: 13 },
-  { id: 'Apple Watch', name: 'Apple Watch', dustBag: 29, packaging: 31 },
-  { id: 'Garmin', name: 'Garmin', dustBag: 10, packaging: 12 },
-  { id: 'iMac', name: 'iMac', dustBag: 40, packaging: 42 },
-  { id: 'Mac Mini', name: 'Mac Mini', dustBag: 20, packaging: 22 },
-  { id: 'Mac Studio', name: 'Mac Studio', dustBag: 45, packaging: 47 },
-  { id: 'MacBook Air', name: 'MacBook Air', dustBag: 25, packaging: 27 },
-  { id: 'MacBook Pro', name: 'MacBook Pro', dustBag: 25, packaging: 27 },
-  { id: 'OpenBox iP', name: 'OpenBox iP', dustBag: 9, packaging: 11 },
-  { id: 'Outros', name: 'Outros', dustBag: 0, packaging: 2 },
-];
-
 const DEFAULT_GLOBALS: PricingGlobals = { nfPercent: 0.02, nfProduto: 30, frete: 105 };
 
 const computeCustoOperacional = (p: Omit<Product, 'id'>): number => {
@@ -53,7 +38,7 @@ const computeValorTabela = (p: Omit<Product, 'id'>): number => {
 };
 
 export const ProductPricingDashboardPage: React.FC = () => {
-  const [categories, setCategories] = useState<PricingCategory[]>(DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useState<PricingCategory[]>([]);
   const [globals, setGlobals] = useState<PricingGlobals>(DEFAULT_GLOBALS);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -67,10 +52,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
   const [productForm, setProductForm] = useState<Omit<Product, 'id'>>({
     name: '',
-    categoryId: DEFAULT_CATEGORIES[0].id,
+    categoryId: '',
     disp: 'Brasil',
-    dustBag: DEFAULT_CATEGORIES[0].dustBag,
-    packaging: DEFAULT_CATEGORIES[0].packaging,
+    dustBag: 0,
+    packaging: 0,
     custoBRL: 0,
     custoUSD: 0,
     cambio: 0,
@@ -96,7 +81,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
   useEffect(() => {
     getProductCategories()
-      .then(cats => setCategories(cats.length ? cats : DEFAULT_CATEGORIES))
+      .then(cats => setCategories(cats))
       .catch(err => console.error('Failed to load categories', err));
     getPricingGlobals()
       .then(g => setGlobals(g))
@@ -210,7 +195,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    const first = categories[0];
+    const first = categories[0] || { id: '', dustBag: 0, packaging: 0 } as PricingCategory;
     const base: Omit<Product, 'id'> = {
       name: '',
       categoryId: first.id,
