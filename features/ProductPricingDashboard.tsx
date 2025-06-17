@@ -227,7 +227,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
   const saveProduct = async () => {
     const custoOperacional = computeCustoOperacional(productForm);
     const valorTabela = computeValorTabela({ ...productForm, custoOperacional });
-    const toSave: Product = { id: editingId ?? uuidv4(), ...productForm, custoOperacional, valorTabela };
+    const toSave: Product = { id: editingId ?? '', ...productForm, custoOperacional, valorTabela };
     try {
       await savePricingProduct(toSave);
       const items = await getPricingProducts();
