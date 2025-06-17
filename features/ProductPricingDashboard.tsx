@@ -135,7 +135,21 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
   useEffect(() => {
     getPricingProducts()
-      .then(setProducts)
+      .then(items => {
+        setProducts(items);
+        setCategories(prev => {
+          let changed = false;
+          const updated = [...prev];
+          items.forEach(p => {
+            if (!updated.some(c => c.id === p.categoryId)) {
+              updated.push({ id: p.categoryId, name: p.categoryId, dustBag: 0, packaging: 0 });
+              changed = true;
+            }
+          });
+          if (changed) saveCategories(updated);
+          return changed ? updated : prev;
+        });
+      })
       .catch(err => console.error('Failed to load products', err));
   }, []);
 
