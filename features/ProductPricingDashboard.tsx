@@ -66,25 +66,22 @@ const saveGlobals = (g: GlobalDefaults) => {
   localStorage.setItem(GLOBAL_KEY, JSON.stringify(g));
 };
 
-const computeValorTabela = (p: Omit<Product, 'id'>): number => {
-  // custos de importação opcionais
+const computeCustoOperacional = (p: Omit<Product, 'id'>): number => {
   const importCosts =
     (p.freteDeclarado || 0) +
     (p.freteEuaBr || 0) +
     (p.freteRedirecionador || 0) +
     (p.impostoImportacao || 0);
+  return p.dustBag + p.packaging + p.frete + p.nfProduto + importCosts;
+};
 
-  // soma dos custos fixos mais o custo do produto
-  const custoTotal =
-    p.dustBag + p.packaging + p.frete + p.custoOperacional + p.nfProduto + importCosts;
+const computeValorTabela = (p: Omit<Product, 'id'>): number => {
+  const custoOperacional = computeCustoOperacional(p);
   const custoConvertido =
     p.disp === 'Brasil' ? (p.custoBRL || 0) : (p.custoUSD || 0) * p.cambio;
-  const custoTotalProd = custoConvertido + custoTotal; // Custo Total + Prod
-
-  // valor de tabela contempla lucro e compensação das NFs
+  const custoTotalProd = custoConvertido + custoOperacional;
   const valorBase = custoTotalProd * (1 + p.lucroPercent);
   const bruto = valorBase / (1 - p.nfPercent);
-  // arredonda o valor para o mais próximo que termine em "70"
   const arredondado = Math.round((bruto - 70) / 100) * 100 + 70;
   return arredondado;
 };
@@ -117,7 +114,10 @@ export const ProductPricingDashboardPage: React.FC = () => {
   });
   // initialize valorTabela based on defaults
   useEffect(() => {
-    setProductForm(prev => ({ ...prev, valorTabela: computeValorTabela(prev) }));
+    setProductForm(prev => {
+      const custoOperacional = computeCustoOperacional(prev);
+      return { ...prev, custoOperacional, valorTabela: computeValorTabela({ ...prev, custoOperacional }) };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -171,7 +171,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
 
   const handleProductField = (field: keyof Omit<Product, 'id'>, value: string) => {
     const numericFields: Array<keyof Omit<Product, 'id'>> = [
-      'dustBag','packaging','custoBRL','custoUSD','cambio','custoOperacional','nfPercent','nfProduto','frete','valorTabela','lucroPercent','freteDeclarado','freteEuaBr','freteRedirecionador','impostoImportacao','precoDeclarado'
+      'dustBag','packaging','custoBRL','custoUSD','cambio','nfPercent','nfProduto','frete','valorTabela','lucroPercent','freteDeclarado','freteEuaBr','freteRedirecionador','impostoImportacao','precoDeclarado'
     ];
     setProductForm(prev => {
       const parsed = numericFields.includes(field) ? Number(value) : value;
@@ -183,6 +183,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
           updated.packaging = cat.packaging;
         }
       }
+      updated.custoOperacional = computeCustoOperacional(updated);
       updated.valorTabela = computeValorTabela(updated);
       return updated;
     });
@@ -191,6 +192,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
   const startEdit = (prod: Product) => {
     setEditingId(prod.id);
     const withoutId = { ...prod } as Omit<Product, 'id'>;
+    withoutId.custoOperacional = computeCustoOperacional(withoutId);
     withoutId.valorTabela = computeValorTabela(withoutId);
     setProductForm(withoutId);
     setDispTab(prod.disp);
@@ -216,14 +218,16 @@ export const ProductPricingDashboardPage: React.FC = () => {
       lucroPercent: 0,
       caixa: '',
     };
+    base.custoOperacional = computeCustoOperacional(base);
     base.valorTabela = computeValorTabela(base);
     setProductForm(base);
     setDispTab('Brasil');
   };
 
   const saveProduct = async () => {
-    const valorTabela = computeValorTabela(productForm);
-    const toSave: Product = { id: editingId ?? uuidv4(), ...productForm, valorTabela };
+    const custoOperacional = computeCustoOperacional(productForm);
+    const valorTabela = computeValorTabela({ ...productForm, custoOperacional });
+    const toSave: Product = { id: editingId ?? uuidv4(), ...productForm, custoOperacional, valorTabela };
     try {
       await savePricingProduct(toSave);
       const items = await getPricingProducts();
@@ -250,18 +254,13 @@ export const ProductPricingDashboardPage: React.FC = () => {
   };
 
   const calcValues = (p: Product) => {
-    const importCosts =
-      (p.freteDeclarado || 0) +
-      (p.freteEuaBr || 0) +
-      (p.freteRedirecionador || 0) +
-      (p.impostoImportacao || 0);
-    const custoTotal = p.dustBag + p.packaging + p.frete + p.custoOperacional + p.nfProduto + importCosts;
+    const custoOperacional = computeCustoOperacional(p);
     const custoConvertido = p.disp === 'Brasil' ? (p.custoBRL || 0) : (p.custoUSD || 0) * p.cambio;
-    const custoTotalProd = custoConvertido + custoTotal;
-    const valorTabela = p.valorTabela || computeValorTabela(p);
+    const custoTotalProd = custoConvertido + custoOperacional;
+    const valorTabela = p.valorTabela || computeValorTabela({ ...p, custoOperacional });
     const valorVenda = valorTabela * (1 - p.nfPercent);
     const lucroFinal = valorVenda - custoTotalProd;
-    return { valorVenda, custoConvertido, custoTotalProd, lucroFinal, parcelado: valorTabela / 12, custoTotal, valorTabela };
+    return { valorVenda, custoConvertido, custoTotalProd, lucroFinal, parcelado: valorTabela / 12, custoTotal: custoOperacional, valorTabela, custoOperacional };
   };
 
 
@@ -381,7 +380,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <Input id="dustBag" label="DustBag" type="number" value={productForm.dustBag} onChange={e => handleProductField('dustBag', e.target.value)} />
             <Input id="packaging" label="Custos Embalagem" type="number" value={productForm.packaging} onChange={e => handleProductField('packaging', e.target.value)} />
-            <Input id="custoOperacional" label="Custo Operacional" type="number" value={productForm.custoOperacional} onChange={e => handleProductField('custoOperacional', e.target.value)} />
+            <Input id="custoOperacional" label="Custo Operacional" type="number" value={productForm.custoOperacional.toFixed(2)} disabled />
             <Input id="frete" label="Frete" type="number" value={productForm.frete} onChange={e => handleProductField('frete', e.target.value)} />
             <Input id="nfProduto" label="NF Produto" type="number" value={productForm.nfProduto} onChange={e => handleProductField('nfProduto', e.target.value)} />
             <Input id="nfPercent" label="NFs (%)" type="number" step="0.01" value={productForm.nfPercent} onChange={e => handleProductField('nfPercent', e.target.value)} />
@@ -444,7 +443,7 @@ export const ProductPricingDashboardPage: React.FC = () => {
                             <span>Custo USD: {(p.custoUSD ?? 0).toFixed(2)}</span>
                             <span>Câmbio: {p.cambio.toFixed(2)}</span>
                             <span>Frete: {p.frete.toFixed(2)}</span>
-                            <span>Custo Operacional: {p.custoOperacional.toFixed(2)}</span>
+                            <span>Custo Operacional: {values.custoOperacional.toFixed(2)}</span>
                             <span>NF Produto: {p.nfProduto.toFixed(2)}</span>
                             <span>NFs (%): {p.nfPercent.toFixed(2)}</span>
                             <span>DustBag: {p.dustBag.toFixed(2)}</span>
