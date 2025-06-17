@@ -50,6 +50,13 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'iPad', name: 'iPad', dustBag: 19, packaging: 21 },
   { id: 'iPhone', name: 'iPhone', dustBag: 11, packaging: 13 },
   { id: 'Apple Watch', name: 'Apple Watch', dustBag: 29, packaging: 31 },
+  { id: 'Garmin', name: 'Garmin', dustBag: 10, packaging: 12 },
+  { id: 'iMac', name: 'iMac', dustBag: 40, packaging: 42 },
+  { id: 'Mac Mini', name: 'Mac Mini', dustBag: 20, packaging: 22 },
+  { id: 'Mac Studio', name: 'Mac Studio', dustBag: 45, packaging: 47 },
+  { id: 'MacBook Air', name: 'MacBook Air', dustBag: 25, packaging: 27 },
+  { id: 'MacBook Pro', name: 'MacBook Pro', dustBag: 25, packaging: 27 },
+  { id: 'OpenBox iP', name: 'OpenBox iP', dustBag: 9, packaging: 11 },
   { id: 'Outros', name: 'Outros', dustBag: 0, packaging: 2 },
 ];
 
@@ -95,17 +102,23 @@ const saveGlobals = (g: GlobalDefaults) => {
 };
 
 const computeValorTabela = (p: Omit<Product, 'id'>): number => {
+  // custos de importação opcionais
   const importCosts =
     (p.freteDeclarado || 0) +
     (p.freteEuaBr || 0) +
     (p.freteRedirecionador || 0) +
     (p.impostoImportacao || 0);
+
+  // soma dos custos fixos mais o custo do produto
   const custoTotal =
     p.dustBag + p.packaging + p.frete + p.custoOperacional + p.nfProduto + importCosts;
   const custoConvertido =
     p.disp === 'Brasil' ? (p.custoBRL || 0) : (p.custoUSD || 0) * p.cambio;
-  const custoTotalProd = custoConvertido + custoTotal;
-  return custoTotalProd * (1 + p.lucroPercent);
+  const custoTotalProd = custoConvertido + custoTotal; // Custo Total + Prod
+
+  // valor de tabela contempla lucro e compensação das NFs
+  const valorBase = custoTotalProd * (1 + p.lucroPercent);
+  return valorBase / (1 - p.nfPercent);
 };
 
 export const ProductPricingDashboardPage: React.FC = () => {
@@ -312,11 +325,15 @@ export const ProductPricingDashboardPage: React.FC = () => {
         </div>
       </Card>
 
-      <Card title="Cadastro / Edição de Produtos" bodyClassName="space-y-4 p-4">
+      <Card title="Cadastro / Edição de Produtos" bodyClassName="space-y-6 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input id="prod-name" label="Produto" value={productForm.name} onChange={e => handleProductField('name', e.target.value)} />
           <Select id="prod-cat" label="Categoria" value={productForm.categoryId} onChange={e => handleProductField('categoryId', e.target.value)} options={categories.map(c => ({ value: c.id, label: c.name }))} />
           <Select id="prod-disp" label="Disp" value={productForm.disp} onChange={e => handleProductField('disp', e.target.value as 'Brasil' | 'EUA')} options={[{ value: 'Brasil', label: 'Brasil' }, { value: 'EUA', label: 'EUA' }]} />
+        </div>
+
+        <h3 className="text-lg font-semibold">Custos do Produto</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input id="dustBag" label="DustBag" type="number" value={productForm.dustBag} onChange={e => handleProductField('dustBag', e.target.value)} />
           <Input id="packaging" label="Custos Embalagem" type="number" value={productForm.packaging} onChange={e => handleProductField('packaging', e.target.value)} />
           {productForm.disp === 'Brasil' && (
@@ -326,24 +343,37 @@ export const ProductPricingDashboardPage: React.FC = () => {
             <Input id="custoUSD" label="Custo USD" type="number" value={productForm.custoUSD} onChange={e => handleProductField('custoUSD', e.target.value)} />
           )}
           <Input id="cambio" label="Câmbio" type="number" value={productForm.cambio} onChange={e => handleProductField('cambio', e.target.value)} />
+        </div>
+
+        <h3 className="text-lg font-semibold">Custos Operacionais</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input id="custoOperacional" label="Custo Operacional" type="number" value={productForm.custoOperacional} onChange={e => handleProductField('custoOperacional', e.target.value)} />
           <Input id="nfPercent" label="NFs (%)" type="number" step="0.01" value={productForm.nfPercent} onChange={e => handleProductField('nfPercent', e.target.value)} />
           <Input id="nfProduto" label="NF Produto" type="number" value={productForm.nfProduto} onChange={e => handleProductField('nfProduto', e.target.value)} />
           <Input id="frete" label="Frete" type="number" value={productForm.frete} onChange={e => handleProductField('frete', e.target.value)} />
-          <Input id="valorTabela" label="Valor de Tabela" type="number" value={productForm.valorTabela.toFixed(2)} disabled />
           <Input id="lucroPercent" label="% Lucro" type="number" value={productForm.lucroPercent} onChange={e => handleProductField('lucroPercent', e.target.value)} />
           <Input id="caixa" label="Caixa" value={productForm.caixa} onChange={e => handleProductField('caixa', e.target.value)} />
         </div>
+
+        <h3 className="text-lg font-semibold">Cálculo</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input id="valorTabela" label="Valor de Tabela" type="number" value={productForm.valorTabela.toFixed(2)} disabled />
+        </div>
+
         {productForm.disp === 'EUA' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input id="freteDeclarado" label="Frete Declarado" type="number" value={productForm.freteDeclarado || 0} onChange={e => handleProductField('freteDeclarado', e.target.value)} />
-            <Input id="freteEuaBr" label="Frete EUA x BR" type="number" value={productForm.freteEuaBr || 0} onChange={e => handleProductField('freteEuaBr', e.target.value)} />
-            <Input id="freteRed" label="Frete P/ Redirecionador" type="number" value={productForm.freteRedirecionador || 0} onChange={e => handleProductField('freteRedirecionador', e.target.value)} />
-            <Input id="imposto" label="Imposto de Importação" type="number" value={productForm.impostoImportacao || 0} onChange={e => handleProductField('impostoImportacao', e.target.value)} />
-            <Input id="nomeDec" label="Nome Declarado" value={productForm.nomeDeclarado || ''} onChange={e => handleProductField('nomeDeclarado', e.target.value)} />
-            <Input id="precoDec" label="Preço Declarado" type="number" value={productForm.precoDeclarado || 0} onChange={e => handleProductField('precoDeclarado', e.target.value)} />
-          </div>
+          <>
+            <h3 className="text-lg font-semibold">Custos de Importação</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input id="freteDeclarado" label="Frete Declarado" type="number" value={productForm.freteDeclarado || 0} onChange={e => handleProductField('freteDeclarado', e.target.value)} />
+              <Input id="freteEuaBr" label="Frete EUA x BR" type="number" value={productForm.freteEuaBr || 0} onChange={e => handleProductField('freteEuaBr', e.target.value)} />
+              <Input id="freteRed" label="Frete P/ Redirecionador" type="number" value={productForm.freteRedirecionador || 0} onChange={e => handleProductField('freteRedirecionador', e.target.value)} />
+              <Input id="imposto" label="Imposto de Importação" type="number" value={productForm.impostoImportacao || 0} onChange={e => handleProductField('impostoImportacao', e.target.value)} />
+              <Input id="nomeDec" label="Nome Declarado" value={productForm.nomeDeclarado || ''} onChange={e => handleProductField('nomeDeclarado', e.target.value)} />
+              <Input id="precoDec" label="Preço Declarado" type="number" value={productForm.precoDeclarado || 0} onChange={e => handleProductField('precoDeclarado', e.target.value)} />
+            </div>
+          </>
         )}
+
         <div className="flex justify-end space-x-2">
           <Button variant="secondary" onClick={resetForm}>Cancelar</Button>
           <Button onClick={saveProduct}>{editingId ? 'Atualizar Produto' : 'Salvar Novo Produto'}</Button>
