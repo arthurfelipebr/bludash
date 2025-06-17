@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { CustomTableRow } from '../types';
-import { getCustomTableRows, addCustomTableRow, updateCustomTableRow, deleteCustomTableRow } from '../services/AppService';
-import { PageTitle, Card, Button, Input, Modal } from '../components/SharedComponents';
+import {
+  getCustomTableRows,
+  addCustomTableRow,
+  updateCustomTableRow,
+  deleteCustomTableRow,
+} from '../services/AppService';
+import {
+  PageTitle,
+  Card,
+  Button,
+  Input,
+  ResponsiveTable,
+} from '../components/SharedComponents';
 
 const emptyRow: Omit<CustomTableRow, 'id'> = {
   Data: '',
@@ -20,10 +31,10 @@ const emptyRow: Omit<CustomTableRow, 'id'> = {
   Data_de_Pagamento: '',
   Juros_Multa: '',
   Descontos: '',
-  Observacoes: ''
+  Observacoes: '',
 };
 
-const fieldList: Array<{ label: string; key: keyof Omit<CustomTableRow,'id'> }> = [
+const fieldList: Array<{ label: string; key: keyof Omit<CustomTableRow, 'id'> }> = [
   { label: 'Data', key: 'Data' },
   { label: 'Descrição', key: 'Descrição' },
   { label: 'Categoria', key: 'Categoria' },
@@ -40,43 +51,69 @@ const fieldList: Array<{ label: string; key: keyof Omit<CustomTableRow,'id'> }> 
   { label: 'Data de Pagamento', key: 'Data_de_Pagamento' },
   { label: 'Juros/Multa', key: 'Juros_Multa' },
   { label: 'Descontos', key: 'Descontos' },
-  { label: 'Observações', key: 'Observacoes' }
+  { label: 'Observações', key: 'Observacoes' },
 ];
 
 export const CustomTablePage: React.FC = () => {
   const [rows, setRows] = useState<CustomTableRow[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRow, setEditingRow] = useState<CustomTableRow | null>(null);
-  const [formData, setFormData] = useState<Omit<CustomTableRow,'id'>>(emptyRow);
+  const [selectedRecord, setSelectedRecord] = useState<CustomTableRow | null>(null);
+  const [formData, setFormData] = useState<Omit<CustomTableRow, 'id'>>(emptyRow);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchData = async () => {
+    setIsLoading(true);
     try {
       setRows(await getCustomTableRows());
     } catch (e) {
       console.error('Failed to fetch custom table', e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const openNew = () => { setEditingRow(null); setFormData(emptyRow); setIsModalOpen(true); };
-  const openEdit = (row: CustomTableRow) => { setEditingRow(row); setFormData({ ...row }); setIsModalOpen(true); };
+  const openNew = () => {
+    setSelectedRecord(null);
+    setFormData(emptyRow);
+    setIsCreating(true);
+    setIsEditing(false);
+  };
 
-  const handleChange = (key: keyof Omit<CustomTableRow,'id'>, value: string) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
+  const handleRowClick = (row: CustomTableRow) => {
+    setSelectedRecord(row);
+    setFormData({ ...row });
+    setIsCreating(false);
+    setIsEditing(false);
+  };
+
+  const handleChange = (
+    key: keyof Omit<CustomTableRow, 'id'>,
+    value: string
+  ) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (editingRow) {
-        await updateCustomTableRow({ ...formData, id: editingRow.id });
-      } else {
-        await addCustomTableRow(formData);
+      let saved: CustomTableRow | null = null;
+      if (isCreating) {
+        saved = await addCustomTableRow(formData);
+      } else if (isEditing && selectedRecord) {
+        saved = await updateCustomTableRow({ ...formData, id: selectedRecord.id });
       }
-      await fetchData();
-      setIsModalOpen(false);
+      if (saved) {
+        await fetchData();
+        setSelectedRecord(saved);
+        setIsCreating(false);
+        setIsEditing(false);
+      }
     } catch (e) {
       console.error('Failed to save row', e);
     } finally {
@@ -84,71 +121,109 @@ export const CustomTablePage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Confirma a exclusão?')) return;
-    await deleteCustomTableRow(id);
-    fetchData();
+  const handleCancel = () => {
+    if (isCreating) {
+      setIsCreating(false);
+      setFormData(emptyRow);
+    } else if (isEditing && selectedRecord) {
+      setIsEditing(false);
+      setFormData({ ...selectedRecord });
+    }
   };
+
+  const handleDelete = async () => {
+    if (!selectedRecord) return;
+    if (!window.confirm('Confirma a exclusão?')) return;
+    try {
+      await deleteCustomTableRow(selectedRecord.id);
+      await fetchData();
+      setSelectedRecord(null);
+      setFormData(emptyRow);
+      setIsEditing(false);
+      setIsCreating(false);
+    } catch (e) {
+      console.error('Failed to delete row', e);
+    }
+  };
+
+  const tableColumns = [
+    { header: 'Data', accessor: 'Data' as keyof CustomTableRow },
+    { header: 'Descrição', accessor: 'Descrição' as keyof CustomTableRow },
+    { header: 'Valor em BRL', accessor: 'Valor_em_BRL' as keyof CustomTableRow },
+    { header: 'Fornecedor', accessor: 'Fornecedor' as keyof CustomTableRow },
+    { header: 'Status', accessor: 'Status_do_Pagamento' as keyof CustomTableRow },
+  ];
 
   return (
     <div>
       <PageTitle title="Tabela Customizável" />
-      <Card className="mb-4">
-        <Button onClick={openNew}>Adicionar Novo Registro</Button>
-      </Card>
-      <Card>
-        <table className="min-w-full table-auto text-sm">
-          <thead>
-            <tr>
-              {fieldList.map(f => (
-                <th key={f.key as string} className="px-2 py-1 text-left font-medium">{f.label}</th>
-              ))}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.id} className="border-t">
-                {fieldList.map(f => (
-                  <td key={f.key as string} className="px-2 py-1">{(r as any)[f.key]}</td>
-                ))}
-                <td className="px-2 py-1 whitespace-nowrap">
-                  <Button size="sm" onClick={() => openEdit(r)}>Editar</Button>
-                  <Button size="sm" variant="danger" className="ml-2" onClick={() => handleDelete(r.id)}>Excluir</Button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={fieldList.length + 1} className="text-center py-4 text-gray-500">Nenhum registro.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingRow ? 'Editar Registro' : 'Novo Registro'}
-        size="3xl"
-        footer={(
-          <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
-          </>
-        )}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {fieldList.map(f => (
-            <Input
-              key={f.key as string}
-              id={`field-${f.key}`}
-              label={f.label}
-              value={(formData as any)[f.key] || ''}
-              onChange={e => handleChange(f.key, e.target.value)}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-4">
+          <Card className="p-4">
+            <div className="mb-4">
+              <Button onClick={openNew}>Adicionar Novo Registro</Button>
+            </div>
+            <ResponsiveTable
+              columns={tableColumns}
+              data={rows}
+              isLoading={isLoading}
+              rowKeyAccessor="id"
+              onRowClick={handleRowClick}
+              emptyStateMessage="Nenhum registro."
             />
-          ))}
+          </Card>
         </div>
-      </Modal>
+        <div className="md:col-span-1">
+          <Card title="Detalhes" bodyClassName="p-4 space-y-4">
+            {isCreating || isEditing ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {fieldList.map((f) => (
+                    <Input
+                      key={f.key as string}
+                      id={`field-${f.key}`}
+                      label={f.label}
+                      value={(formData as any)[f.key] || ''}
+                      onChange={(e) => handleChange(f.key, e.target.value)}
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="secondary" onClick={handleCancel}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSave} isLoading={isSaving}>
+                    Salvar
+                  </Button>
+                </div>
+              </>
+            ) : selectedRecord ? (
+              <>
+                <div className="space-y-2 text-sm">
+                  {fieldList.map((f) => (
+                    <div key={f.key} className="border-b pb-1">
+                      <p className="font-medium">{f.label}</p>
+                      <p className="break-words">
+                        {(selectedRecord as any)[f.key] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button onClick={() => setIsEditing(true)}>Editar</Button>
+                  <Button variant="danger" onClick={handleDelete}>
+                    Excluir
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                Selecione um registro para ver os detalhes ou adicione um novo
+              </p>
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
