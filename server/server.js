@@ -960,6 +960,78 @@ app.get('/api/product-pricing/history', authenticateToken, (req, res) => {
     });
 });
 
+// Product Category CRUD
+app.get('/api/product-pricing/categories', authenticateToken, (req, res) => {
+    db.all('SELECT id, name, dustBag, packaging FROM productCategories WHERE "userId" = $1', [req.user.id], (err, rows) => {
+        if (err) {
+            console.error('Error fetching categories:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch categories.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.post('/api/product-pricing/categories', authenticateToken, (req, res) => {
+    const { id, name, dustBag, packaging } = req.body;
+    const catId = id || uuidv4();
+    db.run('INSERT INTO productCategories (id, "userId", name, dustBag, packaging) VALUES ($1,$2,$3,$4,$5)', [catId, req.user.id, name, dustBag, packaging], function(err) {
+        if (err) {
+            console.error('Error saving category:', err.message);
+            return res.status(500).json({ message: 'Failed to save category.' });
+        }
+        res.status(201).json({ id: catId, name, dustBag, packaging });
+    });
+});
+
+app.put('/api/product-pricing/categories/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    const { name, dustBag, packaging } = req.body;
+    db.run('UPDATE productCategories SET name=$1, dustBag=$2, packaging=$3 WHERE id=$4 AND "userId"=$5', [name, dustBag, packaging, id, req.user.id], function(err) {
+        if (err) {
+            console.error('Error updating category:', err.message);
+            return res.status(500).json({ message: 'Failed to update category.' });
+        }
+        res.json({ id, name, dustBag, packaging });
+    });
+});
+
+app.delete('/api/product-pricing/categories/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    db.run('DELETE FROM productCategories WHERE id=$1 AND "userId"=$2', [id, req.user.id], function(err) {
+        if (err) {
+            console.error('Error deleting category:', err.message);
+            return res.status(500).json({ message: 'Failed to delete category.' });
+        }
+        res.sendStatus(204);
+    });
+});
+
+// Pricing Globals
+app.get('/api/product-pricing/globals', authenticateToken, (req, res) => {
+    db.get('SELECT nfPercent, nfProduto, frete FROM productPricingGlobals WHERE "userId" = $1', [req.user.id], (err, row) => {
+        if (err) {
+            console.error('Error fetching globals:', err.message);
+            return res.status(500).json({ message: 'Failed to fetch globals.' });
+        }
+        if (!row) {
+            return res.json({ nfPercent: 0.02, nfProduto: 30, frete: 105 });
+        }
+        res.json(row);
+    });
+});
+
+app.put('/api/product-pricing/globals', authenticateToken, (req, res) => {
+    const { nfPercent, nfProduto, frete } = req.body;
+    const sql = 'INSERT INTO productPricingGlobals ("userId", nfPercent, nfProduto, frete) VALUES ($1,$2,$3,$4) ON CONFLICT("userId") DO UPDATE SET nfPercent=$2, nfProduto=$3, frete=$4';
+    db.run(sql, [req.user.id, nfPercent, nfProduto, frete], function(err) {
+        if (err) {
+            console.error('Error saving globals:', err.message);
+            return res.status(500).json({ message: 'Failed to save globals.' });
+        }
+        res.json({ nfPercent, nfProduto, frete });
+    });
+});
+
 app.post('/api/contracts/autentique', authenticateToken, (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ message: 'orderId required' });

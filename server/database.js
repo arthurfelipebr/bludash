@@ -227,6 +227,23 @@ function initializeDatabase() {
         FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS productCategories (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        name TEXT NOT NULL,
+        dustBag REAL NOT NULL,
+        packaging REAL NOT NULL,
+        FOREIGN KEY ("userId") REFERENCES users(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS productPricingGlobals (
+        "userId" TEXT PRIMARY KEY,
+        nfPercent REAL NOT NULL,
+        nfProduto REAL NOT NULL,
+        frete REAL NOT NULL,
+        FOREIGN KEY ("userId") REFERENCES users(id)
+    )`);
+
     db.run(`CREATE TABLE IF NOT EXISTS productPricing (
         id TEXT PRIMARY KEY,
         "userId" TEXT NOT NULL,

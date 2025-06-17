@@ -114,6 +114,19 @@ export interface PricingHistoryEntry {
   recordedAt: string;
 }
 
+export interface PricingCategory {
+  id: string;
+  name: string;
+  dustBag: number;
+  packaging: number;
+}
+
+export interface PricingGlobals {
+  nfPercent: number;
+  nfProduto: number;
+  frete: number;
+}
+
 
 export interface InternalNote {
     id: string;
