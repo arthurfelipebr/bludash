@@ -539,6 +539,28 @@ export const getPricingProducts = async (): Promise<PricingProduct[]> => {
     return apiClient<PricingProduct[]>('/product-pricing');
 };
 
+export interface PricingCategory {
+    id: string;
+    name: string;
+    dustBag: number;
+    packaging: number;
+}
+
+export const getPricingCategories = async (): Promise<PricingCategory[]> => {
+    return apiClient<PricingCategory[]>('/product-categories');
+};
+
+export const savePricingCategory = async (cat: PricingCategory): Promise<PricingCategory> => {
+    if (cat.id) {
+        return apiClient<PricingCategory>(`/product-categories/${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
+    }
+    return apiClient<PricingCategory>('/product-categories', { method: 'POST', body: JSON.stringify(cat) });
+};
+
+export const deletePricingCategory = async (id: string): Promise<void> => {
+    return apiClient<void>(`/product-categories/${id}`, { method: 'DELETE' });
+};
+
 export const savePricingProduct = async (product: PricingProduct): Promise<PricingProduct> => {
     if (product.id) {
         return apiClient<PricingProduct>(`/product-pricing/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
