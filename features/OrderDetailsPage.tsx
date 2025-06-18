@@ -9,6 +9,7 @@ import {
   sendOrderContractToAutentique,
   DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE,
   ORDER_STATUS_OPTIONS,
+  PRODUCT_CONDITION_OPTIONS,
   saveOrder,
   uploadArrivalPhoto,
 } from '../services/AppService';
@@ -27,9 +28,9 @@ import {
   PageTitle,
   Tabs,
   Tab,
+  Toast,
 } from '../components/SharedComponents';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
-import { OrderForm } from './OrdersFeature';
 import { Pencil } from 'lucide-react';
 
 interface ParsedThreeuTools {
@@ -110,9 +111,10 @@ const OrderDetailsPage: React.FC = () => {
   const [correiosEvents, setCorreiosEvents] = useState<any[]>([]);
   const [isLoadingCorreios, setIsLoadingCorreios] = useState(false);
   const [orderToRegisterPayment, setOrderToRegisterPayment] = useState<Order | null>(null);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [isEditingSummary, setIsEditingSummary] = useState(false);
-  const [editedSummary, setEditedSummary] = useState<Order | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [backupOrder, setBackupOrder] = useState<Order | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -133,18 +135,32 @@ const OrderDetailsPage: React.FC = () => {
     }
   };
 
-  const handleSave = async (updated: Order) => {
-    await saveOrder(updated);
-    setOrder(updated);
-    setIsEditFormOpen(false);
+  const startEditing = () => {
+    if (order) {
+      setBackupOrder(order);
+      setIsEditing(true);
+    }
   };
 
-  const handleSummarySave = async () => {
-    if (!editedSummary) return;
-    await saveOrder(editedSummary);
-    setOrder(editedSummary);
-    setIsEditingSummary(false);
-    setEditedSummary(null);
+  const handleSaveInline = async () => {
+    if (!order) return;
+    setIsSaving(true);
+    try {
+      await saveOrder(order);
+      setToastMsg('Pedido atualizado com sucesso.');
+      setIsEditing(false);
+      setBackupOrder(null);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (backupOrder) {
+      setOrder(backupOrder);
+    }
+    setIsEditing(false);
+    setBackupOrder(null);
   };
 
   const handleArrivalPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -258,9 +274,18 @@ const OrderDetailsPage: React.FC = () => {
         subtitle={order.customerName}
         actions={
           <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" onClick={() => setIsEditFormOpen(true)} title="Editar">
-              <Pencil className="h-5 w-5" />
-            </Button>
+            {!isEditing ? (
+              <Button variant="ghost" size="sm" onClick={startEditing} title="Editar">
+                <Pencil className="h-5 w-5" />
+              </Button>
+            ) : (
+              <>
+                <Button size="sm" onClick={handleSaveInline} disabled={isSaving}>
+                  {isSaving ? <Spinner size="sm" /> : 'Salvar alterações'}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
+              </>
+            )}
             <Button onClick={() => navigate('/orders')}>Voltar</Button>
           </div>
         }
@@ -277,35 +302,72 @@ const OrderDetailsPage: React.FC = () => {
           <Card>
             <div className="flex justify-between items-start mb-2">
               <h3 className="text-lg font-semibold">Informações Gerais</h3>
-              {!isEditingSummary && (
-                <button onClick={() => {setEditedSummary(order);setIsEditingSummary(true);}} className="text-gray-500">
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <span className="font-medium text-gray-800">Cliente</span>
-                {isEditingSummary ? (
-                  <input className="mt-1 w-full border rounded p-1" value={editedSummary?.customerName || ''} onChange={e => setEditedSummary(p => p ? ({...p, customerName:e.target.value}) : p)} />
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.customerName} onChange={e => setOrder({ ...order, customerName: e.target.value })} />
                 ) : (
-                  <p className="text-gray-700 flex items-center">{order.customerName}<Pencil className="h-3 w-3 ml-1 text-gray-400" /></p>
+                  <p className="text-gray-700 mt-1">{order.customerName}</p>
                 )}
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <span className="font-medium text-gray-800">Produto</span>
-                {isEditingSummary ? (
-                  <input className="mt-1 w-full border rounded p-1" value={editedSummary?.productName + ' ' + (editedSummary?.model||'')} onChange={e => setEditedSummary(p=>p?{...p, productName:e.target.value}:{...order})} />
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.productName} onChange={e => setOrder({ ...order, productName: e.target.value })} />
                 ) : (
-                  <p className="text-gray-700 flex items-center">{order.productName} {order.model} {order.watchSize && `(${order.watchSize})`} ({order.capacity}) - {order.color} [{order.condition}]<Pencil className="h-3 w-3 ml-1 text-gray-400" /></p>
+                  <p className="text-gray-700 mt-1">{order.productName}</p>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Modelo</span>
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.model} onChange={e => setOrder({ ...order, model: e.target.value })} />
+                ) : (
+                  <p className="text-gray-700 mt-1">{order.model}</p>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Capacidade</span>
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.capacity} onChange={e => setOrder({ ...order, capacity: e.target.value })} />
+                ) : (
+                  <p className="text-gray-700 mt-1">{order.capacity}</p>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Tamanho</span>
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.watchSize || ''} onChange={e => setOrder({ ...order, watchSize: e.target.value })} />
+                ) : (
+                  <p className="text-gray-700 mt-1">{order.watchSize || '-'}</p>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Cor</span>
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.color} onChange={e => setOrder({ ...order, color: e.target.value })} />
+                ) : (
+                  <p className="text-gray-700 mt-1">{order.color}</p>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Condição</span>
+                {isEditing ? (
+                  <select className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.condition} onChange={e => setOrder({ ...order, condition: e.target.value as any })}>
+                    {PRODUCT_CONDITION_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : (
+                  <p className="text-gray-700 mt-1">{order.condition}</p>
                 )}
               </div>
               <div>
                 <span className="font-medium text-gray-800">Fornecedor</span>
-                {isEditingSummary ? (
-                  <input className="mt-1 w-full border rounded p-1" value={editedSummary?.supplierName || ''} onChange={e => setEditedSummary(p=>p?{...p, supplierName:e.target.value}:p)} />
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.supplierName || ''} onChange={e => setOrder({ ...order, supplierName: e.target.value })} />
                 ) : (
-                  <div className="flex items-center text-gray-700">
+                  <div className="flex items-center mt-1 text-gray-700">
                     {supplierNameVisible ? (<span>{order.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)}
                     <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-1 p-1">
                       {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
@@ -315,10 +377,10 @@ const OrderDetailsPage: React.FC = () => {
               </div>
               <div>
                 <span className="font-medium text-gray-800">Custo (Fornecedor)</span>
-                {isEditingSummary ? (
-                  <input className="mt-1 w-full border rounded p-1" type="number" value={editedSummary?.purchasePrice ?? 0} onChange={e => setEditedSummary(p=>p?{...p, purchasePrice: parseFloat(e.target.value)}:p)} />
+                {isEditing ? (
+                  <input className="w-full px-2 py-1 border rounded text-sm mt-1" type="number" value={order.purchasePrice} onChange={e => setOrder({ ...order, purchasePrice: parseFloat(e.target.value) || 0 })} />
                 ) : (
-                  <div className="flex items-center text-gray-700">
+                  <div className="flex items-center mt-1 text-gray-700">
                     {purchasePriceVisible ? (<span>{formatCurrencyBRL(order.purchasePrice)}</span>) : (
                       <span className="blur-sm select-none">{formatCurrencyBRL(order.purchasePrice)}</span>
                     )}
@@ -328,46 +390,55 @@ const OrderDetailsPage: React.FC = () => {
                   </div>
                 )}
               </div>
+              <div className="md:col-span-2 lg:col-span-3">
+                <span className="font-medium text-gray-800">Observações</span>
+                {isEditing ? (
+                  <textarea className="w-full px-2 py-1 border rounded text-sm mt-1" value={order.notes || ''} onChange={e => setOrder({ ...order, notes: e.target.value })} />
+                ) : (
+                  <p className="text-gray-700 mt-1">{order.notes || '-'}</p>
+                )}
+              </div>
               {parsedReport.data.serialNumber && (
                 <div>
                   <span className="font-medium text-gray-800">Serial Number</span>
-                  <p className="text-gray-700">{parsedReport.data.serialNumber}</p>
+                  <p className="text-gray-700 mt-1">{parsedReport.data.serialNumber}</p>
                 </div>
               )}
               {parsedReport.data.iosVersion && (
                 <div>
                   <span className="font-medium text-gray-800">iOS Version</span>
-                  <p className="text-gray-700">{parsedReport.data.iosVersion}</p>
+                  <p className="text-gray-700 mt-1">{parsedReport.data.iosVersion}</p>
                 </div>
               )}
               {parsedReport.data.manufactureDate && (
                 <div>
                   <span className="font-medium text-gray-800">Data de Fabricação</span>
-                  <p className="text-gray-700">{parsedReport.data.manufactureDate}</p>
+                  <p className="text-gray-700 mt-1">{parsedReport.data.manufactureDate}</p>
                 </div>
               )}
               {parsedReport.data.warrantyDate && (
                 <div>
                   <span className="font-medium text-gray-800">Data de Garantia</span>
-                  <p className="text-gray-700">{parsedReport.data.warrantyDate}</p>
+                  <p className="text-gray-700 mt-1">{parsedReport.data.warrantyDate}</p>
                 </div>
               )}
               {parsedReport.data.chargeTimes && (
                 <div>
                   <span className="font-medium text-gray-800">Charge Times</span>
-                  <p className="text-gray-700">{parsedReport.data.chargeTimes}</p>
+                  <p className="text-gray-700 mt-1">{parsedReport.data.chargeTimes}</p>
                 </div>
               )}
               {parsedReport.data.batteryLife && (
                 <div>
                   <span className="font-medium text-gray-800">Battery Life</span>
-                  <p className="text-gray-700">{parsedReport.data.batteryLife}</p>
+                  <p className="text-gray-700 mt-1">{parsedReport.data.batteryLife}</p>
                 </div>
               )}
             </div>
-            {isEditingSummary && (
-              <div className="mt-4">
-                <Button size="sm" onClick={handleSummarySave}>Salvar alterações</Button>
+            {isEditing && (
+              <div className="mt-4 flex space-x-2">
+                <Button size="sm" onClick={handleSaveInline} disabled={isSaving}>{isSaving ? <Spinner size="sm" /> : 'Salvar alterações'}</Button>
+                <Button size="sm" variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
               </div>
             )}
           </Card>
@@ -539,7 +610,6 @@ const OrderDetailsPage: React.FC = () => {
       )}
 
       <div className="flex justify-end space-x-2 mt-6">
-        <Button variant="secondary" onClick={() => setIsEditFormOpen(true)}>Editar Encomenda</Button>
         <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/occurrences`)}>Ocorrências</Button>
         <Button onClick={() => navigate('/orders')}>Voltar</Button>
         <Button variant="secondary" onClick={handleSendContract}>Enviar Contrato</Button>
@@ -555,15 +625,7 @@ const OrderDetailsPage: React.FC = () => {
           }}
         />
       )}
-
-      {isEditFormOpen && (
-        <OrderForm
-          isOpen={isEditFormOpen}
-          onClose={() => setIsEditFormOpen(false)}
-          onSave={handleSave}
-          initialOrder={order}
-        />
-      )}
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
     </div>
   );
 };
