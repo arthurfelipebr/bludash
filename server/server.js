@@ -899,6 +899,7 @@ app.get('/api/product-pricing', authenticateToken, (req, res) => {
         pp.custoBRL,
         pp.valorTabela,
         pp.lucroPercent,
+        pp.usarLucroDaCategoria,
         pp.updatedAt
     FROM productPricing pp
     JOIN products p ON pp.productId = p.id
@@ -931,8 +932,8 @@ app.post('/api/product-pricing', authenticateToken, (req, res) => {
     const now = new Date().toISOString();
     const sql = `INSERT INTO productPricing (
         id, productId, "userId", custoBRL, custoOperacional, frete,
-        nfPercent, lucroPercent, valorTabela, updatedAt
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`;
+        nfPercent, lucroPercent, valorTabela, usarLucroDaCategoria, updatedAt
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`;
     const params = [
         id,
         productId,
@@ -943,6 +944,7 @@ app.post('/api/product-pricing', authenticateToken, (req, res) => {
         nfPercent,
         lucroPercent,
         valorTabela,
+        req.body.usarLucroDaCategoria ?? 1,
         now
     ];
     db.run(sql, params, function(err) {
@@ -957,7 +959,7 @@ app.post('/api/product-pricing', authenticateToken, (req, res) => {
                 () => {}
             );
         }
-        res.status(201).json({ id, productId, custoBRL, valorTabela, custoOperacional, frete, nfPercent, lucroPercent, updatedAt: now });
+        res.status(201).json({ id, productId, custoBRL, valorTabela, custoOperacional, frete, nfPercent, lucroPercent, usarLucroDaCategoria: req.body.usarLucroDaCategoria ?? 1, updatedAt: now });
     });
 });
 
@@ -973,6 +975,7 @@ app.put('/api/product-pricing/:id', authenticateToken, (req, res) => {
     if (data.nfPercent !== undefined) { fields.push('nfPercent = ?'); params.push(data.nfPercent); }
     if (data.lucroPercent !== undefined) { fields.push('lucroPercent = ?'); params.push(data.lucroPercent); }
     if (data.valorTabela !== undefined) { fields.push('valorTabela = ?'); params.push(data.valorTabela); }
+    if (data.usarLucroDaCategoria !== undefined) { fields.push('usarLucroDaCategoria = ?'); params.push(data.usarLucroDaCategoria ? 1 : 0); }
     fields.push('updatedAt = ?');
     params.push(now);
     params.push(productId, req.user.id);
