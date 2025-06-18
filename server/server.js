@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 const db = require('./database'); // SQLite database connection
 const { GoogleGenAI } = require('@google/genai');
 
@@ -16,6 +17,26 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-jwt-secret-key'; // 
 const AUTENTIQUE_TOKEN = process.env.AUTENTIQUE_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Ou process.env.API_KEY, conforme seu .env
 const CORREIOS_API_KEY = process.env.CORREIOS_API_KEY;
+
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const orderId = req.params.orderId || 'misc';
+    const now = new Date();
+    const dir = path.join(
+      UPLOADS_DIR,
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      orderId
+    );
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, unique + '-' + file.originalname);
+  },
+});
+const upload = multer({ storage });
 
 let correiosToken = null;
 let correiosTokenExpiry = 0; // epoch milliseconds
@@ -63,6 +84,7 @@ if (GEMINI_API_KEY) {
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // --- Middleware for Authentication ---
 const authenticateToken = (req, res, next) => {
@@ -395,9 +417,38 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
         internalNotes: JSON.parse(row.internalNotes || '[]'),
         arrivalPhotos: JSON.parse(row.arrivalPhotos || '[]'),
         imeiBlocked: Boolean(row.imeiBlocked),
-        readyForDelivery: Boolean(row.readyForDelivery),
-        bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
-      });
+      readyForDelivery: Boolean(row.readyForDelivery),
+      bluFacilitaUsesSpecialRate: Boolean(row.bluFacilitaUsesSpecialRate),
+    });
+  });
+  });
+});
+
+app.post('/api/orders/:orderId/arrival-photos', authenticateToken, upload.single('photo'), (req, res) => {
+  const file = req.file;
+  const orderId = req.params.orderId;
+  if (!file) return res.status(400).json({ message: 'No file uploaded.' });
+  db.get('SELECT arrivalPhotos FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
+    if (err || !row) {
+      return res.status(404).json({ message: 'Order not found.' });
+    }
+    const existing = JSON.parse(row.arrivalPhotos || '[]');
+    const relative = path.relative(UPLOADS_DIR, file.path).replace(/\\/g, '/');
+    const doc = {
+      id: uuidv4(),
+      name: file.originalname,
+      url: `/uploads/${relative}`,
+      uploadedAt: new Date().toISOString(),
+      type: file.mimetype,
+      size: file.size,
+    };
+    const updated = [...existing, doc];
+    db.run('UPDATE orders SET "arrivalPhotos" = $1 WHERE id = $2 AND "userId" = $3', [JSON.stringify(updated), orderId, req.user.id], err2 => {
+      if (err2) {
+        console.error('Error saving arrival photo:', err2.message);
+        return res.status(500).json({ message: 'Failed to save photo.' });
+      }
+      res.json(doc);
     });
   });
 });

@@ -323,6 +323,21 @@ export const saveOrder = async (orderData: Omit<Order, 'id' | 'userId'> | Order)
   }
 };
 
+export const uploadArrivalPhoto = async (orderId: string, file: File): Promise<DocumentFile> => {
+  const token = getAuthToken();
+  const formData = new FormData();
+  formData.append('photo', file);
+  const res = await fetch(`/api/orders/${orderId}/arrival-photos`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error('Falha ao enviar foto');
+  }
+  return res.json();
+};
+
 export const deleteOrder = async (orderId: string): Promise<void> => {
   return apiClient<void>(`/orders/${orderId}`, { method: 'DELETE' });
 };
