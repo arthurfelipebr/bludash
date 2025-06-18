@@ -977,6 +977,14 @@ export const OrdersPage = () => {
       {isFormOpen && <OrderForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingOrder(null); }} onSave={handleSaveOrder} initialOrder={editingOrder} prefillData={(location.state as any)?.prefillOrderData as OrderFormPrefillData | undefined} />}
       {orderToToggleImeiLock && ( <Modal isOpen={!!orderToToggleImeiLock} onClose={() => setOrderToToggleImeiLock(null)} title={`${orderToToggleImeiLock.imeiBlocked ? 'Confirmar Desbloqueio' : 'Confirmar Bloqueio'} de IMEI`} size="md" footer={ <> <Button variant="secondary" onClick={() => setOrderToToggleImeiLock(null)}>Cancelar</Button> <Button variant={orderToToggleImeiLock.imeiBlocked ? "primary" : "danger"} onClick={confirmToggleImeiLock}> {orderToToggleImeiLock.imeiBlocked ? 'Sim, Desbloquear' : 'Sim, Bloquear'} </Button> </> } > <p className="text-gray-700"> Tem certeza que deseja <strong>{orderToToggleImeiLock.imeiBlocked ? 'desbloquear' : 'bloquear'}</strong> o IMEI <span className="font-semibold"> {orderToToggleImeiLock.imei}</span> para o pedido de <span className="font-semibold">{orderToToggleImeiLock.clientId ? getClientName(orderToToggleImeiLock.clientId) : orderToToggleImeiLock.customerName}</span>? </p> <p className="text-sm text-gray-600 mt-2"> Esta ação é para controle interno e não realiza bloqueio/desbloqueio real na operadora. </p> </Modal> )}
       {orderToRegisterPayment && ( <RegisterPaymentModal order={orderToRegisterPayment} isOpen={!!orderToRegisterPayment} onClose={() => setOrderToRegisterPayment(null)} onPaymentSaved={handlePaymentSaved} /> )}
+      {orderToRegisterArrival && (
+        <RegisterArrivalModal
+          order={orderToRegisterArrival}
+          isOpen={!!orderToRegisterArrival}
+          onClose={() => setOrderToRegisterArrival(null)}
+          onSave={handleSaveOrder}
+        />
+      )}
       {orderToView && (
         <OrderViewModal order={orderToView} isOpen={!!orderToView} onClose={() => setOrderToView(null)} />
       )}
