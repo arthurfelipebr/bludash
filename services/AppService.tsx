@@ -324,16 +324,18 @@ export const saveOrder = async (orderData: Omit<Order, 'id' | 'userId'> | Order)
 };
 
 export const uploadArrivalPhoto = async (orderId: string, file: File): Promise<DocumentFile> => {
-  const doc: DocumentFile = {
-    id: uuidv4(),
-    name: file.name,
-    url: URL.createObjectURL(file),
-    uploadedAt: new Date().toISOString(),
-    type: file.type,
-    size: file.size,
-  };
-  // In real app this would POST to backend
-  return doc;
+  const token = getAuthToken();
+  const formData = new FormData();
+  formData.append('photo', file);
+  const res = await fetch(`/api/orders/${orderId}/arrival-photos`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error('Falha ao enviar foto');
+  }
+  return res.json();
 };
 
 export const deleteOrder = async (orderId: string): Promise<void> => {
