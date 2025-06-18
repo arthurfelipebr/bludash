@@ -104,7 +104,7 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, '
 }
 
 export const Input: React.FC<InputProps> = ({ label, id, error, containerClassName = '', inputClassName = '', leftAddon, rightAddon, ...props }) => {
-  const baseInputStyles = 'block w-full px-3 py-2 border border-black/20 rounded-md shadow-sm focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
+  const baseInputStyles = 'block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed transition-colors';
   const errorInputStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
 
   const inputRounded = `${leftAddon ? 'rounded-r-none' : ''} ${rightAddon ? 'rounded-l-none' : ''}`;
@@ -114,7 +114,7 @@ export const Input: React.FC<InputProps> = ({ label, id, error, containerClassNa
       {label && <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <div className="flex">
         {leftAddon && (
-          <span className="inline-flex items-center px-2 border border-r-0 border-black/20 rounded-l-md bg-gray-50 text-sm text-gray-700">
+          <span className="inline-flex items-center px-2 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 text-sm text-gray-700">
             {leftAddon}
           </span>
         )}
@@ -124,7 +124,7 @@ export const Input: React.FC<InputProps> = ({ label, id, error, containerClassNa
           {...props}
         />
         {rightAddon && (
-          <span className="inline-flex items-center px-2 border border-l-0 border-black/20 rounded-r-md bg-gray-50 text-sm text-gray-700">
+          <span className="inline-flex items-center px-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-sm text-gray-700">
             {rightAddon}
           </span>
         )}
@@ -142,7 +142,7 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   containerClassName?: string;
 }
 export const Textarea: React.FC<TextareaProps> = ({ label, id, error, containerClassName = '', textareaClassName = '', ...props }) => {
-  const baseTextareaStyles = 'block w-full px-3 py-2 border border-black/20 rounded-md shadow-sm focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
+  const baseTextareaStyles = 'block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed transition-colors';
   const errorTextareaStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
   return (
     <div className={containerClassName}>
@@ -168,7 +168,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select: React.FC<SelectProps> = ({ label, id, error, options, containerClassName = '', selectClassName = '', placeholder, ...props }) => {
-  const baseSelectStyles = 'block w-full pl-3 pr-10 py-2 text-base border-black/20 focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm rounded-md text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed';
+  const baseSelectStyles = 'block w-full pl-3 pr-10 py-2 text-base border border-gray-300 bg-white focus:outline-none focus:border-blu-primary focus:ring-2 focus:ring-blu-primary/50 sm:text-sm rounded-md text-black disabled:bg-black/10 disabled:text-black/40 disabled:cursor-not-allowed transition-colors';
   const errorSelectStyles = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
 
   return (
@@ -277,11 +277,11 @@ interface CardProps {
   bodyClassName?: string;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '', title, actions, titleClassName='', bodyClassName='p-6 text-gray-800' }) => { 
+export const Card: React.FC<CardProps> = ({ children, className = '', title, actions, titleClassName='', bodyClassName='p-6 text-gray-800' }) => {
   return (
-    <div className={`bg-white shadow-md border border-black/10 rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden ${className}`}>
       {(title || actions) && (
-        <div className={`p-4 border-b border-black/10 flex justify-between items-center ${titleClassName}`}>
+        <div className={`p-4 border-b border-gray-200 flex justify-between items-center ${titleClassName}`}>
           {title && <h2 className="text-xl font-semibold text-gray-800">{title}</h2>}
           {actions && <div className="flex items-center space-x-2">{actions}</div>}
         </div>
@@ -305,7 +305,7 @@ export const PageTitle: React.FC<PageTitleProps> = ({ title, subtitle, actions, 
     <div className={`mb-6 ${className}`}>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{title}</h1>
+          <h1 className="text-3xl md:text-4xl font-light text-gray-800">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-black/60">{subtitle}</p>}
         </div>
         {actions && <div className="mt-4 md:mt-0 md:ml-4 flex-shrink-0">{actions}</div>}
@@ -404,8 +404,8 @@ export const ResponsiveTable = <T extends object,>({
 
 
   return (
-    <div className="overflow-x-auto shadow-md rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-xl shadow-sm border border-gray-200">
+      <table className="min-w-full divide-y divide-gray-100 bg-white text-sm">
         <thead className="bg-gray-50">
           <tr>
             {columns.map((col, index) => (
@@ -419,7 +419,7 @@ export const ResponsiveTable = <T extends object,>({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-gray-100">
           {data.map((item, rowIndex) => (
             <tr 
               key={getRowKey(item, rowIndex)} 
@@ -472,7 +472,7 @@ interface TabsProps {
 }
 export const Tabs: React.FC<TabsProps> = ({ children, className = '', navClassName = '' }) => (
   <div className={className}>
-    <nav role="tablist" className={`flex border-b border-black/20 mb-0 ${navClassName}`}> {/* Added role="tablist" and nav element */}
+    <nav role="tablist" className={`flex border-b border-gray-200 mb-0 ${navClassName}`}> {/* Added role="tablist" and nav element */}
       {children}
     </nav>
   </div>
@@ -489,7 +489,7 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep }) => (
       <div key={idx} className="flex items-center flex-1">
         <div
           className={`flex items-center justify-center h-8 w-8 rounded-full text-sm font-semibold ${
-            idx < currentStep ? "bg-blu-primary text-white" : idx === currentStep ? "bg-blu-accent text-blu-primary" : "border border-black/20 text-black"
+            idx < currentStep ? "bg-blu-primary text-white" : idx === currentStep ? "bg-blu-accent text-blu-primary" : "border border-gray-300 text-black"
           }`}
         >
           {idx < currentStep ? "✓" : idx + 1}
