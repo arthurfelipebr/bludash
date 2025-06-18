@@ -97,6 +97,7 @@ export interface PricingProduct {
   frete: number;
   valorTabela: number;
   lucroPercent: number;
+  usarLucroDaCategoria?: boolean;
   caixa: string;
   freteDeclarado?: number;
   freteEuaBr?: number;
@@ -452,5 +453,6 @@ export interface PricingListItem {
   custoBRL: number | null;
   valorTabela: number | null;
   lucroPercent?: number | null;
+  usarLucroDaCategoria?: boolean;
   updatedAt?: string;
 }
