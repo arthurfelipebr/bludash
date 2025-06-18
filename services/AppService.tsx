@@ -538,7 +538,7 @@ export const deleteOrderCostItem = async (costItemId: string): Promise<void> => 
 export const getPricingProducts = async (): Promise<PricingListItem[]> => {
     return apiClient<PricingListItem[]>('/product-pricing').then(data =>
         data.map(it => ({
-            usarLucroDaCategoria: it.usarLucroDaCategoria ?? true,
+            usarLucroDaCategoria: it.usarLucroDaCategoria !== undefined ? Boolean(it.usarLucroDaCategoria) : true,
             ...it,
         }))
     );

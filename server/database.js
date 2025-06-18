@@ -49,6 +49,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE categories ADD COLUMN lucroPercent REAL', [], () => {});
     db.run('ALTER TABLE categories ADD COLUMN dustBag REAL', [], () => {});
     db.run('ALTER TABLE categories ADD COLUMN packaging REAL', [], () => {});
+    db.run('ALTER TABLE productPricing ADD COLUMN usarLucroDaCategoria INTEGER DEFAULT 1', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -256,6 +257,7 @@ function initializeDatabase() {
         nfPercent REAL,
         lucroPercent REAL,
         valorTabela REAL,
+        usarLucroDaCategoria INTEGER DEFAULT 1,
         updatedAt TEXT,
         FOREIGN KEY(productId) REFERENCES products(id)
     )`);
