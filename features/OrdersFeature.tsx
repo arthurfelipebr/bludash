@@ -631,7 +631,16 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
             <div className="flex space-x-3 ml-auto">
                 <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button>
                 {currentStep < FORM_STEPS.length - 1 ? (
-                    <Button type="button" onClick={() => dispatch({ type: 'NEXT_STEP' })} disabled={isLoading}>Próximo</Button>
+                    <Button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        dispatch({ type: 'NEXT_STEP' });
+                      }}
+                      disabled={isLoading}
+                    >
+                      Próximo
+                    </Button>
                 ) : (
                     <Button type="submit" isLoading={isLoading} disabled={isLoading}>{initialOrder ? 'Salvar Alterações' : 'Adicionar Encomenda'}</Button>
                 )}
