@@ -51,6 +51,32 @@ const CreditCardIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+const ThreeuToolsTable: React.FC<{ report: string }> = ({ report }) => {
+  const rows = report
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean)
+    .map(l => l.split(/\s{2,}/).filter(Boolean));
+  if (rows.length === 0) return null;
+  return (
+    <div className="overflow-auto mt-1">
+      <table className="min-w-full text-xs border">
+        <tbody>
+          {rows.map((cols, i) => (
+            <tr key={i}>
+              {cols.map((c, j) => (
+                <td key={j} className="border px-1 py-0.5 whitespace-nowrap">
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 
 const useCountdown = (targetDateString?: string) => { 
   const calculateTimeLeft = useCallback(() => {
@@ -731,15 +757,38 @@ const OrderViewModal: React.FC<OrderViewModalProps> = ({ order, isOpen, onClose 
           <p><strong>Status Atual:</strong> {order.status}</p>
           {order.notes && <p><strong>Observações:</strong> {order.notes}</p>}
           {order.arrivalNotes && <p><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
-          {order.threeuToolsReport && <p><strong>Relatório 3uTools:</strong> <pre className="whitespace-pre-wrap">{order.threeuToolsReport}</pre></p>}
+          {order.threeuToolsReport && (
+            <div>
+              <strong>Relatório 3uTools:</strong>
+              <ThreeuToolsTable report={order.threeuToolsReport} />
+            </div>
+          )}
           {order.whatsAppHistorySummary && <p><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
         </div>
       )}
       {activeTab === 'Anexos' && (
-        <div className="space-y-2 text-sm">
-          {order.documents.length > 0 ? order.documents.map(d => (
-            <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>
-          )) : <span className="text-xs text-gray-500">Nenhum documento.</span>}
+        <div className="space-y-4 text-sm">
+          {order.arrivalPhotos && order.arrivalPhotos.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {order.arrivalPhotos.map(photo => (
+                <img
+                  key={photo.id}
+                  src={photo.url}
+                  alt={photo.name}
+                  className="w-24 h-24 object-cover rounded"
+                />
+              ))}
+            </div>
+          )}
+          <div className="space-y-2">
+            {order.documents.length > 0 ? (
+              order.documents.map(d => (
+                <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>
+              ))
+            ) : (
+              <span className="text-xs text-gray-500">Nenhum documento.</span>
+            )}
+          </div>
         </div>
       )}
     </Modal>
