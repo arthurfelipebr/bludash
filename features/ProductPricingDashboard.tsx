@@ -10,7 +10,7 @@ import {
   getPricingGlobals,
   savePricingGlobals,
 } from '../services/AppService';
-import { Clock } from 'lucide-react';
+import { Clock, Check, X, Undo2, Redo2 } from 'lucide-react';
 
 const ProductPricingDashboardPage: React.FC = () => {
   const [items, setItems] = useState<PricingListItem[]>([]);
@@ -146,8 +146,14 @@ const ProductPricingDashboardPage: React.FC = () => {
         ? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0
         : existing.lucroPercent ?? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0;
       const price = computePrice(existing.custoBRL ?? 0, profit, existing.categoryName);
-      await savePricingProduct({ id: String(id), usarLucroDaCategoria: value, valorTabela: price } as any);
-      setItems(prev => prev.map(it => it.productId === id ? { ...it, usarLucroDaCategoria: value, valorTabela: price } : it));
+      await savePricingProduct({ id: String(id), usarLucroDaCategoria: value, valorTabela: price, lucroPercent: profit } as any);
+      setItems(prev =>
+        prev.map(it =>
+          it.productId === id
+            ? { ...it, usarLucroDaCategoria: value, lucroPercent: profit, valorTabela: price }
+            : it
+        )
+      );
     } catch (err) {
       console.error('Failed to toggle category profit usage', err);
     }
@@ -251,7 +257,31 @@ const ProductPricingDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Precificação de Produtos" />
+      <PageTitle
+        title="Precificação de Produtos"
+        actions={(
+          <div className="flex space-x-2">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={undoStack.length === 0}
+              className="p-1 rounded hover:bg-gray-100 disabled:opacity-50"
+              title="Desfazer"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={redoStack.length === 0}
+              className="p-1 rounded hover:bg-gray-100 disabled:opacity-50"
+              title="Refazer"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      />
       <Card title="Produtos" bodyClassName="p-4 space-y-4">
         <div className="hidden md:grid grid-cols-5 gap-6 font-semibold bg-gray-50 py-3 px-2 rounded-xl shadow-sm border border-gray-200">
           <div>Produto</div>
@@ -280,20 +310,31 @@ const ProductPricingDashboardPage: React.FC = () => {
                     <div className="font-bold">{it.productName}</div>
                     <div className="text-right">
                       {editingCostId === it.productId ? (
-                        <input
-                          className="w-24 border px-1 text-right"
-                          value={draftCost}
-                          autoFocus
-                          onChange={e => setDraftCost(e.target.value)}
-                          onBlur={() => {
-                            const val = parseFloat(draftCost.replace(',', '.'));
-                            if (!isNaN(val)) saveCost(it.productId, val);
-                            setEditingCostId(null);
-                          }}
-                        />
+                        <div className="flex items-center space-x-1">
+                          <input
+                            className="w-24 border px-1 text-right"
+                            value={draftCost}
+                            autoFocus
+                            onChange={e => setDraftCost(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const val = parseFloat(draftCost.replace(',', '.'));
+                              if (!isNaN(val)) saveCost(it.productId, val);
+                              setEditingCostId(null);
+                            }}
+                            className="text-green-600"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => setEditingCostId(null)} className="text-red-600">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       ) : (
-                        <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer text-sm text-gray-500">
-                          {it.custoBRL?.toFixed(2)}
+                        <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer text-sm text-gray-500 underline">
+                          {it.custoBRL?.toFixed(2) ?? '-'}
                         </span>
                       )}
                     </div>
@@ -306,17 +347,28 @@ const ProductPricingDashboardPage: React.FC = () => {
                         className="rounded text-blue-600 focus:ring-blue-500"
                       />
                       {editingProfitId === it.productId && !it.usarLucroDaCategoria ? (
-                        <input
-                          className="w-16 border px-1 text-right"
-                          value={draftProfit}
-                          autoFocus
-                          onChange={e => setDraftProfit(e.target.value)}
-                          onBlur={() => {
-                            const val = parseFloat(draftProfit.replace(',', '.'));
-                            if (!isNaN(val)) saveProfit(it.productId, val);
-                            setEditingProfitId(null);
-                          }}
-                        />
+                        <div className="flex items-center space-x-1">
+                          <input
+                            className="w-16 border px-1 text-right"
+                            value={draftProfit}
+                            autoFocus
+                            onChange={e => setDraftProfit(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const val = parseFloat(draftProfit.replace(',', '.'));
+                              if (!isNaN(val)) saveProfit(it.productId, val);
+                              setEditingProfitId(null);
+                            }}
+                            className="text-green-600"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => setEditingProfitId(null)} className="text-red-600">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       ) : (
                         <span
                           onClick={() => {
@@ -331,7 +383,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                               );
                             }
                           }}
-                          className={`cursor-pointer text-sm text-gray-500 ${it.usarLucroDaCategoria ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`text-sm ${it.usarLucroDaCategoria ? 'italic text-blue-600 cursor-default' : 'cursor-pointer text-gray-500 underline'}`}
                         >
                           {(
                             it.lucroPercent ??
@@ -344,19 +396,30 @@ const ProductPricingDashboardPage: React.FC = () => {
                     </div>
                     <div className="text-right">
                       {editingId === it.productId ? (
-                        <input
-                          className="w-24 border px-1 text-right"
-                          value={draftValue}
-                          autoFocus
-                          onChange={e => setDraftValue(e.target.value)}
-                          onBlur={() => {
-                            const val = parseFloat(draftValue.replace(',', '.'));
-                            if (!isNaN(val)) savePrice(it.productId, val);
-                            setEditingId(null);
-                          }}
-                        />
+                        <div className="flex items-center space-x-1">
+                          <input
+                            className="w-24 border px-1 text-right"
+                            value={draftValue}
+                            autoFocus
+                            onChange={e => setDraftValue(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const val = parseFloat(draftValue.replace(',', '.'));
+                              if (!isNaN(val)) savePrice(it.productId, val);
+                              setEditingId(null);
+                            }}
+                            className="text-green-600"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => setEditingId(null)} className="text-red-600">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       ) : (
-                        <span onClick={() => { setEditingId(it.productId); setDraftValue(it.valorTabela?.toFixed(2) || ''); }} className="cursor-pointer font-bold">
+                        <span onClick={() => { setEditingId(it.productId); setDraftValue(it.valorTabela?.toFixed(2) || ''); }} className="cursor-pointer font-bold underline">
                           {it.valorTabela?.toFixed(2)}
                         </span>
                       )}
