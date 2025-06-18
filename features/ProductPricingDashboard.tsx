@@ -11,6 +11,7 @@ import {
   savePricingGlobals,
 } from '../services/AppService';
 import { Clock, Check, X, Undo2, Redo2 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const ProductPricingDashboardPage: React.FC = () => {
   const [items, setItems] = useState<PricingListItem[]>([]);
@@ -33,6 +34,9 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [highlightProductId, setHighlightProductId] = useState<number | null>(null);
   const [highlightCategoryId, setHighlightCategoryId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [historyTab, setHistoryTab] = useState<'table' | 'chart'>('table');
 
   useEffect(() => {
     getPricingProducts()
@@ -234,6 +238,61 @@ const ProductPricingDashboardPage: React.FC = () => {
     setExpandedCategories(prev => ({ ...prev, [name]: !prev[name] }));
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const selectAll = () => {
+    const allIds = filteredItems.map(i => i.productId);
+    if (selectedIds.length === allIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allIds);
+    }
+  };
+
+  const clearSelection = () => setSelectedIds([]);
+
+  const applyCategoryProfitBulk = async () => {
+    for (const id of selectedIds) {
+      await toggleUseCategory(id, true);
+    }
+  };
+
+  const editProfitBulk = async () => {
+    const input = window.prompt('Novo lucro (%)');
+    if (!input) return;
+    const val = parseFloat(input.replace(',', '.'));
+    if (isNaN(val)) return;
+    for (const id of selectedIds) {
+      await saveProfit(id, val);
+    }
+  };
+
+  const editCostBulk = async () => {
+    const input = window.prompt('Novo custo (BRL)');
+    if (!input) return;
+    const val = parseFloat(input.replace(',', '.'));
+    if (isNaN(val)) return;
+    for (const id of selectedIds) {
+      await saveCost(id, val);
+    }
+  };
+
+  const recalcBulk = async () => {
+    for (const id of selectedIds) {
+      const it = items.find(p => p.productId === id);
+      if (!it) continue;
+      const profit = it.usarLucroDaCategoria
+        ? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0
+        : it.lucroPercent ?? 0;
+      const price = computePrice(it.custoBRL ?? 0, profit, it.categoryName);
+      await savePrice(id, price);
+    }
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'z') {
@@ -249,7 +308,10 @@ const ProductPricingDashboardPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [undoStack, redoStack, items]);
 
-  const groupedItems = items.reduce<Record<string, PricingListItem[]>>((acc, it) => {
+  const filteredItems = categoryFilter === 'all'
+    ? items
+    : items.filter(i => i.categoryName === categoryFilter);
+  const groupedItems = filteredItems.reduce<Record<string, PricingListItem[]>>((acc, it) => {
     acc[it.categoryName] = acc[it.categoryName] || [];
     acc[it.categoryName].push(it);
     return acc;
@@ -260,7 +322,7 @@ const ProductPricingDashboardPage: React.FC = () => {
       <PageTitle
         title="Precificação de Produtos"
         actions={(
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             <button
               type="button"
               onClick={undo}
@@ -279,6 +341,23 @@ const ProductPricingDashboardPage: React.FC = () => {
             >
               <Redo2 className="w-4 h-4" />
             </button>
+            <button
+              type="button"
+              onClick={selectAll}
+              className="p-1 rounded hover:bg-gray-100"
+            >
+              {selectedIds.length === filteredItems.length ? 'Desselecionar Tudo' : 'Selecionar Tudo'}
+            </button>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="border text-sm rounded-md p-1"
+            >
+              <option value="all">Todas Categorias</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
           </div>
         )}
       />
@@ -305,10 +384,18 @@ const ProductPricingDashboardPage: React.FC = () => {
                 {list.map(it => (
                   <div
                     key={it.productId}
-                    className={`grid grid-cols-5 gap-6 items-center px-2 py-3 rounded-xl shadow-sm border border-gray-200 ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
+                    className={`p-3 rounded-xl shadow-sm border flex flex-col md:grid md:grid-cols-6 gap-2 ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
                   >
-                    <div className="font-bold">{it.productName}</div>
-                    <div className="text-right">
+                    <div className="flex items-start space-x-2 md:col-span-2">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedIds.includes(it.productId)}
+                        onChange={() => toggleSelect(it.productId)}
+                      />
+                      <span className="font-bold">{it.productName}</span>
+                    </div>
+                    <div className="text-right md:col-span-1">
                       {editingCostId === it.productId ? (
                         <div className="flex items-center space-x-1">
                           <input
@@ -338,7 +425,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <div className="text-right flex items-center justify-end space-x-1">
+                    <div className="text-right flex items-center justify-end space-x-1 md:col-span-1">
                       <input
                         type="checkbox"
                         checked={it.usarLucroDaCategoria ?? true}
@@ -390,11 +477,13 @@ const ProductPricingDashboardPage: React.FC = () => {
                             categories.find(c => c.name === it.categoryName)?.lucroPercent ??
                             0
                           ).toFixed(2)}
-                          {it.usarLucroDaCategoria ? ' (herdado)' : ''}
+                          {it.usarLucroDaCategoria && (
+                            <span className="ml-1 px-1 text-xs bg-blue-100 text-blue-600 rounded">HERDADO</span>
+                          )}
                         </span>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right md:col-span-1">
                       {editingId === it.productId ? (
                         <div className="flex items-center space-x-1">
                           <input
@@ -428,7 +517,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                         <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
                       )}
                     </div>
-                    <div className="text-right text-sm text-gray-500">
+                    <div className="text-right text-sm text-gray-500 md:col-span-1">
                       {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString('pt-BR') : ''}
                     </div>
                   </div>
@@ -529,24 +618,63 @@ const ProductPricingDashboardPage: React.FC = () => {
           ))}
         </div>
       </Card>
-      <Modal isOpen={historyFor !== null} onClose={() => setHistoryFor(null)} title="Histórico de Preço" size="sm">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr>
-              <th className="text-left px-2 py-1">Data</th>
-              <th className="text-right px-2 py-1">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {historyEntries.map(h => (
-              <tr key={h.id}>
-                <td className="px-2 py-1">{new Date(h.recordedAt).toLocaleDateString('pt-BR')}</td>
-                <td className="px-2 py-1 text-right">{h.price.toFixed(2)}</td>
+      <Modal isOpen={historyFor !== null} onClose={() => setHistoryFor(null)} title="Histórico de Preço" size="lg">
+        <div className="mb-4 flex space-x-2">
+          <button
+            className={`px-2 py-1 rounded ${historyTab === 'table' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            onClick={() => setHistoryTab('table')}
+          >
+            Tabela
+          </button>
+          <button
+            className={`px-2 py-1 rounded ${historyTab === 'chart' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            onClick={() => setHistoryTab('chart')}
+          >
+            Gráfico
+          </button>
+        </div>
+        {historyTab === 'table' ? (
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr>
+                <th className="text-left px-2 py-1">Data</th>
+                <th className="text-right px-2 py-1">Valor</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {historyEntries.map(h => (
+                <tr key={h.id}>
+                  <td className="px-2 py-1">{new Date(h.recordedAt).toLocaleDateString('pt-BR')}</td>
+                  <td className="px-2 py-1 text-right">{h.price.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={historyEntries.map(h => ({ date: new Date(h.recordedAt).toLocaleDateString('pt-BR'), price: h.price }))}>
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="price" stroke="#8884d8" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </Modal>
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-md p-4 flex justify-between items-center">
+          <span>{selectedIds.length} selecionado(s)</span>
+          <div className="flex space-x-2">
+            <button className="px-3 py-1 text-sm bg-gray-100 rounded" onClick={applyCategoryProfitBulk}>Aplicar lucro da categoria</button>
+            <button className="px-3 py-1 text-sm bg-gray-100 rounded" onClick={editProfitBulk}>Editar lucro</button>
+            <button className="px-3 py-1 text-sm bg-gray-100 rounded" onClick={editCostBulk}>Editar custo</button>
+            <button className="px-3 py-1 text-sm bg-gray-100 rounded" onClick={recalcBulk}>Recalcular</button>
+            <button className="px-3 py-1 text-sm bg-gray-100 rounded" onClick={clearSelection}>Limpar</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
