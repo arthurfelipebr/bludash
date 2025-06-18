@@ -341,7 +341,7 @@ const OrderDetailsPage: React.FC = () => {
         {relevantStatuses.map((status, index) => {
           const historyEntry = getStatusHistory(status);
           const isCurrentActualStatus = order.status === status;
-          const isPastStatus = historyEntry && ORDER_STATUS_OPTIONS.indexOf(status) < ORDER_STATUS_OPTIONS.indexOf(order.status);
+          const isPastStatus = ORDER_STATUS_OPTIONS.indexOf(status) < ORDER_STATUS_OPTIONS.indexOf(order.status);
           return (
             <div key={status} className="flex items-start">
               <div className="flex flex-col items-center mr-3">
