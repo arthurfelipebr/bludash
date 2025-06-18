@@ -33,8 +33,15 @@ import {
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
 import { Pencil } from 'lucide-react';
 
+type ThreeuToolsStatus = 'ok' | 'warning' | 'problem' | 'unknown';
+
+interface ParsedThreeuToolsEntry {
+  value: string;
+  status: ThreeuToolsStatus;
+}
+
 interface ParsedThreeuTools {
-  categories: Record<string, Record<string, string>>;
+  categories: Record<string, Record<string, ParsedThreeuToolsEntry>>;
   data: {
     serialNumber?: string;
     iosVersion?: string;
@@ -43,28 +50,42 @@ interface ParsedThreeuTools {
     chargeTimes?: string;
     batteryLife?: string;
   };
+  reliability: number;
 }
 
 const parseThreeuToolsReport = (report: string): ParsedThreeuTools => {
-  const result: ParsedThreeuTools = { categories: {}, data: {} };
+  const result: ParsedThreeuTools = { categories: {}, data: {}, reliability: 0 };
   const lines = report.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let score = 0;
+  let total = 0;
+  const getStatus = (val: string): ThreeuToolsStatus => {
+    const v = val.toLowerCase();
+    if (/ok|normal|good|pass/.test(v)) return 'ok';
+    if (/warning|aten\u00e7\u00e3o|caution/.test(v)) return 'warning';
+    if (/fail|problema|bad|defeito/.test(v)) return 'problem';
+    return 'unknown';
+  };
   for (const line of lines) {
     const match = line.match(/^([^:]+):\s*(.+)$/);
     if (!match) continue;
     const key = match[1];
     const value = match[2];
+    const status = getStatus(value);
     let category = 'Outros';
     if (/serial|imei|model|ios|udid/i.test(key)) {
-      category = 'Identificação do aparelho';
+      category = 'Informações do Aparelho';
     } else if (/camera|display|screen|battery/i.test(key)) {
-      category = 'Câmeras, Tela e Bateria';
+      category = 'Componentes';
     } else if (/wifi|bluetooth|carrier|network|sim|modem/i.test(key)) {
-      category = 'Rede e Conectividade';
+      category = 'Rede';
     } else if (/warranty|activation|status|icloud|lock/i.test(key)) {
-      category = 'Status e Ativação';
+      category = 'Status';
     }
     if (!result.categories[category]) result.categories[category] = {};
-    result.categories[category][key] = value;
+    result.categories[category][key] = { value, status };
+    total++;
+    if (status === 'ok') score += 1;
+    if (status === 'warning') score += 0.5;
     const lower = key.toLowerCase();
     if (lower.includes('serial')) result.data.serialNumber = value;
     if (lower.includes('ios')) result.data.iosVersion = value;
@@ -73,22 +94,39 @@ const parseThreeuToolsReport = (report: string): ParsedThreeuTools => {
     if (lower.includes('charge')) result.data.chargeTimes = value;
     if (lower.includes('battery') && (lower.includes('life') || lower.includes('health'))) result.data.batteryLife = value;
   }
+  result.reliability = total > 0 ? Math.round((score / total) * 100) : 0;
   return result;
 };
 
 const ThreeuToolsFormatted: React.FC<{ report: string }> = ({ report }) => {
   const parsed = useMemo(() => parseThreeuToolsReport(report), [report]);
+  const statusIcon = {
+    ok: '✅',
+    warning: '⚠️',
+    problem: '❌',
+    unknown: '',
+  } as const;
+  const statusColor = {
+    ok: 'text-green-600',
+    warning: 'text-yellow-600',
+    problem: 'text-red-600',
+    unknown: 'text-gray-700',
+  } as const;
   return (
     <div className="grid gap-4 mt-1">
+      <div className="text-sm font-semibold">Confiabilidade do aparelho: {parsed.reliability}%</div>
       {Object.entries(parsed.categories).map(([cat, entries]) => (
         <Card key={cat} className="p-2">
           <h4 className="font-semibold text-sm mb-1">{cat}</h4>
           <table className="min-w-full text-xs">
             <tbody>
-              {Object.entries(entries).map(([k, v]) => (
-                <tr key={k} className="border-b last:border-0">
+              {Object.entries(entries).map(([k, entry]) => (
+                <tr key={k} className={`border-b last:border-0 ${statusColor[entry.status]}`}>
                   <td className="pr-2 font-medium whitespace-nowrap">{k}</td>
-                  <td className="whitespace-nowrap">{v}</td>
+                  <td className="whitespace-nowrap flex items-center gap-1">
+                    <span>{entry.value}</span>
+                    {statusIcon[entry.status] && <span>{statusIcon[entry.status]}</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -179,7 +217,7 @@ const OrderDetailsPage: React.FC = () => {
   };
 
   const parsedReport = useMemo(() => {
-    if (!order?.threeuToolsReport) return { categories: {}, data: {} } as ParsedThreeuTools;
+    if (!order?.threeuToolsReport) return { categories: {}, data: {}, reliability: 0 } as ParsedThreeuTools;
     return parseThreeuToolsReport(order.threeuToolsReport);
   }, [order?.threeuToolsReport]);
 
@@ -449,8 +487,38 @@ const OrderDetailsPage: React.FC = () => {
         <div className="space-y-4 text-sm">
           <Card>
             <h3 className="text-lg font-semibold mb-2">Detalhes Financeiros</h3>
-            {order.sellingPrice !== undefined && <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(order.sellingPrice)}</p>}
-            <p className="text-gray-700"><strong>Forma de Pagamento:</strong> {order.paymentMethod || 'N/A'}</p>
+            {order.sellingPrice !== undefined && (
+              isEditing ? (
+                <div className="mb-1">
+                  <label className="text-xs font-medium">Valor de Venda (Cliente)</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.sellingPrice}
+                    onChange={e => setOrder({ ...order, sellingPrice: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              ) : (
+                <p className="text-gray-700"><strong>Valor de Venda (Cliente):</strong> {formatCurrencyBRL(order.sellingPrice)}</p>
+              )
+            )}
+            {isEditing ? (
+              <div className="mb-1">
+                <label className="text-xs font-medium">Forma de Pagamento</label>
+                <select
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={order.paymentMethod || ''}
+                  onChange={e => setOrder({ ...order, paymentMethod: e.target.value as PaymentMethod })}
+                >
+                  <option value="">Selecionar...</option>
+                  {Object.values(PaymentMethod).map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="text-gray-700"><strong>Forma de Pagamento:</strong> {order.paymentMethod || 'N/A'}</p>
+            )}
             {order.paymentMethod === PaymentMethod.BLU_FACILITA && (
               <div className="p-3 border-l-4 border-blue-500 bg-blue-50 text-gray-700 rounded-md">
                 <h4 className="font-semibold text-blue-700 mb-1">Detalhes BluFacilita</h4>
@@ -468,18 +536,52 @@ const OrderDetailsPage: React.FC = () => {
                 {order.imeiBlocked && <p className="text-red-600 font-semibold">IMEI BLOQUEADO INTERNAMENTE</p>}
               </div>
             )}
-            {order.shippingCostSupplierToBlu !== undefined && <p className="text-gray-700"><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(order.shippingCostSupplierToBlu)}</p>}
-            {order.shippingCostBluToClient !== undefined && <p className="text-gray-700"><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(order.shippingCostBluToClient)}</p>}
+            {isEditing ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                <div>
+                  <label className="text-xs font-medium">Custo Frete (Fornecedor → Blu)</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.shippingCostSupplierToBlu ?? 0}
+                    onChange={e => setOrder({ ...order, shippingCostSupplierToBlu: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Custo Frete (Blu → Cliente)</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.shippingCostBluToClient ?? 0}
+                    onChange={e => setOrder({ ...order, shippingCostBluToClient: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                {order.shippingCostSupplierToBlu !== undefined && <p className="text-gray-700"><strong>Custo Frete (Fornecedor → Blu):</strong> {formatCurrencyBRL(order.shippingCostSupplierToBlu)}</p>}
+                {order.shippingCostBluToClient !== undefined && <p className="text-gray-700"><strong>Custo Frete (Blu → Cliente):</strong> {formatCurrencyBRL(order.shippingCostBluToClient)}</p>}
+              </>
+            )}
           </Card>
         </div>
       )}
 
       {activeTab === 'Status' && (
         <div className="space-y-4 text-sm">
-          {order.trackingCode && (
+          {(order.trackingCode || isEditing) && (
             <Card>
               <h3 className="text-lg font-semibold mb-2">Rastreamento Correios</h3>
-              <p className="text-gray-700"><strong>Código:</strong> {order.trackingCode}</p>
+              {isEditing ? (
+                <input
+                  className="w-full border rounded px-2 py-1 text-sm mb-2"
+                  value={order.trackingCode || ''}
+                  onChange={e => setOrder({ ...order, trackingCode: e.target.value })}
+                  placeholder="Código"
+                />
+              ) : (
+                <p className="text-gray-700"><strong>Código:</strong> {order.trackingCode}</p>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -517,7 +619,19 @@ const OrderDetailsPage: React.FC = () => {
           <Card>
             <h3 className="text-lg font-semibold mb-2">Status e Histórico</h3>
             <p className="text-gray-700"><strong>Data do Pedido:</strong> {formatDateBR(order.orderDate)}</p>
-            <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(order.estimatedDeliveryDate)}</p>
+            {isEditing ? (
+              <div className="mb-1">
+                <label className="text-xs font-medium">Prazo Estimado</label>
+                <input
+                  type="date"
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={order.estimatedDeliveryDate || ''}
+                  onChange={e => setOrder({ ...order, estimatedDeliveryDate: e.target.value })}
+                />
+              </div>
+            ) : (
+              <p className="text-gray-700"><strong>Prazo Estimado:</strong> {formatDateBR(order.estimatedDeliveryDate)}</p>
+            )}
             {(() => {
               const d = getDeliveryDate(order);
               if (d) {
@@ -536,9 +650,42 @@ const OrderDetailsPage: React.FC = () => {
                 return <p className="text-gray-700">Em andamento</p>;
               }
             })()}
-            {order.arrivalDate && <p className="text-gray-700"><strong>Data de Chegada:</strong> {formatDateBR(order.arrivalDate)}</p>}
-            {order.imei && <p className="text-gray-700"><strong>IMEI:</strong> {order.imei}</p>}
-            {order.batteryHealth !== undefined && <p className="text-gray-700"><strong>Saúde da Bateria:</strong> {order.batteryHealth}%</p>}
+            {isEditing ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs font-medium">Data de Chegada</label>
+                  <input
+                    type="date"
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.arrivalDate || ''}
+                    onChange={e => setOrder({ ...order, arrivalDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">IMEI</label>
+                  <input
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.imei || ''}
+                    onChange={e => setOrder({ ...order, imei: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Saúde da Bateria (%)</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.batteryHealth ?? ''}
+                    onChange={e => setOrder({ ...order, batteryHealth: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                {order.arrivalDate && <p className="text-gray-700"><strong>Data de Chegada:</strong> {formatDateBR(order.arrivalDate)}</p>}
+                {order.imei && <p className="text-gray-700"><strong>IMEI:</strong> {order.imei}</p>}
+                {order.batteryHealth !== undefined && <p className="text-gray-700"><strong>Saúde da Bateria:</strong> {order.batteryHealth}%</p>}
+              </>
+            )}
             {order.readyForDelivery && <p className="font-semibold text-green-600">Produto pronto para entrega!</p>}
             <div>
               <h4 className="text-md font-semibold mb-1 text-gray-800">Linha do Tempo:</h4>
@@ -552,13 +699,44 @@ const OrderDetailsPage: React.FC = () => {
         <div className="space-y-4 text-sm">
           <Card>
             <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
-            {order.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {order.notes}</p>}
-            {order.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
-            {order.threeuToolsReport && (
-              <div>
-                <strong>Relatório 3uTools:</strong>
-                <ThreeuToolsFormatted report={order.threeuToolsReport} />
-              </div>
+            {isEditing ? (
+              <>
+                <div className="mb-1">
+                  <label className="text-xs font-medium">Observações (Pedido)</label>
+                  <textarea
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.notes || ''}
+                    onChange={e => setOrder({ ...order, notes: e.target.value })}
+                  />
+                </div>
+                <div className="mb-1">
+                  <label className="text-xs font-medium">Observações (Chegada)</label>
+                  <textarea
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={order.arrivalNotes || ''}
+                    onChange={e => setOrder({ ...order, arrivalNotes: e.target.value })}
+                  />
+                </div>
+                <div className="mb-1">
+                  <label className="text-xs font-medium">Relatório 3uTools</label>
+                  <textarea
+                    className="w-full border rounded px-2 py-1 text-sm h-24"
+                    value={order.threeuToolsReport || ''}
+                    onChange={e => setOrder({ ...order, threeuToolsReport: e.target.value })}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {order.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {order.notes}</p>}
+                {order.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
+                {order.threeuToolsReport && (
+                  <div>
+                    <strong>Relatório 3uTools:</strong>
+                    <ThreeuToolsFormatted report={order.threeuToolsReport} />
+                  </div>
+                )}
+              </>
             )}
             {order.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
             <details className="mt-2">
