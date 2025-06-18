@@ -28,6 +28,32 @@ import {
 } from '../components/SharedComponents';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
 import { OrderForm } from './OrdersFeature';
+
+const ThreeuToolsTable: React.FC<{ report: string }> = ({ report }) => {
+  const rows = report
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean)
+    .map(l => l.split(/\s{2,}/).filter(Boolean));
+  if (rows.length === 0) return null;
+  return (
+    <div className="overflow-auto mt-1">
+      <table className="min-w-full text-xs border">
+        <tbody>
+          {rows.map((cols, i) => (
+            <tr key={i}>
+              {cols.map((c, j) => (
+                <td key={j} className="border px-1 py-0.5 whitespace-nowrap">
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 import { Pencil } from 'lucide-react';
 
 
@@ -308,7 +334,12 @@ const OrderDetailsPage: React.FC = () => {
             <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
             {order.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {order.notes}</p>}
             {order.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
-            {order.threeuToolsReport && <p className="text-gray-700"><strong>Relatório 3uTools:</strong> <pre className="whitespace-pre-wrap">{order.threeuToolsReport}</pre></p>}
+            {order.threeuToolsReport && (
+              <div>
+                <strong>Relatório 3uTools:</strong>
+                <ThreeuToolsTable report={order.threeuToolsReport} />
+              </div>
+            )}
             {order.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
             <details className="mt-2">
               <summary className="cursor-pointer font-semibold">Pagamentos Recebidos</summary>
@@ -332,6 +363,23 @@ const OrderDetailsPage: React.FC = () => {
               {order.documents.length > 0 ? order.documents.map(d => (
                 <span key={d.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{d.name}</span>
               )) : <span className="text-xs text-gray-500">Nenhum.</span>}
+            </div>
+            <div className="mt-2">
+              <h4 className="text-md font-semibold mb-1 text-gray-800">Fotos da Chegada:</h4>
+              {order.arrivalPhotos && order.arrivalPhotos.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {order.arrivalPhotos.map(photo => (
+                    <img
+                      key={photo.id}
+                      src={photo.url}
+                      alt={photo.name}
+                      className="w-24 h-24 object-cover rounded"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-500">Nenhuma foto.</span>
+              )}
             </div>
           </Card>
         </div>
