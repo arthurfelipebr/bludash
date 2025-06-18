@@ -898,6 +898,7 @@ app.get('/api/product-pricing', authenticateToken, (req, res) => {
         c.name AS categoryName,
         pp.custoBRL,
         pp.valorTabela,
+        pp.lucroPercent,
         pp.updatedAt
     FROM productPricing pp
     JOIN products p ON pp.productId = p.id
@@ -1022,38 +1023,38 @@ app.get('/api/product-pricing/history', authenticateToken, (req, res) => {
 
 // Product Category CRUD
 app.get('/api/product-pricing/categories', authenticateToken, (_req, res) => {
-    db.all('SELECT id, name FROM categories ORDER BY id', [], (err, rows) => {
+    db.all('SELECT id, name, lucroPercent FROM categories ORDER BY id', [], (err, rows) => {
         if (err) {
             console.error('Error fetching categories:', err.message);
             return res.status(500).json({ message: 'Failed to fetch categories.' });
         }
-        const formatted = rows.map(r => ({ id: String(r.id), name: r.name, dustBag: 0, packaging: 0 }));
+        const formatted = rows.map(r => ({ id: String(r.id), name: r.name, lucroPercent: r.lucroPercent || 0, dustBag: 0, packaging: 0 }));
         res.json(formatted);
     });
 });
 
 app.post('/api/product-pricing/categories', authenticateToken, (req, res) => {
-    const { name } = req.body;
+    const { name, lucroPercent = 0 } = req.body;
     if (!name) return res.status(400).json({ message: 'name required' });
-    db.run('INSERT INTO categories (name) VALUES ($1)', [name], function(err) {
+    db.run('INSERT INTO categories (name, lucroPercent) VALUES ($1,$2)', [name, lucroPercent], function(err) {
         if (err) {
             console.error('Error saving category:', err.message);
             return res.status(500).json({ message: 'Failed to save category.' });
         }
-        res.status(201).json({ id: String(this.lastID), name, dustBag: 0, packaging: 0 });
+        res.status(201).json({ id: String(this.lastID), name, lucroPercent, dustBag: 0, packaging: 0 });
     });
 });
 
 app.put('/api/product-pricing/categories/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
-    const { name } = req.body;
+    const { name, lucroPercent = 0 } = req.body;
     if (!name) return res.status(400).json({ message: 'name required' });
-    db.run('UPDATE categories SET name=$1 WHERE id=$2', [name, id], function(err) {
+    db.run('UPDATE categories SET name=$1, lucroPercent=$2 WHERE id=$3', [name, lucroPercent, id], function(err) {
         if (err) {
             console.error('Error updating category:', err.message);
             return res.status(500).json({ message: 'Failed to update category.' });
         }
-        res.json({ id, name, dustBag: 0, packaging: 0 });
+        res.json({ id, name, lucroPercent, dustBag: 0, packaging: 0 });
     });
 });
 
