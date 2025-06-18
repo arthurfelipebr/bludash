@@ -214,8 +214,9 @@ export interface Order {
   arrivalDate?: string; 
   imei?: string; 
   arrivalPhotos?: DocumentFile[]; 
-  arrivalNotes?: string; 
-  batteryHealth?: number; 
+  arrivalNotes?: string;
+  threeuToolsReport?: string;
+  batteryHealth?: number;
   readyForDelivery?: boolean;
 
   shippingCostSupplierToBlu?: number;

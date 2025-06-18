@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, ReactNode, ChangeEvent, useReducer } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, ReactNode, ChangeEvent, useReducer } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom'; 
 import { Order, OrderStatus, ProductCondition, DocumentFile, Client, PaymentMethod, PAYMENT_METHOD_OPTIONS, BLU_FACILITA_CONTRACT_STATUS_OPTIONS, BluFacilitaContractStatus, Supplier, SupplierOption, InternalNote, DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE, ClientType, ClientPayment } from '../types';
 import { 
@@ -199,7 +199,7 @@ const initialFormData: Omit<Order, 'id' | 'documents' | 'trackingHistory' | 'cus
   financedAmount: 0, totalWithInterest: 0, installmentValue: 0,
   bluFacilitaContractStatus: BluFacilitaContractStatus.EM_DIA,
   imeiBlocked: false,
-  arrivalDate: undefined, imei: undefined, arrivalPhotos: [], arrivalNotes: undefined, batteryHealth: undefined, readyForDelivery: false,
+  arrivalDate: undefined, imei: undefined, arrivalPhotos: [], arrivalNotes: undefined, threeuToolsReport: '', batteryHealth: undefined, readyForDelivery: false,
   deliveryDate: undefined,
   shippingCostSupplierToBlu: undefined, shippingCostBluToClient: undefined,
   trackingCode: '',
@@ -327,7 +327,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, onSave, i
             installments: initialOrder.installments || 12,
             bluFacilitaContractStatus: initialOrder.bluFacilitaContractStatus || BluFacilitaContractStatus.EM_DIA,
             arrivalDate: initialOrder.arrivalDate ? new Date(initialOrder.arrivalDate + "T00:00:00").toISOString().split('T')[0] : undefined,
-            imei: initialOrder.imei, arrivalNotes: initialOrder.arrivalNotes, batteryHealth: initialOrder.batteryHealth,
+            imei: initialOrder.imei,
+            arrivalNotes: initialOrder.arrivalNotes,
+            threeuToolsReport: initialOrder.threeuToolsReport || '',
+            batteryHealth: initialOrder.batteryHealth,
             readyForDelivery: initialOrder.readyForDelivery,
             imeiBlocked: initialOrder.imeiBlocked || false,
             shippingCostSupplierToBlu: initialOrder.shippingCostSupplierToBlu,
@@ -650,15 +653,25 @@ Observações: O valor desta nota fiscal refere-se exclusivamente ao serviço de
 
 interface RegisterArrivalModalProps { order: Order; isOpen: boolean; onClose: () => void; onSave: (updatedOrder: Order) => Promise<void>; onArrivalRegistered?: (order: Order) => void; }
 const RegisterArrivalModal: React.FC<RegisterArrivalModalProps> = ({ order, isOpen, onClose, onSave, onArrivalRegistered }) => {
-    const [arrivalData, setArrivalData] = useState({ arrivalDate: order.arrivalDate ? new Date(order.arrivalDate + "T00:00:00").toISOString().split('T')[0] : new Date().toISOString().split('T')[0], imei: order.imei || '', arrivalNotes: order.arrivalNotes || '', batteryHealth: order.batteryHealth || undefined, readyForDelivery: order.readyForDelivery || false, });
+    const [arrivalData, setArrivalData] = useState({ arrivalDate: order.arrivalDate ? new Date(order.arrivalDate + "T00:00:00").toISOString().split('T')[0] : new Date().toISOString().split('T')[0], imei: order.imei || '', arrivalNotes: order.arrivalNotes || '', threeuToolsReport: order.threeuToolsReport || '', batteryHealth: order.batteryHealth || undefined, readyForDelivery: order.readyForDelivery || false, });
     const [arrivalPhotos, setArrivalPhotos] = useState<DocumentFile[]>(order.arrivalPhotos || []);
     const [isLoading, setIsLoading] = useState(false);
     const [clientName, setClientName] = useState(order.customerName);
     useEffect(() => { if(order.clientId){ getClientById(order.clientId).then(c=> setClientName(c?.fullName || order.customerName)); } }, [order]);
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value, type } = e.target; if (type === 'checkbox') { setArrivalData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked })); } else if (name === "batteryHealth"){ setArrivalData(prev => ({...prev, batteryHealth: parseInt(value, 10) || undefined}))} else { setArrivalData(prev => ({ ...prev, [name]: value })); } };
-    const handleAddPhoto = () => alert("Funcionalidade de upload de fotos não implementada (mock).");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const handleAddPhotoClick = () => fileInputRef.current?.click();
+    const handlePhotosSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const remaining = Math.max(0, 5 - arrivalPhotos.length);
+            const newFiles = Array.from(files).slice(0, remaining).map(f => ({ id: uuidv4(), name: f.name, url: URL.createObjectURL(f), uploadedAt: new Date().toISOString(), type: f.type, size: f.size }));
+            if (newFiles.length) setArrivalPhotos(prev => [...prev, ...newFiles]);
+            e.target.value = "";
+        }
+    };
     const handleSubmit = async () => { setIsLoading(true); const updatedOrder: Order = { ...order, ...arrivalData, arrivalPhotos, status: arrivalData.readyForDelivery ? OrderStatus.AGUARDANDO_RETIRADA : order.status, trackingHistory: arrivalData.readyForDelivery && order.status !== OrderStatus.AGUARDANDO_RETIRADA ? [...(order.trackingHistory || []), {status: OrderStatus.AGUARDANDO_RETIRADA, date: new Date().toISOString(), notes: "Produto recebido e pronto"}] : order.trackingHistory, }; await onSave(updatedOrder); setIsLoading(false); onClose(); onArrivalRegistered && onArrivalRegistered(updatedOrder); };
-    return ( <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Chegada: ${order.productName} ${order.model}`} size="lg"> <div className="space-y-4"> <Input id="arrivalDate" label="Data de Chegada" type="date" name="arrivalDate" value={arrivalData.arrivalDate} onChange={handleChange} required /> <Input id="imei" label="IMEI do Aparelho" name="imei" value={arrivalData.imei} onChange={handleChange} placeholder="Se aplicável" /> {(order.condition === ProductCondition.SEMINOVO || order.condition === ProductCondition.USADO_BOM || order.condition === ProductCondition.USADO_EXCELENTE) && ( <Input id="batteryHealth" label="Saúde da Bateria (%)" type="number" name="batteryHealth" min="0" max="100" value={String(arrivalData.batteryHealth || '')} onChange={handleChange} /> )} <Textarea id="arrivalNotes" label="Observações da Chegada" name="arrivalNotes" value={arrivalData.arrivalNotes} onChange={handleChange} rows={3} /> <div> <label className="block text-sm font-medium text-gray-700 mb-1">Fotos do Produto (até 5 - mock)</label> {arrivalPhotos.map(p => <span key={p.id} className="text-xs bg-gray-100 p-1 rounded mr-1">{p.name}</span>)} <Button onClick={handleAddPhoto} size="sm" variant="ghost" className="mt-1">Adicionar Foto</Button> </div> <div className="flex items-center"> <input type="checkbox" id="readyForDelivery" name="readyForDelivery" checked={arrivalData.readyForDelivery} onChange={handleChange} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /> <label htmlFor="readyForDelivery" className="ml-2 block text-sm text-gray-900">Marcar como PRONTO PARA ENTREGA</label> </div> <div className="flex justify-end space-x-2 pt-3"> <Button variant="secondary" onClick={onClose}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Chegada</Button> </div> </div> </Modal> );
+    return ( <Modal isOpen={isOpen} onClose={onClose} title={`Registrar Chegada: ${order.productName} ${order.model}`} size="lg"> <div className="space-y-4"> <Input id="arrivalDate" label="Data de Chegada" type="date" name="arrivalDate" value={arrivalData.arrivalDate} onChange={handleChange} required /> <Input id="imei" label="IMEI do Aparelho" name="imei" value={arrivalData.imei} onChange={handleChange} placeholder="Se aplicável" /> {(order.condition === ProductCondition.SEMINOVO || order.condition === ProductCondition.USADO_BOM || order.condition === ProductCondition.USADO_EXCELENTE) && ( <Input id="batteryHealth" label="Saúde da Bateria (%)" type="number" name="batteryHealth" min="0" max="100" value={String(arrivalData.batteryHealth || '')} onChange={handleChange} /> )} <Textarea id="arrivalNotes" label="Observações da Chegada" name="arrivalNotes" value={arrivalData.arrivalNotes} onChange={handleChange} rows={3} /> <Textarea id="threeuToolsReport" label="Relatório 3uTools" name="threeuToolsReport" value={arrivalData.threeuToolsReport} onChange={handleChange} rows={4} /> <div> <label className="block text-sm font-medium text-gray-700 mb-1">Fotos do Produto (até 5)</label> <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotosSelected} /> {arrivalPhotos.map(p => <img key={p.id} src={p.url} alt={p.name} className="h-16 inline-block mr-1" />)} <Button onClick={handleAddPhotoClick} size="sm" variant="ghost" className="mt-1">Adicionar Foto</Button> </div> <div className="flex items-center"> <input type="checkbox" id="readyForDelivery" name="readyForDelivery" checked={arrivalData.readyForDelivery} onChange={handleChange} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /> <label htmlFor="readyForDelivery" className="ml-2 block text-sm text-gray-900">Marcar como PRONTO PARA ENTREGA</label> </div> <div className="flex justify-end space-x-2 pt-3"> <Button variant="secondary" onClick={onClose}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isLoading}>Salvar Chegada</Button> </div> </div> </Modal> );
 };
 
 interface OrderViewModalProps { order: Order; isOpen: boolean; onClose: () => void; }
@@ -718,6 +731,7 @@ const OrderViewModal: React.FC<OrderViewModalProps> = ({ order, isOpen, onClose 
           <p><strong>Status Atual:</strong> {order.status}</p>
           {order.notes && <p><strong>Observações:</strong> {order.notes}</p>}
           {order.arrivalNotes && <p><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
+          {order.threeuToolsReport && <p><strong>Relatório 3uTools:</strong> <pre className="whitespace-pre-wrap">{order.threeuToolsReport}</pre></p>}
           {order.whatsAppHistorySummary && <p><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
         </div>
       )}

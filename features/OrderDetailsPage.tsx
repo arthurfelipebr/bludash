@@ -308,6 +308,7 @@ const OrderDetailsPage: React.FC = () => {
             <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
             {order.notes && <p className="text-gray-700"><strong>Observações (Pedido):</strong> {order.notes}</p>}
             {order.arrivalNotes && <p className="text-gray-700"><strong>Observações (Chegada):</strong> {order.arrivalNotes}</p>}
+            {order.threeuToolsReport && <p className="text-gray-700"><strong>Relatório 3uTools:</strong> <pre className="whitespace-pre-wrap">{order.threeuToolsReport}</pre></p>}
             {order.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
             <details className="mt-2">
               <summary className="cursor-pointer font-semibold">Pagamentos Recebidos</summary>
