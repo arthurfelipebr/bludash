@@ -40,6 +40,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE clients ADD COLUMN cep TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN watchSize TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN trackingCode TEXT', [], () => {});
+    db.run('ALTER TABLE orders ADD COLUMN threeuToolsReport TEXT', [], () => {});
     db.run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'", [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN color TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN characteristics TEXT', [], () => {});
@@ -112,6 +113,7 @@ function initializeDatabase() {
       "arrivalDate" TEXT,
       imei TEXT,
       "arrivalNotes" TEXT,
+      threeuToolsReport TEXT,
       "batteryHealth" INTEGER,
       "readyForDelivery" INTEGER DEFAULT 0,
       "shippingCostSupplierToBlu" REAL,
