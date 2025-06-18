@@ -127,6 +127,7 @@ export interface PricingGlobals {
   nfPercent: number;
   nfProduto: number;
   frete: number;
+  roundTo: number;
 }
 
 

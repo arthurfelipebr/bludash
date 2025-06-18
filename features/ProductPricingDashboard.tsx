@@ -28,7 +28,7 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [historyFor, setHistoryFor] = useState<number | null>(null);
   const [historyEntries, setHistoryEntries] = useState<PricingHistoryEntry[]>([]);
   const [categories, setCategories] = useState<PricingCategory[]>([]);
-  const [globals, setGlobals] = useState<PricingGlobals>({ nfPercent: 0, nfProduto: 0, frete: 0 });
+  const [globals, setGlobals] = useState<PricingGlobals>({ nfPercent: 0, nfProduto: 0, frete: 0, roundTo: 70 });
   const [savingGlobals, setSavingGlobals] = useState(false);
   const [highlightGlobals, setHighlightGlobals] = useState(false);
   const [highlightProductId, setHighlightProductId] = useState<number | null>(null);
@@ -74,7 +74,12 @@ const ProductPricingDashboardPage: React.FC = () => {
       (globals.nfProduto || 0) +
       (globals.frete || 0);
     const withNf = base * (1 + (globals.nfPercent || 0));
-    return withNf * (1 + profit / 100);
+    const raw = withNf * (1 + profit / 100);
+    const r = globals.roundTo ?? 70;
+    const lower = Math.floor(raw / 100) * 100 + r;
+    const higher = Math.ceil(raw / 100) * 100 + r;
+    const rounded = Math.abs(raw - lower) <= Math.abs(higher - raw) ? lower : higher;
+    return Math.round(rounded);
   };
 
   const loadHistory = useCallback((id: number) => {
@@ -528,7 +533,7 @@ const ProductPricingDashboardPage: React.FC = () => {
         ))}
       </Card>
       <Card title="Configurações Globais" bodyClassName="p-4 space-y-2" className={highlightGlobals ? 'border-green-500' : ''}>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <Input
             id="nfPercent"
             label="NF %"
@@ -554,6 +559,15 @@ const ProductPricingDashboardPage: React.FC = () => {
             step="0.01"
             value={globals.frete}
             onChange={e => setGlobals({ ...globals, frete: parseFloat(e.target.value) || 0 })}
+            onBlur={() => saveGlobals(globals)}
+          />
+          <Input
+            id="roundTo"
+            label="Arredondar p/"
+            type="number"
+            step="1"
+            value={globals.roundTo}
+            onChange={e => setGlobals({ ...globals, roundTo: parseFloat(e.target.value) || 0 })}
             onBlur={() => saveGlobals(globals)}
           />
         </div>
