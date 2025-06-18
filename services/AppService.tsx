@@ -536,7 +536,12 @@ export const deleteOrderCostItem = async (costItemId: string): Promise<void> => 
 
 // --- Product Pricing Services ---
 export const getPricingProducts = async (): Promise<PricingListItem[]> => {
-    return apiClient<PricingListItem[]>('/product-pricing');
+    return apiClient<PricingListItem[]>('/product-pricing').then(data =>
+        data.map(it => ({
+            usarLucroDaCategoria: it.usarLucroDaCategoria ?? true,
+            ...it,
+        }))
+    );
 };
 
 export const savePricingProduct = async (product: PricingProduct): Promise<PricingProduct> => {

@@ -103,7 +103,9 @@ const ProductPricingDashboardPage: React.FC = () => {
     setRedoStack([]);
     setSavingId(id);
     try {
-      const margin = existing.lucroPercent ?? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0;
+      const margin = existing.usarLucroDaCategoria
+        ? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0
+        : existing.lucroPercent ?? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0;
       const price = computePrice(valor, margin, existing.categoryName);
       await savePricingProduct({ id: String(id), custoBRL: valor, valorTabela: price } as any);
       setItems(prev => prev.map(it => it.productId === id ? { ...it, custoBRL: valor, valorTabela: price, updatedAt: new Date().toISOString() } : it));
@@ -123,12 +125,31 @@ const ProductPricingDashboardPage: React.FC = () => {
     setSavingId(id);
     try {
       const price = computePrice(existing.custoBRL ?? 0, percent, existing.categoryName);
-      await savePricingProduct({ id: String(id), lucroPercent: percent, valorTabela: price } as any);
-      setItems(prev => prev.map(it => it.productId === id ? { ...it, lucroPercent: percent, valorTabela: price, updatedAt: new Date().toISOString() } : it));
+      await savePricingProduct({ id: String(id), lucroPercent: percent, valorTabela: price, usarLucroDaCategoria: false } as any);
+      setItems(prev => prev.map(it => it.productId === id ? { ...it, lucroPercent: percent, valorTabela: price, usarLucroDaCategoria: false, updatedAt: new Date().toISOString() } : it));
       setHighlightProductId(id);
       setTimeout(() => setHighlightProductId(h => (h === id ? null : h)), 1500);
     } catch (err) {
       console.error('Failed to save profit', err);
+    }
+    setSavingId(null);
+  };
+
+  const toggleUseCategory = async (id: number, value: boolean) => {
+    const existing = items.find(i => i.productId === id);
+    if (!existing) return;
+    setUndoStack(prev => [...prev, items]);
+    setRedoStack([]);
+    setSavingId(id);
+    try {
+      const profit = value
+        ? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0
+        : existing.lucroPercent ?? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0;
+      const price = computePrice(existing.custoBRL ?? 0, profit, existing.categoryName);
+      await savePricingProduct({ id: String(id), usarLucroDaCategoria: value, valorTabela: price } as any);
+      setItems(prev => prev.map(it => it.productId === id ? { ...it, usarLucroDaCategoria: value, valorTabela: price } : it));
+    } catch (err) {
+      console.error('Failed to toggle category profit usage', err);
     }
     setSavingId(null);
   };
@@ -140,8 +161,15 @@ const ProductPricingDashboardPage: React.FC = () => {
       setCategories(prev => prev.map(c => c.id === cat.id ? cat : c));
       setItems(prev =>
         prev.map(it =>
-          it.categoryName === cat.name
-            ? { ...it, valorTabela: computePrice(it.custoBRL ?? 0, it.lucroPercent ?? cat.lucroPercent, it.categoryName) }
+          it.categoryName === cat.name && it.usarLucroDaCategoria
+            ? {
+                ...it,
+                valorTabela: computePrice(
+                  it.custoBRL ?? 0,
+                  it.lucroPercent ?? cat.lucroPercent,
+                  it.categoryName
+                ),
+              }
             : it
         )
       );
@@ -164,7 +192,9 @@ const ProductPricingDashboardPage: React.FC = () => {
             ...it,
             valorTabela: computePrice(
               it.custoBRL ?? 0,
-              it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0,
+              it.usarLucroDaCategoria
+                ? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0
+                : it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0,
               it.categoryName
             ),
           })
@@ -267,8 +297,15 @@ const ProductPricingDashboardPage: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <div className="text-right">
-                      {editingProfitId === it.productId ? (
+                    <div className="text-right flex items-center justify-end space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={it.usarLucroDaCategoria ?? true}
+                        onChange={e => toggleUseCategory(it.productId, e.target.checked)}
+                        title="Seguir categoria"
+                        className="rounded text-blue-600 focus:ring-blue-500"
+                      />
+                      {editingProfitId === it.productId && !it.usarLucroDaCategoria ? (
                         <input
                           className="w-16 border px-1 text-right"
                           value={draftProfit}
@@ -281,8 +318,27 @@ const ProductPricingDashboardPage: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <span onClick={() => { setEditingProfitId(it.productId); setDraftProfit((it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toString()); }} className="cursor-pointer text-sm text-gray-500">
-                          {(it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toFixed(2)}
+                        <span
+                          onClick={() => {
+                            if (!it.usarLucroDaCategoria) {
+                              setEditingProfitId(it.productId);
+                              setDraftProfit(
+                                (
+                                  it.lucroPercent ??
+                                  categories.find(c => c.name === it.categoryName)?.lucroPercent ??
+                                  0
+                                ).toString()
+                              );
+                            }
+                          }}
+                          className={`cursor-pointer text-sm text-gray-500 ${it.usarLucroDaCategoria ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {(
+                            it.lucroPercent ??
+                            categories.find(c => c.name === it.categoryName)?.lucroPercent ??
+                            0
+                          ).toFixed(2)}
+                          {it.usarLucroDaCategoria ? ' (herdado)' : ''}
                         </span>
                       )}
                     </div>
