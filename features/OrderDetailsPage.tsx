@@ -12,6 +12,7 @@ import {
   PRODUCT_CONDITION_OPTIONS,
   saveOrder,
   uploadArrivalPhoto,
+  getClientById,
 } from '../services/AppService';
 import {
   Order,
@@ -20,6 +21,7 @@ import {
   ClientPayment,
   OrderStatus,
   DocumentFile,
+  Client,
 } from '../types';
 import {
   Card,
@@ -30,6 +32,8 @@ import {
   Tab,
   Toast,
   Alert,
+  Modal,
+  Textarea,
 } from '../components/SharedComponents';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
 import { Pencil } from 'lucide-react';
@@ -155,6 +159,31 @@ const ThreeuToolsFormatted: React.FC<{ report: string }> = ({ report }) => {
   );
 };
 
+interface InvoiceInfoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  client: Client | null;
+  order: Order;
+}
+
+const InvoiceInfoModal: React.FC<InvoiceInfoModalProps> = ({ isOpen, onClose, client, order }) => {
+  if (!isOpen) return null;
+  const info = [
+    `Nome completo: ${client?.fullName || order.customerName}`,
+    client?.cpfOrCnpj ? `CPF/CNPJ: ${client.cpfOrCnpj}` : '',
+    `Endere\u00e7o: ${client?.address || ''}`,
+    `CEP: ${client?.cep || ''}`,
+    `Cidade: ${client?.city || ''}`,
+    `Estado: ${client?.state || ''}`,
+  ].filter(Boolean).join('\n');
+  const handleCopy = () => navigator.clipboard.writeText(info);
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Dados para Nota Fiscal" footer={<Button onClick={handleCopy}>Copiar</Button>}>
+      <Textarea id="nf-info" readOnly value={info} textareaClassName="h-40" />
+    </Modal>
+  );
+};
+
 
 const OrderDetailsPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -172,6 +201,8 @@ const OrderDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [clientInfo, setClientInfo] = useState<Client | null>(null);
+  const [isInvoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
   const hasInvoice = useMemo(() => {
     return order?.documents?.some(d => /nota\s*fiscal|invoice/i.test(d.name || '')) || false;
@@ -183,6 +214,14 @@ const OrderDetailsPage: React.FC = () => {
       getClientPaymentsByOrderId(orderId).then(setClientPayments).catch(() => setClientPayments([]));
     }
   }, [orderId]);
+
+  useEffect(() => {
+    if (order?.clientId) {
+      getClientById(order.clientId).then(c => setClientInfo(c || null)).catch(() => setClientInfo(null));
+    } else {
+      setClientInfo(null);
+    }
+  }, [order?.clientId]);
 
   const handleSendContract = async () => {
     if (!order) return;
@@ -802,6 +841,7 @@ const OrderDetailsPage: React.FC = () => {
       <div className="flex justify-end space-x-2 mt-6">
         <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/occurrences`)}>Ocorrências</Button>
         <Button onClick={() => navigate('/orders')}>Voltar</Button>
+        <Button variant="secondary" onClick={() => setInvoiceModalOpen(true)}>Gerar Nota</Button>
         <Button variant="secondary" onClick={handleSendContract}>Enviar Contrato</Button>
       </div>
 
@@ -815,6 +855,7 @@ const OrderDetailsPage: React.FC = () => {
           }}
         />
       )}
+      <InvoiceInfoModal isOpen={isInvoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} client={clientInfo} order={order} />
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
     </div>
   );

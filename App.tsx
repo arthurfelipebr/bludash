@@ -334,7 +334,22 @@ const DashboardHomePage: React.FC<{}> = () => {
         try {
             setStats(await getDashboardStatistics());
             const fetchedAlerts = await getDashboardAlerts();
-            setAlerts(Array.isArray(fetchedAlerts) ? fetchedAlerts : []);
+            const orders = await getOrders();
+            const missingInvoice = orders.filter(o => !(o.documents?.some(d => /nota\s*fiscal|invoice/i.test(d.name || ''))));
+            let allAlerts = Array.isArray(fetchedAlerts) ? fetchedAlerts : [];
+            if (missingInvoice.length > 0) {
+                allAlerts = [
+                    ...allAlerts,
+                    {
+                        id: 'missing-invoice',
+                        type: 'warning',
+                        title: 'Pedidos sem Nota Fiscal',
+                        message: 'Existem pedidos sem nota fiscal anexada.',
+                        action: { label: 'Ver pedidos', path: '/orders' }
+                    }
+                ];
+            }
+            setAlerts(allAlerts);
         } catch (error) {
             console.error("Error refreshing dashboard data:", error);
         } finally {
