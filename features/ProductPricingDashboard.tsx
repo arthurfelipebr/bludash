@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { PageTitle, Card, Modal, Spinner } from '../components/SharedComponents';
-import { PricingListItem, PricingHistoryEntry, PricingCategory } from '../types';
+import { PageTitle, Card, Modal, Spinner, Input } from '../components/SharedComponents';
+import { PricingListItem, PricingHistoryEntry, PricingCategory, PricingGlobals } from '../types';
 import {
   getPricingProducts,
   savePricingProduct,
   getPricingHistory,
   getProductCategories,
   saveProductCategory,
+  getPricingGlobals,
+  savePricingGlobals,
 } from '../services/AppService';
 import { Clock } from 'lucide-react';
 
@@ -25,6 +27,9 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [historyFor, setHistoryFor] = useState<number | null>(null);
   const [historyEntries, setHistoryEntries] = useState<PricingHistoryEntry[]>([]);
   const [categories, setCategories] = useState<PricingCategory[]>([]);
+  const [globals, setGlobals] = useState<PricingGlobals>({ nfPercent: 0, nfProduto: 0, frete: 0 });
+  const [savingGlobals, setSavingGlobals] = useState(false);
+  const [highlightGlobals, setHighlightGlobals] = useState(false);
   const [highlightProductId, setHighlightProductId] = useState<number | null>(null);
   const [highlightCategoryId, setHighlightCategoryId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -36,6 +41,9 @@ const ProductPricingDashboardPage: React.FC = () => {
     getProductCategories()
       .then(setCategories)
       .catch(err => console.error('Failed to load categories', err));
+    getPricingGlobals()
+      .then(setGlobals)
+      .catch(err => console.error('Failed to load globals', err));
   }, []);
 
   useEffect(() => {
@@ -48,6 +56,22 @@ const ProductPricingDashboardPage: React.FC = () => {
       return next;
     });
   }, [items]);
+
+  const computePrice = (
+    cost: number,
+    profit: number,
+    categoryName: string
+  ): number => {
+    const cat = categories.find(c => c.name === categoryName);
+    const base =
+      cost +
+      (cat?.dustBag || 0) +
+      (cat?.packaging || 0) +
+      (globals.nfProduto || 0) +
+      (globals.frete || 0);
+    const withNf = base * (1 + (globals.nfPercent || 0));
+    return withNf * (1 + profit / 100);
+  };
 
   const loadHistory = useCallback((id: number) => {
     getPricingHistory(String(id))
@@ -80,7 +104,7 @@ const ProductPricingDashboardPage: React.FC = () => {
     setSavingId(id);
     try {
       const margin = existing.lucroPercent ?? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0;
-      const price = valor * (1 + margin / 100);
+      const price = computePrice(valor, margin, existing.categoryName);
       await savePricingProduct({ id: String(id), custoBRL: valor, valorTabela: price } as any);
       setItems(prev => prev.map(it => it.productId === id ? { ...it, custoBRL: valor, valorTabela: price, updatedAt: new Date().toISOString() } : it));
       setHighlightProductId(id);
@@ -98,7 +122,7 @@ const ProductPricingDashboardPage: React.FC = () => {
     setRedoStack([]);
     setSavingId(id);
     try {
-      const price = (existing.custoBRL ?? 0) * (1 + percent / 100);
+      const price = computePrice(existing.custoBRL ?? 0, percent, existing.categoryName);
       await savePricingProduct({ id: String(id), lucroPercent: percent, valorTabela: price } as any);
       setItems(prev => prev.map(it => it.productId === id ? { ...it, lucroPercent: percent, valorTabela: price, updatedAt: new Date().toISOString() } : it));
       setHighlightProductId(id);
@@ -114,12 +138,44 @@ const ProductPricingDashboardPage: React.FC = () => {
     try {
       await saveProductCategory(cat);
       setCategories(prev => prev.map(c => c.id === cat.id ? cat : c));
+      setItems(prev =>
+        prev.map(it =>
+          it.categoryName === cat.name
+            ? { ...it, valorTabela: computePrice(it.custoBRL ?? 0, it.lucroPercent ?? cat.lucroPercent, it.categoryName) }
+            : it
+        )
+      );
       setHighlightCategoryId(cat.id);
       setTimeout(() => setHighlightCategoryId(h => (h === cat.id ? null : h)), 1500);
     } catch (err) {
       console.error('Failed to save category', err);
     }
     setSavingCategoryId(null);
+  };
+
+  const saveGlobals = async (g: PricingGlobals) => {
+    setSavingGlobals(true);
+    try {
+      await savePricingGlobals(g);
+      setGlobals(g);
+      setItems(prev =>
+        prev.map(it =>
+          ({
+            ...it,
+            valorTabela: computePrice(
+              it.custoBRL ?? 0,
+              it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0,
+              it.categoryName
+            ),
+          })
+        )
+      );
+      setHighlightGlobals(true);
+      setTimeout(() => setHighlightGlobals(false), 1500);
+    } catch (err) {
+      console.error('Failed to save globals', err);
+    }
+    setSavingGlobals(false);
   };
 
   const undo = () => {
@@ -262,6 +318,38 @@ const ProductPricingDashboardPage: React.FC = () => {
             )}
           </div>
         ))}
+      </Card>
+      <Card title="Configurações Globais" bodyClassName="p-4 space-y-2" className={highlightGlobals ? 'border-green-500' : ''}>
+        <div className="grid grid-cols-3 gap-4">
+          <Input
+            id="nfPercent"
+            label="NF %"
+            type="number"
+            step="0.01"
+            value={globals.nfPercent}
+            onChange={e => setGlobals({ ...globals, nfPercent: parseFloat(e.target.value) || 0 })}
+            onBlur={() => saveGlobals(globals)}
+          />
+          <Input
+            id="nfProduto"
+            label="NF Produto"
+            type="number"
+            step="0.01"
+            value={globals.nfProduto}
+            onChange={e => setGlobals({ ...globals, nfProduto: parseFloat(e.target.value) || 0 })}
+            onBlur={() => saveGlobals(globals)}
+          />
+          <Input
+            id="frete"
+            label="Frete"
+            type="number"
+            step="0.01"
+            value={globals.frete}
+            onChange={e => setGlobals({ ...globals, frete: parseFloat(e.target.value) || 0 })}
+            onBlur={() => saveGlobals(globals)}
+          />
+        </div>
+        {savingGlobals && <Spinner size="sm" className="mt-2" />}
       </Card>
       <Card title="Categorias" bodyClassName="p-4 space-y-2">
         <div className="hidden md:grid grid-cols-4 gap-4 font-semibold bg-gray-50 p-2 rounded">
