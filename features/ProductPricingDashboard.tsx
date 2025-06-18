@@ -10,7 +10,7 @@ import {
   getPricingGlobals,
   savePricingGlobals,
 } from '../services/AppService';
-import { Clock, Check, X, Undo2, Redo2 } from 'lucide-react';
+import { Clock, Check, X, Undo2, Redo2, Info } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const ProductPricingDashboardPage: React.FC = () => {
@@ -37,6 +37,7 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [historyTab, setHistoryTab] = useState<'table' | 'chart'>('table');
+  const [priceDetailsFor, setPriceDetailsFor] = useState<number | null>(null);
 
   useEffect(() => {
     getPricingProducts()
@@ -80,6 +81,43 @@ const ProductPricingDashboardPage: React.FC = () => {
     const higher = Math.ceil(raw / 100) * 100 + r;
     const rounded = Math.abs(raw - lower) <= Math.abs(higher - raw) ? lower : higher;
     return Math.round(rounded);
+  };
+
+  interface PriceBreakdown {
+    cost: number;
+    dustBag: number;
+    packaging: number;
+    nfProduto: number;
+    frete: number;
+    base: number;
+    nfPercent: number;
+    withNf: number;
+    profit: number;
+    raw: number;
+    roundTo: number;
+    price: number;
+  }
+
+  const computePriceDetails = (
+    cost: number,
+    profit: number,
+    categoryName: string
+  ): PriceBreakdown => {
+    const cat = categories.find(c => c.name === categoryName);
+    const dustBag = cat?.dustBag || 0;
+    const packaging = cat?.packaging || 0;
+    const nfProduto = globals.nfProduto || 0;
+    const frete = globals.frete || 0;
+    const base = cost + dustBag + packaging + nfProduto + frete;
+    const nfPercent = globals.nfPercent || 0;
+    const withNf = base * (1 + nfPercent);
+    const raw = withNf * (1 + profit / 100);
+    const roundTo = globals.roundTo ?? 70;
+    const lower = Math.floor(raw / 100) * 100 + roundTo;
+    const higher = Math.ceil(raw / 100) * 100 + roundTo;
+    const rounded = Math.abs(raw - lower) <= Math.abs(higher - raw) ? lower : higher;
+    const price = Math.round(rounded);
+    return { cost, dustBag, packaging, nfProduto, frete, base, nfPercent, withNf, profit, raw, roundTo, price };
   };
 
   const loadHistory = useCallback((id: number) => {
@@ -519,7 +557,10 @@ const ProductPricingDashboardPage: React.FC = () => {
                       )}
                       {savingId === it.productId && <Spinner size="sm" className="ml-1 inline" />}
                       {savingId !== it.productId && editingId !== it.productId && editingCostId !== it.productId && (
-                        <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
+                        <>
+                          <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
+                          <Info className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => setPriceDetailsFor(it.productId)} />
+                        </>
                       )}
                     </div>
                     <div className="text-right text-sm text-gray-500 md:col-span-1">
@@ -676,6 +717,34 @@ const ProductPricingDashboardPage: React.FC = () => {
             </ResponsiveContainer>
           </div>
         )}
+      </Modal>
+      <Modal isOpen={priceDetailsFor !== null} onClose={() => setPriceDetailsFor(null)} title="Detalhes do Cálculo" size="lg">
+        {priceDetailsFor !== null && (() => {
+          const it = items.find(i => i.productId === priceDetailsFor);
+          if (!it) return null;
+          const profit = it.usarLucroDaCategoria
+            ? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0
+            : it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0;
+          const d = computePriceDetails(it.custoBRL ?? 0, profit, it.categoryName);
+          return (
+            <table className="min-w-full text-sm">
+              <tbody>
+                <tr><td className="px-2 py-1">Custo</td><td className="px-2 py-1 text-right">{d.cost.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">Dust Bag</td><td className="px-2 py-1 text-right">{d.dustBag.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">Packaging</td><td className="px-2 py-1 text-right">{d.packaging.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">NF Produto</td><td className="px-2 py-1 text-right">{d.nfProduto.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">Frete</td><td className="px-2 py-1 text-right">{d.frete.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1 font-semibold">Subtotal</td><td className="px-2 py-1 text-right font-semibold">{d.base.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">NF %</td><td className="px-2 py-1 text-right">{(d.nfPercent * 100).toFixed(2)}%</td></tr>
+                <tr><td className="px-2 py-1">Com NF</td><td className="px-2 py-1 text-right">{d.withNf.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">Lucro</td><td className="px-2 py-1 text-right">{d.profit.toFixed(2)}%</td></tr>
+                <tr><td className="px-2 py-1">Sem Arred.</td><td className="px-2 py-1 text-right">{d.raw.toFixed(2)}</td></tr>
+                <tr><td className="px-2 py-1">Arredondar p/</td><td className="px-2 py-1 text-right">{d.roundTo.toFixed(0)}</td></tr>
+                <tr><td className="px-2 py-1 font-semibold">Preço Final</td><td className="px-2 py-1 text-right font-semibold">{d.price.toFixed(2)}</td></tr>
+              </tbody>
+            </table>
+          );
+        })()}
       </Modal>
       {selectedIds.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-md p-4 flex justify-between items-center">
