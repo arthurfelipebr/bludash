@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getOrderById,
@@ -10,6 +10,7 @@ import {
   DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE,
   ORDER_STATUS_OPTIONS,
   saveOrder,
+  uploadArrivalPhoto,
 } from '../services/AppService';
 import {
   Order,
@@ -17,6 +18,7 @@ import {
   BluFacilitaContractStatus,
   ClientPayment,
   OrderStatus,
+  DocumentFile,
 } from '../types';
 import {
   Card,
@@ -28,33 +30,73 @@ import {
 } from '../components/SharedComponents';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
 import { OrderForm } from './OrdersFeature';
+import { Pencil } from 'lucide-react';
 
-const ThreeuToolsTable: React.FC<{ report: string }> = ({ report }) => {
-  const rows = report
-    .split(/\r?\n/)
-    .map(l => l.trim())
-    .filter(Boolean)
-    .map(l => l.split(/\s{2,}/).filter(Boolean));
-  if (rows.length === 0) return null;
+interface ParsedThreeuTools {
+  categories: Record<string, Record<string, string>>;
+  data: {
+    serialNumber?: string;
+    iosVersion?: string;
+    manufactureDate?: string;
+    warrantyDate?: string;
+    chargeTimes?: string;
+    batteryLife?: string;
+  };
+}
+
+const parseThreeuToolsReport = (report: string): ParsedThreeuTools => {
+  const result: ParsedThreeuTools = { categories: {}, data: {} };
+  const lines = report.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const match = line.match(/^([^:]+):\s*(.+)$/);
+    if (!match) continue;
+    const key = match[1];
+    const value = match[2];
+    let category = 'Outros';
+    if (/serial|imei|model|ios|udid/i.test(key)) {
+      category = 'Identificação do aparelho';
+    } else if (/camera|display|screen|battery/i.test(key)) {
+      category = 'Câmeras, Tela e Bateria';
+    } else if (/wifi|bluetooth|carrier|network|sim|modem/i.test(key)) {
+      category = 'Rede e Conectividade';
+    } else if (/warranty|activation|status|icloud|lock/i.test(key)) {
+      category = 'Status e Ativação';
+    }
+    if (!result.categories[category]) result.categories[category] = {};
+    result.categories[category][key] = value;
+    const lower = key.toLowerCase();
+    if (lower.includes('serial')) result.data.serialNumber = value;
+    if (lower.includes('ios')) result.data.iosVersion = value;
+    if (lower.includes('production') || lower.includes('manufacture')) result.data.manufactureDate = value;
+    if (lower.includes('warranty')) result.data.warrantyDate = value;
+    if (lower.includes('charge')) result.data.chargeTimes = value;
+    if (lower.includes('battery') && (lower.includes('life') || lower.includes('health'))) result.data.batteryLife = value;
+  }
+  return result;
+};
+
+const ThreeuToolsFormatted: React.FC<{ report: string }> = ({ report }) => {
+  const parsed = useMemo(() => parseThreeuToolsReport(report), [report]);
   return (
-    <div className="overflow-auto mt-1">
-      <table className="min-w-full text-xs border">
-        <tbody>
-          {rows.map((cols, i) => (
-            <tr key={i}>
-              {cols.map((c, j) => (
-                <td key={j} className="border px-1 py-0.5 whitespace-nowrap">
-                  {c}
-                </td>
+    <div className="grid gap-4 mt-1">
+      {Object.entries(parsed.categories).map(([cat, entries]) => (
+        <Card key={cat} className="p-2">
+          <h4 className="font-semibold text-sm mb-1">{cat}</h4>
+          <table className="min-w-full text-xs">
+            <tbody>
+              {Object.entries(entries).map(([k, v]) => (
+                <tr key={k} className="border-b last:border-0">
+                  <td className="pr-2 font-medium whitespace-nowrap">{k}</td>
+                  <td className="whitespace-nowrap">{v}</td>
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </Card>
+      ))}
     </div>
   );
 };
-import { Pencil } from 'lucide-react';
 
 
 const OrderDetailsPage: React.FC = () => {
@@ -69,6 +111,9 @@ const OrderDetailsPage: React.FC = () => {
   const [isLoadingCorreios, setIsLoadingCorreios] = useState(false);
   const [orderToRegisterPayment, setOrderToRegisterPayment] = useState<Order | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [editedSummary, setEditedSummary] = useState<Order | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (orderId) {
@@ -93,6 +138,34 @@ const OrderDetailsPage: React.FC = () => {
     setOrder(updated);
     setIsEditFormOpen(false);
   };
+
+  const handleSummarySave = async () => {
+    if (!editedSummary) return;
+    await saveOrder(editedSummary);
+    setOrder(editedSummary);
+    setIsEditingSummary(false);
+    setEditedSummary(null);
+  };
+
+  const handleArrivalPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!order) return;
+    const files = e.target.files;
+    if (!files) return;
+    const uploaded: DocumentFile[] = [];
+    for (const file of Array.from(files)) {
+      const doc = await uploadArrivalPhoto(order.id, file);
+      uploaded.push(doc);
+    }
+    const updated = { ...order, arrivalPhotos: [...(order.arrivalPhotos || []), ...uploaded] };
+    setOrder(updated);
+    await saveOrder(updated);
+    e.target.value = '';
+  };
+
+  const parsedReport = useMemo(() => {
+    if (!order?.threeuToolsReport) return { categories: {}, data: {} } as ParsedThreeuTools;
+    return parseThreeuToolsReport(order.threeuToolsReport);
+  }, [order?.threeuToolsReport]);
 
   if (!order) {
     return (
@@ -202,25 +275,101 @@ const OrderDetailsPage: React.FC = () => {
       {activeTab === 'Resumo' && (
         <div className="space-y-4 text-sm">
           <Card>
-            <h3 className="text-lg font-semibold mb-2">Informações Gerais</h3>
-            <p className="text-gray-700"><strong>Cliente:</strong> {order.clientId ? order.clientId : order.customerName}</p>
-            <p className="text-gray-700"><strong>Produto:</strong> {order.productName} {order.model} {order.watchSize && `(${order.watchSize})`} ({order.capacity}) - {order.color} [{order.condition}]</p>
-            <div className="flex items-center text-gray-700">
-              <strong>Fornecedor:</strong>&nbsp;
-              {supplierNameVisible ? (<span>{order.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)}
-              <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-2 p-1">
-                {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-              </Button>
-            </div>
-            <div className="flex items-center text-gray-700">
-              <strong>Custo (Fornecedor):</strong>&nbsp;
-              {purchasePriceVisible ? (<span>{formatCurrencyBRL(order.purchasePrice)}</span>) : (
-                <span className="blur-sm select-none">{formatCurrencyBRL(order.purchasePrice)}</span>
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-lg font-semibold">Informações Gerais</h3>
+              {!isEditingSummary && (
+                <button onClick={() => {setEditedSummary(order);setIsEditingSummary(true);}} className="text-gray-500">
+                  <Pencil className="h-4 w-4" />
+                </button>
               )}
-              <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-2 p-1">
-                {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-              </Button>
             </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div>
+                <span className="font-medium text-gray-800">Cliente</span>
+                {isEditingSummary ? (
+                  <input className="mt-1 w-full border rounded p-1" value={editedSummary?.customerName || ''} onChange={e => setEditedSummary(p => p ? ({...p, customerName:e.target.value}) : p)} />
+                ) : (
+                  <p className="text-gray-700 flex items-center">{order.customerName}<Pencil className="h-3 w-3 ml-1 text-gray-400" /></p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <span className="font-medium text-gray-800">Produto</span>
+                {isEditingSummary ? (
+                  <input className="mt-1 w-full border rounded p-1" value={editedSummary?.productName + ' ' + (editedSummary?.model||'')} onChange={e => setEditedSummary(p=>p?{...p, productName:e.target.value}:{...order})} />
+                ) : (
+                  <p className="text-gray-700 flex items-center">{order.productName} {order.model} {order.watchSize && `(${order.watchSize})`} ({order.capacity}) - {order.color} [{order.condition}]<Pencil className="h-3 w-3 ml-1 text-gray-400" /></p>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Fornecedor</span>
+                {isEditingSummary ? (
+                  <input className="mt-1 w-full border rounded p-1" value={editedSummary?.supplierName || ''} onChange={e => setEditedSummary(p=>p?{...p, supplierName:e.target.value}:p)} />
+                ) : (
+                  <div className="flex items-center text-gray-700">
+                    {supplierNameVisible ? (<span>{order.supplierName || 'N/A'}</span>) : (<span className="blur-sm select-none">Fornecedor Protegido X</span>)}
+                    <Button variant="ghost" size="sm" onClick={() => setSupplierNameVisible(!supplierNameVisible)} className="ml-1 p-1">
+                      {supplierNameVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Custo (Fornecedor)</span>
+                {isEditingSummary ? (
+                  <input className="mt-1 w-full border rounded p-1" type="number" value={editedSummary?.purchasePrice ?? 0} onChange={e => setEditedSummary(p=>p?{...p, purchasePrice: parseFloat(e.target.value)}:p)} />
+                ) : (
+                  <div className="flex items-center text-gray-700">
+                    {purchasePriceVisible ? (<span>{formatCurrencyBRL(order.purchasePrice)}</span>) : (
+                      <span className="blur-sm select-none">{formatCurrencyBRL(order.purchasePrice)}</span>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => setPurchasePriceVisible(!purchasePriceVisible)} className="ml-1 p-1">
+                      {purchasePriceVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {parsedReport.data.serialNumber && (
+                <div>
+                  <span className="font-medium text-gray-800">Serial Number</span>
+                  <p className="text-gray-700">{parsedReport.data.serialNumber}</p>
+                </div>
+              )}
+              {parsedReport.data.iosVersion && (
+                <div>
+                  <span className="font-medium text-gray-800">iOS Version</span>
+                  <p className="text-gray-700">{parsedReport.data.iosVersion}</p>
+                </div>
+              )}
+              {parsedReport.data.manufactureDate && (
+                <div>
+                  <span className="font-medium text-gray-800">Data de Fabricação</span>
+                  <p className="text-gray-700">{parsedReport.data.manufactureDate}</p>
+                </div>
+              )}
+              {parsedReport.data.warrantyDate && (
+                <div>
+                  <span className="font-medium text-gray-800">Data de Garantia</span>
+                  <p className="text-gray-700">{parsedReport.data.warrantyDate}</p>
+                </div>
+              )}
+              {parsedReport.data.chargeTimes && (
+                <div>
+                  <span className="font-medium text-gray-800">Charge Times</span>
+                  <p className="text-gray-700">{parsedReport.data.chargeTimes}</p>
+                </div>
+              )}
+              {parsedReport.data.batteryLife && (
+                <div>
+                  <span className="font-medium text-gray-800">Battery Life</span>
+                  <p className="text-gray-700">{parsedReport.data.batteryLife}</p>
+                </div>
+              )}
+            </div>
+            {isEditingSummary && (
+              <div className="mt-4">
+                <Button size="sm" onClick={handleSummarySave}>Salvar alterações</Button>
+              </div>
+            )}
           </Card>
         </div>
       )}
@@ -337,7 +486,7 @@ const OrderDetailsPage: React.FC = () => {
             {order.threeuToolsReport && (
               <div>
                 <strong>Relatório 3uTools:</strong>
-                <ThreeuToolsTable report={order.threeuToolsReport} />
+                <ThreeuToolsFormatted report={order.threeuToolsReport} />
               </div>
             )}
             {order.whatsAppHistorySummary && <p className="text-gray-700"><strong>Resumo WhatsApp:</strong> {order.whatsAppHistorySummary}</p>}
@@ -367,7 +516,7 @@ const OrderDetailsPage: React.FC = () => {
             <div className="mt-2">
               <h4 className="text-md font-semibold mb-1 text-gray-800">Fotos da Chegada:</h4>
               {order.arrivalPhotos && order.arrivalPhotos.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mb-2">
                   {order.arrivalPhotos.map(photo => (
                     <img
                       key={photo.id}
@@ -380,6 +529,10 @@ const OrderDetailsPage: React.FC = () => {
               ) : (
                 <span className="text-xs text-gray-500">Nenhuma foto.</span>
               )}
+              <input type="file" className="hidden" multiple ref={fileInputRef} onChange={handleArrivalPhotoUpload} />
+              <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} className="mt-1">
+                Adicionar Foto
+              </Button>
             </div>
           </Card>
         </div>

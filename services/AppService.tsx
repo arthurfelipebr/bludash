@@ -323,6 +323,19 @@ export const saveOrder = async (orderData: Omit<Order, 'id' | 'userId'> | Order)
   }
 };
 
+export const uploadArrivalPhoto = async (orderId: string, file: File): Promise<DocumentFile> => {
+  const doc: DocumentFile = {
+    id: uuidv4(),
+    name: file.name,
+    url: URL.createObjectURL(file),
+    uploadedAt: new Date().toISOString(),
+    type: file.type,
+    size: file.size,
+  };
+  // In real app this would POST to backend
+  return doc;
+};
+
 export const deleteOrder = async (orderId: string): Promise<void> => {
   return apiClient<void>(`/orders/${orderId}`, { method: 'DELETE' });
 };
