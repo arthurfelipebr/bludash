@@ -223,7 +223,7 @@ const ProductPricingDashboardPage: React.FC = () => {
     <div className="space-y-6">
       <PageTitle title="Precificação de Produtos" />
       <Card title="Produtos" bodyClassName="p-4 space-y-4">
-        <div className="hidden md:grid grid-cols-5 gap-4 font-semibold bg-gray-50 p-2 rounded">
+        <div className="hidden md:grid grid-cols-5 gap-6 font-semibold bg-gray-50 py-3 px-2 rounded-xl shadow-sm border border-gray-200">
           <div>Produto</div>
           <div className="text-right">Custo BRL</div>
           <div className="text-right">Lucro %</div>
@@ -231,7 +231,7 @@ const ProductPricingDashboardPage: React.FC = () => {
           <div className="text-right">Atualizado Em</div>
         </div>
         {Object.entries(groupedItems).map(([cat, list]) => (
-          <div key={cat} className="mb-2">
+          <div key={cat} className={`mb-2 ${expandedCategories[cat] ? 'shadow-md' : ''}`}> 
             <button
               type="button"
               className="w-full flex justify-between items-center bg-gray-100 px-2 py-2 rounded"
@@ -241,13 +241,13 @@ const ProductPricingDashboardPage: React.FC = () => {
               <i className={`heroicons-outline-chevron-${expandedCategories[cat] ? 'up' : 'down'} h-4 w-4`} />
             </button>
             {expandedCategories[cat] && (
-              <div className="space-y-2 mt-2">
+              <div className="space-y-2 mt-2 divide-y divide-gray-200">
                 {list.map(it => (
                   <div
                     key={it.productId}
-                    className={`grid grid-cols-5 gap-4 items-center px-2 py-2 rounded border ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
+                    className={`grid grid-cols-5 gap-6 items-center px-2 py-3 rounded-xl shadow-sm border border-gray-200 ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
                   >
-                    <div>{it.productName}</div>
+                    <div className="font-bold">{it.productName}</div>
                     <div className="text-right">
                       {editingCostId === it.productId ? (
                         <input
@@ -262,7 +262,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer">
+                        <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer text-sm text-gray-500">
                           {it.custoBRL?.toFixed(2)}
                         </span>
                       )}
@@ -281,7 +281,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <span onClick={() => { setEditingProfitId(it.productId); setDraftProfit((it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toString()); }} className="cursor-pointer">
+                        <span onClick={() => { setEditingProfitId(it.productId); setDraftProfit((it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toString()); }} className="cursor-pointer text-sm text-gray-500">
                           {(it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toFixed(2)}
                         </span>
                       )}
@@ -300,7 +300,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <span onClick={() => { setEditingId(it.productId); setDraftValue(it.valorTabela?.toFixed(2) || ''); }} className="cursor-pointer">
+                        <span onClick={() => { setEditingId(it.productId); setDraftValue(it.valorTabela?.toFixed(2) || ''); }} className="cursor-pointer font-bold">
                           {it.valorTabela?.toFixed(2)}
                         </span>
                       )}
@@ -309,7 +309,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                         <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right text-sm text-gray-500">
                       {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString('pt-BR') : ''}
                     </div>
                   </div>
@@ -352,15 +352,15 @@ const ProductPricingDashboardPage: React.FC = () => {
         {savingGlobals && <Spinner size="sm" className="mt-2" />}
       </Card>
       <Card title="Categorias" bodyClassName="p-4 space-y-2">
-        <div className="hidden md:grid grid-cols-4 gap-4 font-semibold bg-gray-50 p-2 rounded">
+        <div className="hidden md:grid grid-cols-4 gap-6 font-semibold bg-gray-50 py-3 px-2 rounded-xl shadow-sm border border-gray-200">
           <div>Categoria</div>
           <div className="text-right">Dust Bag</div>
           <div className="text-right">Packaging</div>
           <div className="text-right">Lucro %</div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 divide-y divide-gray-200">
           {categories.map(cat => (
-            <div key={cat.id} className={`grid grid-cols-4 gap-4 items-center px-2 py-2 rounded border ${highlightCategoryId === cat.id ? 'bg-green-50' : 'bg-white'}`}>
+            <div key={cat.id} className={`grid grid-cols-4 gap-6 items-center px-2 py-3 rounded-xl shadow-sm border border-gray-200 ${highlightCategoryId === cat.id ? 'bg-green-50' : 'bg-white'}`}>
               <div>{cat.name}</div>
               <div className="text-right">
                 <input
