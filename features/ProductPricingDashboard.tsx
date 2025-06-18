@@ -27,6 +27,7 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [categories, setCategories] = useState<PricingCategory[]>([]);
   const [highlightProductId, setHighlightProductId] = useState<number | null>(null);
   const [highlightCategoryId, setHighlightCategoryId] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     getPricingProducts()
@@ -36,6 +37,17 @@ const ProductPricingDashboardPage: React.FC = () => {
       .then(setCategories)
       .catch(err => console.error('Failed to load categories', err));
   }, []);
+
+  useEffect(() => {
+    const names = Array.from(new Set(items.map(i => i.categoryName)));
+    setExpandedCategories(prev => {
+      const next = { ...prev };
+      names.forEach(n => {
+        if (next[n] === undefined) next[n] = true;
+      });
+      return next;
+    });
+  }, [items]);
 
   const loadHistory = useCallback((id: number) => {
     getPricingHistory(String(id))
@@ -126,6 +138,10 @@ const ProductPricingDashboardPage: React.FC = () => {
     setItems(next);
   };
 
+  const toggleCategory = (name: string) => {
+    setExpandedCategories(prev => ({ ...prev, [name]: !prev[name] }));
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'z') {
@@ -148,164 +164,162 @@ const ProductPricingDashboardPage: React.FC = () => {
   }, {});
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageTitle title="Precificação de Produtos" />
-      <Card title="Produtos" bodyClassName="p-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr>
-                <th className="px-2 py-1 text-left">Produto</th>
-                <th className="px-2 py-1 text-right">Custo BRL</th>
-                <th className="px-2 py-1 text-right">Lucro %</th>
-                <th className="px-2 py-1 text-right">Valor de Tabela</th>
-                <th className="px-2 py-1 text-right">Atualizado Em</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(groupedItems).map(([cat, list]) => (
-                <React.Fragment key={cat}>
-                  <tr className="bg-gray-50">
-                    <td colSpan={5} className="px-2 py-1 font-semibold">{cat}</td>
-                  </tr>
-                  {list.map(it => (
-                    <tr key={it.productId} className={highlightProductId === it.productId ? 'bg-green-50' : ''}>
-                      <td className="px-2 py-1">{it.productName}</td>
-                      <td className="px-2 py-1 text-right">
-                        {editingCostId === it.productId ? (
-                          <input
-                            className="w-24 border px-1 text-right"
-                            value={draftCost}
-                            autoFocus
-                            onChange={e => setDraftCost(e.target.value)}
-                            onBlur={() => {
-                              const val = parseFloat(draftCost.replace(',', '.'));
-                              if (!isNaN(val)) saveCost(it.productId, val);
-                              setEditingCostId(null);
-                            }}
-                          />
-                        ) : (
-                          <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer">
-                            {it.custoBRL?.toFixed(2)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {editingProfitId === it.productId ? (
-                          <input
-                            className="w-16 border px-1 text-right"
-                            value={draftProfit}
-                            autoFocus
-                            onChange={e => setDraftProfit(e.target.value)}
-                            onBlur={() => {
-                              const val = parseFloat(draftProfit.replace(',', '.'));
-                              if (!isNaN(val)) saveProfit(it.productId, val);
-                              setEditingProfitId(null);
-                            }}
-                          />
-                        ) : (
-                          <span onClick={() => { setEditingProfitId(it.productId); setDraftProfit((it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toString()); }} className="cursor-pointer">
-                            {(it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toFixed(2)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {editingId === it.productId ? (
-                          <input
-                            className="w-24 border px-1 text-right"
-                            value={draftValue}
-                            autoFocus
-                            onChange={e => setDraftValue(e.target.value)}
-                            onBlur={() => {
-                              const val = parseFloat(draftValue.replace(',', '.'));
-                              if (!isNaN(val)) savePrice(it.productId, val);
-                              setEditingId(null);
-                            }}
-                          />
-                        ) : (
-                          <span onClick={() => { setEditingId(it.productId); setDraftValue(it.valorTabela?.toFixed(2) || ''); }} className="cursor-pointer">
-                            {it.valorTabela?.toFixed(2)}
-                          </span>
-                        )}
-                        {savingId === it.productId && <Spinner size="sm" className="ml-1 inline" />}
-                        {savingId !== it.productId && editingId !== it.productId && editingCostId !== it.productId && (
-                          <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString('pt-BR') : ''}
-                      </td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+      <Card title="Produtos" bodyClassName="p-4 space-y-4">
+        <div className="hidden md:grid grid-cols-5 gap-4 font-semibold bg-gray-50 p-2 rounded">
+          <div>Produto</div>
+          <div className="text-right">Custo BRL</div>
+          <div className="text-right">Lucro %</div>
+          <div className="text-right">Valor de Tabela</div>
+          <div className="text-right">Atualizado Em</div>
         </div>
+        {Object.entries(groupedItems).map(([cat, list]) => (
+          <div key={cat} className="mb-2">
+            <button
+              type="button"
+              className="w-full flex justify-between items-center bg-gray-100 px-2 py-2 rounded"
+              onClick={() => toggleCategory(cat)}
+            >
+              <span className="font-semibold">{cat}</span>
+              <i className={`heroicons-outline-chevron-${expandedCategories[cat] ? 'up' : 'down'} h-4 w-4`} />
+            </button>
+            {expandedCategories[cat] && (
+              <div className="space-y-2 mt-2">
+                {list.map(it => (
+                  <div
+                    key={it.productId}
+                    className={`grid grid-cols-5 gap-4 items-center px-2 py-2 rounded border ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
+                  >
+                    <div>{it.productName}</div>
+                    <div className="text-right">
+                      {editingCostId === it.productId ? (
+                        <input
+                          className="w-24 border px-1 text-right"
+                          value={draftCost}
+                          autoFocus
+                          onChange={e => setDraftCost(e.target.value)}
+                          onBlur={() => {
+                            const val = parseFloat(draftCost.replace(',', '.'));
+                            if (!isNaN(val)) saveCost(it.productId, val);
+                            setEditingCostId(null);
+                          }}
+                        />
+                      ) : (
+                        <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer">
+                          {it.custoBRL?.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {editingProfitId === it.productId ? (
+                        <input
+                          className="w-16 border px-1 text-right"
+                          value={draftProfit}
+                          autoFocus
+                          onChange={e => setDraftProfit(e.target.value)}
+                          onBlur={() => {
+                            const val = parseFloat(draftProfit.replace(',', '.'));
+                            if (!isNaN(val)) saveProfit(it.productId, val);
+                            setEditingProfitId(null);
+                          }}
+                        />
+                      ) : (
+                        <span onClick={() => { setEditingProfitId(it.productId); setDraftProfit((it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toString()); }} className="cursor-pointer">
+                          {(it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {editingId === it.productId ? (
+                        <input
+                          className="w-24 border px-1 text-right"
+                          value={draftValue}
+                          autoFocus
+                          onChange={e => setDraftValue(e.target.value)}
+                          onBlur={() => {
+                            const val = parseFloat(draftValue.replace(',', '.'));
+                            if (!isNaN(val)) savePrice(it.productId, val);
+                            setEditingId(null);
+                          }}
+                        />
+                      ) : (
+                        <span onClick={() => { setEditingId(it.productId); setDraftValue(it.valorTabela?.toFixed(2) || ''); }} className="cursor-pointer">
+                          {it.valorTabela?.toFixed(2)}
+                        </span>
+                      )}
+                      {savingId === it.productId && <Spinner size="sm" className="ml-1 inline" />}
+                      {savingId !== it.productId && editingId !== it.productId && editingCostId !== it.productId && (
+                        <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString('pt-BR') : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </Card>
-      <Card title="Categorias" bodyClassName="p-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr>
-                <th className="px-2 py-1 text-left">Categoria</th>
-                <th className="px-2 py-1 text-right">Dust Bag</th>
-                <th className="px-2 py-1 text-right">Packaging</th>
-                <th className="px-2 py-1 text-right">Lucro %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map(cat => (
-                <tr key={cat.id} className={highlightCategoryId === cat.id ? 'bg-green-50' : ''}>
-                  <td className="px-2 py-1">{cat.name}</td>
-                  <td className="px-2 py-1 text-right">
-                    <input
-                      className="w-20 border px-1 text-right"
-                      value={cat.dustBag}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, dustBag: isNaN(val) ? 0 : val } : c));
-                      }}
-                      onBlur={() => {
-                        const current = categories.find(c => c.id === cat.id);
-                        if (current) saveCategory(current);
-                      }}
-                    />
-                  </td>
-                  <td className="px-2 py-1 text-right">
-                    <input
-                      className="w-20 border px-1 text-right"
-                      value={cat.packaging}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, packaging: isNaN(val) ? 0 : val } : c));
-                      }}
-                      onBlur={() => {
-                        const current = categories.find(c => c.id === cat.id);
-                        if (current) saveCategory(current);
-                      }}
-                    />
-                    {savingCategoryId === cat.id && <Spinner size="sm" className="ml-1 inline" />}
-                  </td>
-                  <td className="px-2 py-1 text-right">
-                    <input
-                      className="w-20 border px-1 text-right"
-                      value={cat.lucroPercent}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, lucroPercent: isNaN(val) ? 0 : val } : c));
-                      }}
-                      onBlur={() => {
-                        const current = categories.find(c => c.id === cat.id);
-                        if (current) saveCategory(current);
-                      }}
-                    />
-                    {savingCategoryId === cat.id && <Spinner size="sm" className="ml-1 inline" />}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Card title="Categorias" bodyClassName="p-4 space-y-2">
+        <div className="hidden md:grid grid-cols-4 gap-4 font-semibold bg-gray-50 p-2 rounded">
+          <div>Categoria</div>
+          <div className="text-right">Dust Bag</div>
+          <div className="text-right">Packaging</div>
+          <div className="text-right">Lucro %</div>
+        </div>
+        <div className="space-y-2">
+          {categories.map(cat => (
+            <div key={cat.id} className={`grid grid-cols-4 gap-4 items-center px-2 py-2 rounded border ${highlightCategoryId === cat.id ? 'bg-green-50' : 'bg-white'}`}>
+              <div>{cat.name}</div>
+              <div className="text-right">
+                <input
+                  className="w-20 border px-1 text-right"
+                  value={cat.dustBag}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, dustBag: isNaN(val) ? 0 : val } : c));
+                  }}
+                  onBlur={() => {
+                    const current = categories.find(c => c.id === cat.id);
+                    if (current) saveCategory(current);
+                  }}
+                />
+              </div>
+              <div className="text-right">
+                <input
+                  className="w-20 border px-1 text-right"
+                  value={cat.packaging}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, packaging: isNaN(val) ? 0 : val } : c));
+                  }}
+                  onBlur={() => {
+                    const current = categories.find(c => c.id === cat.id);
+                    if (current) saveCategory(current);
+                  }}
+                />
+                {savingCategoryId === cat.id && <Spinner size="sm" className="ml-1 inline" />}
+              </div>
+              <div className="text-right">
+                <input
+                  className="w-20 border px-1 text-right"
+                  value={cat.lucroPercent}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, lucroPercent: isNaN(val) ? 0 : val } : c));
+                  }}
+                  onBlur={() => {
+                    const current = categories.find(c => c.id === cat.id);
+                    if (current) saveCategory(current);
+                  }}
+                />
+                {savingCategoryId === cat.id && <Spinner size="sm" className="ml-1 inline" />}
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
       <Modal isOpen={historyFor !== null} onClose={() => setHistoryFor(null)} title="Histórico de Preço" size="sm">
