@@ -459,18 +459,6 @@ const OrderDetailsPage: React.FC = () => {
                   <p className="text-gray-700 mt-1">{parsedReport.data.serialNumber}</p>
                 </div>
               )}
-              {parsedReport.data.iosVersion && (
-                <div>
-                  <span className="font-medium text-gray-800">iOS Version</span>
-                  <p className="text-gray-700 mt-1">{parsedReport.data.iosVersion}</p>
-                </div>
-              )}
-              {parsedReport.data.manufactureDate && (
-                <div>
-                  <span className="font-medium text-gray-800">Data de Fabricação</span>
-                  <p className="text-gray-700 mt-1">{parsedReport.data.manufactureDate}</p>
-                </div>
-              )}
               {parsedReport.data.warrantyDate && (
                 <div>
                   <span className="font-medium text-gray-800">Data de Garantia</span>
@@ -481,12 +469,6 @@ const OrderDetailsPage: React.FC = () => {
                 <div>
                   <span className="font-medium text-gray-800">Charge Times</span>
                   <p className="text-gray-700 mt-1">{parsedReport.data.chargeTimes}</p>
-                </div>
-              )}
-              {parsedReport.data.batteryLife && (
-                <div>
-                  <span className="font-medium text-gray-800">Battery Life</span>
-                  <p className="text-gray-700 mt-1">{parsedReport.data.batteryLife}</p>
                 </div>
               )}
             </div>
