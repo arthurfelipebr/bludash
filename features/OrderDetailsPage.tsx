@@ -66,11 +66,28 @@ const parseThreeuToolsReport = (report: string): ParsedThreeuTools => {
     return 'unknown';
   };
   for (const line of lines) {
+    let key: string | undefined;
+    let value = '';
+    let status: ThreeuToolsStatus = 'unknown';
     const match = line.match(/^([^:]+):\s*(.+)$/);
-    if (!match) continue;
-    const key = match[1];
-    const value = match[2];
-    const status = getStatus(value);
+    if (match) {
+      key = match[1];
+      value = match[2];
+      status = getStatus(value);
+    } else {
+      const parts = line.split(/\s{2,}/).filter(Boolean);
+      if (parts.length >= 2) {
+        key = parts[0];
+        const maybeStatus = getStatus(parts[parts.length - 1]);
+        if (maybeStatus !== 'unknown') {
+          status = maybeStatus;
+          value = parts.slice(1, -1).join(' ');
+        } else {
+          value = parts.slice(1).join(' ');
+        }
+      }
+    }
+    if (!key) continue;
     let category = 'Outros';
     if (/serial|imei|model|ios|udid/i.test(key)) {
       category = 'Informações do Aparelho';
