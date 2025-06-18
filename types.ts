@@ -117,6 +117,7 @@ export interface PricingHistoryEntry {
 export interface PricingCategory {
   id: string;
   name: string;
+  lucroPercent: number;
   dustBag: number;
   packaging: number;
 }
@@ -450,5 +451,6 @@ export interface PricingListItem {
   categoryName: string;
   custoBRL: number | null;
   valorTabela: number | null;
+  lucroPercent?: number | null;
   updatedAt?: string;
 }

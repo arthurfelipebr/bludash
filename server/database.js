@@ -46,6 +46,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE historicalPrices ADD COLUMN originCountry TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN chip TEXT', [], () => {});
     db.run('ALTER TABLE clientPayments ADD COLUMN installments INTEGER', [], () => {});
+    db.run('ALTER TABLE categories ADD COLUMN lucroPercent REAL', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -229,7 +230,8 @@ function initializeDatabase() {
 
     db.run(`CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE
+        name TEXT NOT NULL UNIQUE,
+        lucroPercent REAL DEFAULT 0
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS products (

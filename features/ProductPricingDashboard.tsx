@@ -16,6 +16,8 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [draftValue, setDraftValue] = useState('');
   const [editingCostId, setEditingCostId] = useState<number | null>(null);
   const [draftCost, setDraftCost] = useState('');
+  const [editingProfitId, setEditingProfitId] = useState<number | null>(null);
+  const [draftProfit, setDraftProfit] = useState('');
   const [savingId, setSavingId] = useState<number | null>(null);
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<PricingListItem[][]>([]);
@@ -65,12 +67,32 @@ const ProductPricingDashboardPage: React.FC = () => {
     setRedoStack([]);
     setSavingId(id);
     try {
-      await savePricingProduct({ id: String(id), custoBRL: valor } as any);
-      setItems(prev => prev.map(it => it.productId === id ? { ...it, custoBRL: valor, updatedAt: new Date().toISOString() } : it));
+      const margin = existing.lucroPercent ?? categories.find(c => c.name === existing.categoryName)?.lucroPercent ?? 0;
+      const price = valor * (1 + margin / 100);
+      await savePricingProduct({ id: String(id), custoBRL: valor, valorTabela: price } as any);
+      setItems(prev => prev.map(it => it.productId === id ? { ...it, custoBRL: valor, valorTabela: price, updatedAt: new Date().toISOString() } : it));
       setHighlightProductId(id);
       setTimeout(() => setHighlightProductId(h => (h === id ? null : h)), 1500);
     } catch (err) {
       console.error('Failed to save cost', err);
+    }
+    setSavingId(null);
+  };
+
+  const saveProfit = async (id: number, percent: number) => {
+    const existing = items.find(i => i.productId === id);
+    if (!existing) return;
+    setUndoStack(prev => [...prev, items]);
+    setRedoStack([]);
+    setSavingId(id);
+    try {
+      const price = (existing.custoBRL ?? 0) * (1 + percent / 100);
+      await savePricingProduct({ id: String(id), lucroPercent: percent, valorTabela: price } as any);
+      setItems(prev => prev.map(it => it.productId === id ? { ...it, lucroPercent: percent, valorTabela: price, updatedAt: new Date().toISOString() } : it));
+      setHighlightProductId(id);
+      setTimeout(() => setHighlightProductId(h => (h === id ? null : h)), 1500);
+    } catch (err) {
+      console.error('Failed to save profit', err);
     }
     setSavingId(null);
   };
@@ -135,6 +157,7 @@ const ProductPricingDashboardPage: React.FC = () => {
               <tr>
                 <th className="px-2 py-1 text-left">Produto</th>
                 <th className="px-2 py-1 text-right">Custo BRL</th>
+                <th className="px-2 py-1 text-right">Lucro %</th>
                 <th className="px-2 py-1 text-right">Valor de Tabela</th>
                 <th className="px-2 py-1 text-right">Atualizado Em</th>
               </tr>
@@ -143,7 +166,7 @@ const ProductPricingDashboardPage: React.FC = () => {
               {Object.entries(groupedItems).map(([cat, list]) => (
                 <React.Fragment key={cat}>
                   <tr className="bg-gray-50">
-                    <td colSpan={4} className="px-2 py-1 font-semibold">{cat}</td>
+                    <td colSpan={5} className="px-2 py-1 font-semibold">{cat}</td>
                   </tr>
                   {list.map(it => (
                     <tr key={it.productId} className={highlightProductId === it.productId ? 'bg-green-50' : ''}>
@@ -164,6 +187,25 @@ const ProductPricingDashboardPage: React.FC = () => {
                         ) : (
                           <span onClick={() => { setEditingCostId(it.productId); setDraftCost(it.custoBRL?.toFixed(2) || ''); }} className="cursor-pointer">
                             {it.custoBRL?.toFixed(2)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1 text-right">
+                        {editingProfitId === it.productId ? (
+                          <input
+                            className="w-16 border px-1 text-right"
+                            value={draftProfit}
+                            autoFocus
+                            onChange={e => setDraftProfit(e.target.value)}
+                            onBlur={() => {
+                              const val = parseFloat(draftProfit.replace(',', '.'));
+                              if (!isNaN(val)) saveProfit(it.productId, val);
+                              setEditingProfitId(null);
+                            }}
+                          />
+                        ) : (
+                          <span onClick={() => { setEditingProfitId(it.productId); setDraftProfit((it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toString()); }} className="cursor-pointer">
+                            {(it.lucroPercent ?? categories.find(c => c.name === it.categoryName)?.lucroPercent ?? 0).toFixed(2)}
                           </span>
                         )}
                       </td>
@@ -209,6 +251,7 @@ const ProductPricingDashboardPage: React.FC = () => {
                 <th className="px-2 py-1 text-left">Categoria</th>
                 <th className="px-2 py-1 text-right">Dust Bag</th>
                 <th className="px-2 py-1 text-right">Packaging</th>
+                <th className="px-2 py-1 text-right">Lucro %</th>
               </tr>
             </thead>
             <tbody>
@@ -236,6 +279,21 @@ const ProductPricingDashboardPage: React.FC = () => {
                       onChange={e => {
                         const val = parseFloat(e.target.value);
                         setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, packaging: isNaN(val) ? 0 : val } : c));
+                      }}
+                      onBlur={() => {
+                        const current = categories.find(c => c.id === cat.id);
+                        if (current) saveCategory(current);
+                      }}
+                    />
+                    {savingCategoryId === cat.id && <Spinner size="sm" className="ml-1 inline" />}
+                  </td>
+                  <td className="px-2 py-1 text-right">
+                    <input
+                      className="w-20 border px-1 text-right"
+                      value={cat.lucroPercent}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, lucroPercent: isNaN(val) ? 0 : val } : c));
                       }}
                       onBlur={() => {
                         const current = categories.find(c => c.id === cat.id);
