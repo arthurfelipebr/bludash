@@ -1131,27 +1131,32 @@ app.delete('/api/product-pricing/categories/:id', authenticateToken, (req, res) 
 
 // Pricing Globals
 app.get('/api/product-pricing/globals', authenticateToken, (req, res) => {
-    db.get('SELECT nfPercent, nfProduto, frete FROM productPricingGlobals WHERE "userId" = $1', [req.user.id], (err, row) => {
+    db.get('SELECT nfPercent, nfProduto, frete, roundTo FROM productPricingGlobals WHERE "userId" = $1', [req.user.id], (err, row) => {
         if (err) {
             console.error('Error fetching globals:', err.message);
             return res.status(500).json({ message: 'Failed to fetch globals.' });
         }
         if (!row) {
-            return res.json({ nfPercent: 0.02, nfProduto: 30, frete: 105 });
+            return res.json({ nfPercent: 0.02, nfProduto: 30, frete: 105, roundTo: 70 });
         }
-        res.json(row);
+        res.json({
+            nfPercent: row.nfPercent,
+            nfProduto: row.nfProduto,
+            frete: row.frete,
+            roundTo: row.roundTo ?? 70
+        });
     });
 });
 
 app.put('/api/product-pricing/globals', authenticateToken, (req, res) => {
-    const { nfPercent, nfProduto, frete } = req.body;
-    const sql = 'INSERT INTO productPricingGlobals ("userId", nfPercent, nfProduto, frete) VALUES ($1,$2,$3,$4) ON CONFLICT("userId") DO UPDATE SET nfPercent=$2, nfProduto=$3, frete=$4';
-    db.run(sql, [req.user.id, nfPercent, nfProduto, frete], function(err) {
+    const { nfPercent, nfProduto, frete, roundTo } = req.body;
+    const sql = 'INSERT INTO productPricingGlobals ("userId", nfPercent, nfProduto, frete, roundTo) VALUES ($1,$2,$3,$4,$5) ON CONFLICT("userId") DO UPDATE SET nfPercent=$2, nfProduto=$3, frete=$4, roundTo=$5';
+    db.run(sql, [req.user.id, nfPercent, nfProduto, frete, roundTo], function(err) {
         if (err) {
             console.error('Error saving globals:', err.message);
             return res.status(500).json({ message: 'Failed to save globals.' });
         }
-        res.json({ nfPercent, nfProduto, frete });
+        res.json({ nfPercent, nfProduto, frete, roundTo });
     });
 });
 

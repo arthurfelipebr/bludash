@@ -279,6 +279,7 @@ function initializeDatabase() {
         nfPercent REAL NOT NULL,
         nfProduto REAL NOT NULL,
         frete REAL NOT NULL,
+        roundTo REAL NOT NULL DEFAULT 70,
         FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
