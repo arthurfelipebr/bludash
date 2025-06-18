@@ -29,6 +29,7 @@ import {
   Tabs,
   Tab,
   Toast,
+  Alert,
 } from '../components/SharedComponents';
 import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
 import { Pencil } from 'lucide-react';
@@ -171,6 +172,10 @@ const OrderDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const hasInvoice = useMemo(() => {
+    return order?.documents?.some(d => /nota\s*fiscal|invoice/i.test(d.name || '')) || false;
+  }, [order?.documents]);
 
   useEffect(() => {
     if (orderId) {
@@ -698,6 +703,14 @@ const OrderDetailsPage: React.FC = () => {
         <div className="space-y-4 text-sm">
           <Card>
             <h3 className="text-lg font-semibold mb-2">Notas e Anexos</h3>
+            {!hasInvoice && (
+              <Alert
+                type="warning"
+                message="Nenhuma nota fiscal anexada."
+                details="Envie a nota fiscal e anexe aos documentos."
+                className="mb-2"
+              />
+            )}
             {isEditing ? (
               <>
                 <div className="mb-1">
