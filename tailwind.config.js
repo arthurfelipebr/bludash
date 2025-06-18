@@ -13,6 +13,9 @@ export default {
           'primary': '#3A4DFF',
           'accent': '#A4A5FF',
         }
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
       }
     },
   },
