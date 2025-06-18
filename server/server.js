@@ -277,7 +277,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       "supplierId", "supplierName", "purchasePrice", "sellingPrice", status, "estimatedDeliveryDate", 
       "orderDate", notes, "paymentMethod", "downPayment", installments, "financedAmount", 
       "totalWithInterest", "installmentValue", "bluFacilitaContractStatus", "imeiBlocked", 
-      "arrivalDate", imei, "arrivalNotes", "batteryHealth", "readyForDelivery", 
+      "arrivalDate", imei, "arrivalNotes", threeuToolsReport, "batteryHealth", "readyForDelivery",
       "shippingCostSupplierToBlu", "shippingCostBluToClient", "whatsAppHistorySummary",
       trackingCode,
       "bluFacilitaUsesSpecialRate", "bluFacilitaSpecialAnnualRate",
@@ -287,7 +287,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
       $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
-      $41, $42
+      $41, $42, $43
   )`;
 
   const params = [
@@ -298,7 +298,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       orderData.notes, orderData.paymentMethod, downPayment, installments,
       orderData.financedAmount, orderData.totalWithInterest, orderData.installmentValue,
       orderData.bluFacilitaContractStatus, orderData.imeiBlocked ? 1 : 0,
-      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
+      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.threeuToolsReport, orderData.batteryHealth,
       orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
       orderData.trackingCode,
@@ -373,12 +373,12 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       notes=$16, "paymentMethod"=$17, "downPayment"=$18, installments=$19,
       "financedAmount"=$20, "totalWithInterest"=$21, "installmentValue"=$22,
       "bluFacilitaContractStatus"=$23, "imeiBlocked"=$24, "arrivalDate"=$25, imei=$26,
-      "arrivalNotes"=$27, "batteryHealth"=$28, "readyForDelivery"=$29,
-      "shippingCostSupplierToBlu"=$30, "shippingCostBluToClient"=$31,
-      "whatsAppHistorySummary"=$32, trackingCode=$33, "bluFacilitaUsesSpecialRate"=$34,
-      "bluFacilitaSpecialAnnualRate"=$35, documents=$36, "trackingHistory"=$37,
-      "bluFacilitaInstallments"=$38, "internalNotes"=$39, "arrivalPhotos"=$40
-      WHERE id=$41 AND "userId"=$42`;
+      "arrivalNotes"=$27, threeuToolsReport=$28, "batteryHealth"=$29, "readyForDelivery"=$30,
+      "shippingCostSupplierToBlu"=$31, "shippingCostBluToClient"=$32,
+      "whatsAppHistorySummary"=$33, trackingCode=$34, "bluFacilitaUsesSpecialRate"=$35,
+      "bluFacilitaSpecialAnnualRate"=$36, documents=$37, "trackingHistory"=$38,
+      "bluFacilitaInstallments"=$39, "internalNotes"=$40, "arrivalPhotos"=$41
+      WHERE id=$42 AND "userId"=$43`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
@@ -389,7 +389,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       orderData.paymentMethod, downPayment, installments,
       orderData.financedAmount, orderData.totalWithInterest, orderData.installmentValue,
       orderData.bluFacilitaContractStatus, orderData.imeiBlocked ? 1 : 0,
-      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.batteryHealth,
+      orderData.arrivalDate, orderData.imei, orderData.arrivalNotes, orderData.threeuToolsReport, orderData.batteryHealth,
       orderData.readyForDelivery ? 1 : 0, orderData.shippingCostSupplierToBlu,
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
       orderData.trackingCode,
