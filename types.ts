@@ -260,6 +260,16 @@ export interface User {
   name?: string; // Name is optional
   role?: string;
   registrationDate?: string;
+  clientId?: string;
+}
+
+export interface Subscription {
+  id: string;
+  clientId: string;
+  plan: string;
+  status: string;
+  startDate: string;
+  endDate?: string;
 }
 
 export type AuthenticatedUser = User | null;

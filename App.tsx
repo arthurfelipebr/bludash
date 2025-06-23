@@ -17,6 +17,7 @@ import { SaleCalculatorPage } from './features/SaleCalculatorFeature';
 import { TradeInEvaluationPage } from './features/TradeInEvaluationFeature';
 import { FinancialReportsPageContainer } from './features/FinancialReportsFeature';
 import { UserManagementPage } from './features/UserManagementFeature';
+import { SubscriptionsPage } from './features/SubscriptionsFeature';
 import ProductPricingDashboardPage from './features/ProductPricingDashboard';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
@@ -69,6 +70,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Calculadora Venda', path: '/sale-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
   { name: 'Usuários', path: '/user-management', icon: Users, adminOnly: true },
+  { name: 'Assinaturas', path: '/subscriptions', icon: Cog6ToothIcon, adminOnly: true },
 ];
 
 // --- Modals (AddOrderCostModal, RegisterPaymentModal) ---
@@ -457,6 +459,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/product-pricing" element={<ProductPricingDashboardPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
                     <Route path="/user-management" element={<UserManagementPage />} />
+                    <Route path="/subscriptions" element={<SubscriptionsPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </DashboardLayout>

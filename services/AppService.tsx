@@ -6,7 +6,7 @@ import {
     OrderCostItem, CostType, InternalNote, DashboardAlert, WeeklySummaryStats,
     OrderOccurrence, OccurrenceStatus, OccurrenceType,
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
-    ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
+    ClientPayment, User, HistoricalParsedProduct, CustomTableRow, Subscription,
     PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
@@ -645,6 +645,20 @@ export const inviteUser = async (data: { email: string; password: string; name?:
 
 export const updateUserRole = async (userId: string, role: string): Promise<User> => {
     return apiClient<User>(`/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
+};
+
+// --- Subscriptions ---
+export const getSubscriptions = async (status?: string): Promise<Subscription[]> => {
+    const url = status ? `/subscriptions?status=${encodeURIComponent(status)}` : '/subscriptions';
+    return apiClient<Subscription[]>(url);
+};
+
+export const createSubscription = async (data: Omit<Subscription, 'id'>): Promise<Subscription> => {
+    return apiClient<Subscription>('/subscriptions', { method: 'POST', body: JSON.stringify(data) });
+};
+
+export const updateSubscriptionStatus = async (id: string, payload: { status: string; startDate?: string; endDate?: string }): Promise<Subscription> => {
+    return apiClient<Subscription>(`/subscriptions/${id}/status`, { method: 'PUT', body: JSON.stringify(payload) });
 };
 
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.
