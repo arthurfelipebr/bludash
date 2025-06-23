@@ -665,6 +665,19 @@ export const deleteSaaSClient = async (id: string): Promise<void> => {
     return apiClient<void>(`/saas/clients/${id}`, { method: 'DELETE' });
 };
 
+export interface AdminReport {
+    organizations: number;
+    users: number;
+    clients: number;
+    suppliers: number;
+    orders: number;
+    totalRevenue: number;
+}
+
+export const getAdminReport = async (): Promise<AdminReport> => {
+    return apiClient<AdminReport>('/admin/report');
+};
+
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.
 export const CREDIT_CARD_RATES_CONFIG: CreditCardRate[] = [ 
     { installments: 3, ratePercent: 5.69 }, { installments: 4, ratePercent: 6.59 }, { installments: 5, ratePercent: 7.49 }, { installments: 6, ratePercent: 8.39 }, { installments: 7, ratePercent: 8.59 }, { installments: 8, ratePercent: 9.49 }, { installments: 9, ratePercent: 10.39 }, { installments: 10, ratePercent: 11.29 }, { installments: 11, ratePercent: 12.19 }, { installments: 12, ratePercent: 13.09 },
