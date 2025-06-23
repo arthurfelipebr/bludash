@@ -122,12 +122,13 @@ app.post('/api/auth/register', (req, res) => {
 
   const hashedPassword = bcrypt.hashSync(password, 8);
   const userId = uuidv4();
+  const clientId = uuidv4();
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
   const role = 'user';
 
-  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate") VALUES ($1, $2, $3, $4, $5, $6)',
-    [userId, email, hashedPassword, displayName, role, registrationDate],
+  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate", clientId) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    [userId, email, hashedPassword, displayName, role, registrationDate, clientId],
     function(err) {
     if (err) {
       if (err.code === 'SQLITE_CONSTRAINT') {
@@ -136,29 +137,29 @@ app.post('/api/auth/register', (req, res) => {
       console.error('Registration error:', err.message);
       return res.status(500).json({ message: 'Falha ao registrar usuário.' });
     }
-    const user = { id: userId, email: email, name: displayName, role, registrationDate: registrationDate };
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' }); // Longer expiry for new users
+    const user = { id: userId, email: email, name: displayName, role, registrationDate: registrationDate, clientId };
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, clientId }, JWT_SECRET, { expiresIn: '24h' }); // Longer expiry for new users
     res.status(201).json({ token, user });
   });
 });
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  db.get('SELECT id, email, password, name, role, "registrationDate" FROM users WHERE email = $1', [email], (err, user) => {
+  db.get('SELECT id, email, password, name, role, "registrationDate", clientId FROM users WHERE email = $1', [email], (err, user) => {
     if (err) return res.status(500).json({ message: 'Server error during login.' });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
 
     const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) return res.status(401).json({ message: 'Usuário não encontrado ou senha incorreta.' });
     
-    const userPayload = { id: user.id, email: user.email, name: user.name, role: user.role, registrationDate: user.registrationDate };
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    const userPayload = { id: user.id, email: user.email, name: user.name, role: user.role, registrationDate: user.registrationDate, clientId: user.clientId };
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, clientId: user.clientId }, JWT_SECRET, { expiresIn: '24h' });
     res.status(200).json({ token, user: userPayload });
   });
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
+  db.get('SELECT id, email, name, role, "registrationDate", clientId FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
     if (err) {
       console.error('Error fetching user for /me:', err.message);
       return res.status(500).json({ message: 'Error fetching user details.' });
@@ -172,7 +173,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 
 // --- User Management (Admin Only) ---
 app.get('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
-  db.all('SELECT id, email, name, role, "registrationDate" FROM users ORDER BY email ASC', [], (err, rows) => {
+  db.all('SELECT id, email, name, role, "registrationDate", clientId FROM users ORDER BY email ASC', [], (err, rows) => {
     if (err) {
       console.error('Error fetching users:', err.message);
       return res.status(500).json({ message: 'Failed to fetch users.' });
@@ -193,8 +194,9 @@ app.post('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
   const userId = uuidv4();
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
-  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate") VALUES ($1,$2,$3,$4,$5,$6)',
-    [userId, email, hashedPassword, displayName, role, registrationDate],
+  const clientId = req.user.clientId;
+  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate", clientId) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+    [userId, email, hashedPassword, displayName, role, registrationDate, clientId],
     function(err) {
       if (err) {
         if (err.code === 'SQLITE_CONSTRAINT') {
@@ -203,7 +205,7 @@ app.post('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
         console.error('Error inviting user:', err.message);
         return res.status(500).json({ message: 'Failed to invite user.' });
       }
-      db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [userId], (err2, row) => {
+      db.get('SELECT id, email, name, role, "registrationDate", clientId FROM users WHERE id = $1', [userId], (err2, row) => {
         if (err2 || !row) {
           return res.status(500).json({ message: 'User created, but failed to retrieve.' });
         }
@@ -221,7 +223,7 @@ app.put('/api/users/:id/role', authenticateToken, authorizeAdmin, (req, res) => 
       console.error('Error updating user role:', err.message);
       return res.status(500).json({ message: 'Failed to update user role.' });
     }
-    db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [userId], (err2, row) => {
+    db.get('SELECT id, email, name, role, "registrationDate", clientId FROM users WHERE id = $1', [userId], (err2, row) => {
       if (err2 || !row) {
         return res.status(404).json({ message: 'User not found.' });
       }
@@ -1443,6 +1445,59 @@ ${textList}
     console.error('Erro no backend ao chamar a API do Gemini:', error);
     res.status(500).json({ message: 'Falha ao processar a lista com a IA. Verifique o log do servidor.', details: error.message });
   }
+});
+
+// --- Subscription Management ---
+app.get('/api/subscriptions', authenticateToken, authorizeAdmin, (req, res) => {
+  const status = req.query.status;
+  const baseSql = 'SELECT * FROM subscriptions';
+  const sql = status ? `${baseSql} WHERE status = $1` : baseSql;
+  const params = status ? [status] : [];
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error('Error fetching subscriptions:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch subscriptions.' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/subscriptions', authenticateToken, authorizeAdmin, (req, res) => {
+  const { clientId, plan, status, startDate, endDate } = req.body;
+  if (!clientId || !plan || !status || !startDate) {
+    return res.status(400).json({ message: 'clientId, plan, status and startDate are required.' });
+  }
+  const id = uuidv4();
+  const sql = 'INSERT INTO subscriptions (id, clientId, plan, status, startDate, endDate) VALUES ($1,$2,$3,$4,$5,$6)';
+  db.run(sql, [id, clientId, plan, status, startDate, endDate], function(err) {
+    if (err) {
+      console.error('Error creating subscription:', err.message);
+      return res.status(500).json({ message: 'Failed to create subscription.' });
+    }
+    db.get('SELECT * FROM subscriptions WHERE id = $1', [id], (err2, row) => {
+      if (err2 || !row) {
+        return res.status(500).json({ message: 'Subscription created, but failed to retrieve.' });
+      }
+      res.status(201).json(row);
+    });
+  });
+});
+
+app.put('/api/subscriptions/:id/status', authenticateToken, authorizeAdmin, (req, res) => {
+  const id = req.params.id;
+  const { status, startDate, endDate } = req.body;
+  if (!status) return res.status(400).json({ message: 'status required' });
+  const sql = 'UPDATE subscriptions SET status=$1, startDate=COALESCE($2,startDate), endDate=$3 WHERE id=$4';
+  db.run(sql, [status, startDate, endDate, id], function(err) {
+    if (err) {
+      console.error('Error updating subscription:', err.message);
+      return res.status(500).json({ message: 'Failed to update subscription.' });
+    }
+    db.get('SELECT * FROM subscriptions WHERE id = $1', [id], (err2, row) => {
+      if (err2 || !row) return res.status(404).json({ message: 'Subscription not found.' });
+      res.json(row);
+    });
+  });
 });
 
 

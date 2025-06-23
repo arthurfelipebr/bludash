@@ -13,7 +13,8 @@ function initializeDatabase() {
       password TEXT NOT NULL,
       name TEXT,
       role TEXT NOT NULL DEFAULT 'user',
-      "registrationDate" TEXT NOT NULL
+      "registrationDate" TEXT NOT NULL,
+      clientId TEXT
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS clients (
@@ -42,6 +43,7 @@ function initializeDatabase() {
     db.run('ALTER TABLE orders ADD COLUMN trackingCode TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN threeuToolsReport TEXT', [], () => {});
     db.run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'", [], () => {});
+    db.run('ALTER TABLE users ADD COLUMN clientId TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN color TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN characteristics TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN originCountry TEXT', [], () => {});
@@ -281,6 +283,16 @@ function initializeDatabase() {
         frete REAL NOT NULL,
         roundTo REAL NOT NULL DEFAULT 70,
         FOREIGN KEY ("userId") REFERENCES users(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS subscriptions (
+        id TEXT PRIMARY KEY,
+        clientId TEXT NOT NULL,
+        plan TEXT NOT NULL,
+        status TEXT NOT NULL,
+        startDate TEXT NOT NULL,
+        endDate TEXT,
+        FOREIGN KEY (clientId) REFERENCES users(id)
     )`);
 
     console.log('Database schema initialized/verified.');
