@@ -259,6 +259,7 @@ export interface User {
   email: string;
   name?: string; // Name is optional
   role?: string;
+  organizationId?: string;
   registrationDate?: string;
 }
 
@@ -266,10 +267,15 @@ export type AuthenticatedUser = User | null;
 
 export interface AuthContextType {
   currentUser: AuthenticatedUser;
-  isAuthLoading: boolean; 
+  isAuthLoading: boolean;
   logout: () => Promise<void>;
-  login: (email: string, password: string) => Promise<User>; 
-  register: (email: string, password: string, name?: string) => Promise<User>; // name is optional
+  login: (email: string, password: string) => Promise<User>;
+  register: (email: string, password: string, name?: string, organizationName?: string) => Promise<User>; // name is optional
+}
+
+export interface Organization {
+  id: string;
+  name: string;
 }
 
 export interface NavItem {

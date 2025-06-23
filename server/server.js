@@ -112,9 +112,12 @@ const authorizeAdmin = (req, res, next) => {
 
 // --- Authentication Routes ---
 app.post('/api/auth/register', (req, res) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, organizationName } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required.' });
+  }
+  if (!organizationName) {
+    return res.status(400).json({ message: 'Organization name is required.' });
   }
   if (password.length < 6) {
     return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
@@ -126,39 +129,47 @@ app.post('/api/auth/register', (req, res) => {
   const displayName = name && name.trim() !== '' ? name.trim() : email;
   const role = 'user';
 
-  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate") VALUES ($1, $2, $3, $4, $5, $6)',
-    [userId, email, hashedPassword, displayName, role, registrationDate],
-    function(err) {
-    if (err) {
-      if (err.code === 'SQLITE_CONSTRAINT') {
-        return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
-      }
-      console.error('Registration error:', err.message);
-      return res.status(500).json({ message: 'Falha ao registrar usuário.' });
+  const organizationId = uuidv4();
+  db.run('INSERT INTO organizations (id, name) VALUES ($1, $2)', [organizationId, organizationName], (errOrg) => {
+    if (errOrg) {
+      console.error('Error creating organization:', errOrg.message);
+      return res.status(500).json({ message: 'Falha ao criar organização.' });
     }
-    const user = { id: userId, email: email, name: displayName, role, registrationDate: registrationDate };
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' }); // Longer expiry for new users
+
+    db.run('INSERT INTO users (id, email, password, name, role, "registrationDate", "organizationId") VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    [userId, email, hashedPassword, displayName, role, registrationDate, organizationId],
+    function(err) {
+      if (err) {
+        if (err.code === 'SQLITE_CONSTRAINT') {
+          return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
+        }
+        console.error('Registration error:', err.message);
+        return res.status(500).json({ message: 'Falha ao registrar usuário.' });
+      }
+    const user = { id: userId, email: email, name: displayName, role, registrationDate: registrationDate, organizationId };
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, organizationId }, JWT_SECRET, { expiresIn: '24h' });
     res.status(201).json({ token, user });
+  });
   });
 });
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  db.get('SELECT id, email, password, name, role, "registrationDate" FROM users WHERE email = $1', [email], (err, user) => {
+  db.get('SELECT id, email, password, name, role, "registrationDate", "organizationId" FROM users WHERE email = $1', [email], (err, user) => {
     if (err) return res.status(500).json({ message: 'Server error during login.' });
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado ou senha incorreta.' });
 
     const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) return res.status(401).json({ message: 'Usuário não encontrado ou senha incorreta.' });
     
-    const userPayload = { id: user.id, email: user.email, name: user.name, role: user.role, registrationDate: user.registrationDate };
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    const userPayload = { id: user.id, email: user.email, name: user.name, role: user.role, registrationDate: user.registrationDate, organizationId: user.organizationId };
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, organizationId: user.organizationId }, JWT_SECRET, { expiresIn: '24h' });
     res.status(200).json({ token, user: userPayload });
   });
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
+  db.get('SELECT id, email, name, role, "registrationDate", "organizationId" FROM users WHERE id = $1', [req.user.id], (err, userRow) => {
     if (err) {
       console.error('Error fetching user for /me:', err.message);
       return res.status(500).json({ message: 'Error fetching user details.' });
@@ -172,7 +183,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 
 // --- User Management (Admin Only) ---
 app.get('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
-  db.all('SELECT id, email, name, role, "registrationDate" FROM users ORDER BY email ASC', [], (err, rows) => {
+  db.all('SELECT id, email, name, role, "registrationDate", "organizationId" FROM users WHERE "organizationId" = $1 ORDER BY email ASC', [req.user.organizationId], (err, rows) => {
     if (err) {
       console.error('Error fetching users:', err.message);
       return res.status(500).json({ message: 'Failed to fetch users.' });
@@ -193,8 +204,8 @@ app.post('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
   const userId = uuidv4();
   const registrationDate = new Date().toISOString();
   const displayName = name && name.trim() !== '' ? name.trim() : email;
-  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate") VALUES ($1,$2,$3,$4,$5,$6)',
-    [userId, email, hashedPassword, displayName, role, registrationDate],
+  db.run('INSERT INTO users (id, email, password, name, role, "registrationDate", "organizationId") VALUES ($1,$2,$3,$4,$5,$6,$7)',
+    [userId, email, hashedPassword, displayName, role, registrationDate, req.user.organizationId],
     function(err) {
       if (err) {
         if (err.code === 'SQLITE_CONSTRAINT') {
@@ -203,7 +214,7 @@ app.post('/api/users', authenticateToken, authorizeAdmin, (req, res) => {
         console.error('Error inviting user:', err.message);
         return res.status(500).json({ message: 'Failed to invite user.' });
       }
-      db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [userId], (err2, row) => {
+      db.get('SELECT id, email, name, role, "registrationDate", "organizationId" FROM users WHERE id = $1', [userId], (err2, row) => {
         if (err2 || !row) {
           return res.status(500).json({ message: 'User created, but failed to retrieve.' });
         }
@@ -221,7 +232,7 @@ app.put('/api/users/:id/role', authenticateToken, authorizeAdmin, (req, res) => 
       console.error('Error updating user role:', err.message);
       return res.status(500).json({ message: 'Failed to update user role.' });
     }
-    db.get('SELECT id, email, name, role, "registrationDate" FROM users WHERE id = $1', [userId], (err2, row) => {
+    db.get('SELECT id, email, name, role, "registrationDate", "organizationId" FROM users WHERE id = $1', [userId], (err2, row) => {
       if (err2 || !row) {
         return res.status(404).json({ message: 'User not found.' });
       }
@@ -236,7 +247,7 @@ app.put('/api/users/:id/role', authenticateToken, authorizeAdmin, (req, res) => 
 
 // Orders
 app.get('/api/orders', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM orders WHERE "userId" = $1 ORDER BY "orderDate" DESC', [req.user.id], (err, rows) => {
+  db.all('SELECT * FROM orders WHERE "organizationId" = $1 ORDER BY "orderDate" DESC', [req.user.organizationId], (err, rows) => {
     if (err) return res.status(500).json({ message: 'Failed to fetch orders.' });
     // Parse JSON fields if stored as strings
     const orders = rows.map(order => ({
@@ -273,7 +284,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
   const arrivalPhotosJSON = JSON.stringify(orderData.arrivalPhotos || []);
   
   const sql = `INSERT INTO orders (
-      id, "userId", "customerName", "clientId", "productName", model, capacity, watchSize, color, condition,
+      id, "userId", "organizationId", "customerName", "clientId", "productName", model, capacity, watchSize, color, condition,
       "supplierId", "supplierName", "purchasePrice", "sellingPrice", status, "estimatedDeliveryDate", 
       "orderDate", notes, "paymentMethod", "downPayment", installments, "financedAmount", 
       "totalWithInterest", "installmentValue", "bluFacilitaContractStatus", "imeiBlocked", 
@@ -283,18 +294,18 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       "bluFacilitaUsesSpecialRate", "bluFacilitaSpecialAnnualRate",
       documents, "trackingHistory", "bluFacilitaInstallments", "internalNotes", "arrivalPhotos"
   ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-      $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-      $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-      $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
-      $41, $42, $43
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+      $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+      $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+      $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
+      $42, $43, $44
   )`;
 
   const params = [
-      orderId, req.user.id, orderData.customerName, orderData.clientId, orderData.productName,
+      orderId, req.user.id, req.user.organizationId, orderData.customerName, orderData.clientId, orderData.productName,
       orderData.model, orderData.capacity, orderData.watchSize, orderData.color, orderData.condition,
       orderData.supplierId, orderData.supplierName, purchasePrice, sellingPrice, orderData.status,
-      orderData.estimatedDeliveryDate, orderData.orderDate || new Date().toISOString(), 
+      orderData.estimatedDeliveryDate, orderData.orderDate || new Date().toISOString(),
       orderData.notes, orderData.paymentMethod, downPayment, installments,
       orderData.financedAmount, orderData.totalWithInterest, orderData.installmentValue,
       orderData.bluFacilitaContractStatus, orderData.imeiBlocked ? 1 : 0,
@@ -312,7 +323,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to save order.' });
     }
     // Fetch and return the newly created/updated order to ensure client has the DB version
-     db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
+     db.get('SELECT * FROM orders WHERE id = $1 AND "organizationId" = $2', [orderId, req.user.organizationId], (err, row) => {
         if (err || !row) {
             console.error("Error fetching order after save:", err ? err.message : "Row not found");
             return res.status(500).json({ message: 'Order saved, but failed to retrieve updated record.' });
@@ -334,7 +345,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 // --- Individual Order Routes ---
 app.get('/api/orders/:id', authenticateToken, (req, res) => {
   const orderId = req.params.id;
-  db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
+  db.get('SELECT * FROM orders WHERE id = $1 AND "organizationId" = $2', [orderId, req.user.organizationId], (err, row) => {
     if (err) return res.status(500).json({ message: 'Failed to fetch order.' });
     if (!row) return res.status(404).json({ message: 'Order not found.' });
     res.json({
@@ -378,7 +389,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       "whatsAppHistorySummary"=$33, trackingCode=$34, "bluFacilitaUsesSpecialRate"=$35,
       "bluFacilitaSpecialAnnualRate"=$36, documents=$37, "trackingHistory"=$38,
       "bluFacilitaInstallments"=$39, "internalNotes"=$40, "arrivalPhotos"=$41
-      WHERE id=$42 AND "userId"=$43`;
+      WHERE id=$42 AND "organizationId"=$43`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
@@ -396,7 +407,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
       documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON,
       internalNotesJSON, arrivalPhotosJSON,
-      orderId, req.user.id
+      orderId, req.user.organizationId
   ];
 
   db.run(sql, params, function(err) {
@@ -404,7 +415,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       console.error('Error updating order:', err.message);
       return res.status(500).json({ message: 'Failed to update order.' });
     }
-    db.get('SELECT * FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
+    db.get('SELECT * FROM orders WHERE id = $1 AND "organizationId" = $2', [orderId, req.user.organizationId], (err, row) => {
       if (err || !row) {
         console.error('Error fetching order after update:', err ? err.message : 'Row not found');
         return res.status(500).json({ message: 'Order updated, but failed to retrieve record.' });
@@ -428,7 +439,7 @@ app.post('/api/orders/:orderId/arrival-photos', authenticateToken, upload.single
   const file = req.file;
   const orderId = req.params.orderId;
   if (!file) return res.status(400).json({ message: 'No file uploaded.' });
-  db.get('SELECT arrivalPhotos FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], (err, row) => {
+  db.get('SELECT arrivalPhotos FROM orders WHERE id = $1 AND "organizationId" = $2', [orderId, req.user.organizationId], (err, row) => {
     if (err || !row) {
       return res.status(404).json({ message: 'Order not found.' });
     }
@@ -443,7 +454,7 @@ app.post('/api/orders/:orderId/arrival-photos', authenticateToken, upload.single
       size: file.size,
     };
     const updated = [...existing, doc];
-    db.run('UPDATE orders SET "arrivalPhotos" = $1 WHERE id = $2 AND "userId" = $3', [JSON.stringify(updated), orderId, req.user.id], err2 => {
+    db.run('UPDATE orders SET "arrivalPhotos" = $1 WHERE id = $2 AND "organizationId" = $3', [JSON.stringify(updated), orderId, req.user.organizationId], err2 => {
       if (err2) {
         console.error('Error saving arrival photo:', err2.message);
         return res.status(500).json({ message: 'Failed to save photo.' });
@@ -455,7 +466,7 @@ app.post('/api/orders/:orderId/arrival-photos', authenticateToken, upload.single
 
 app.delete('/api/orders/:id', authenticateToken, (req, res) => {
   const orderId = req.params.id;
-  db.run('DELETE FROM orders WHERE id = $1 AND "userId" = $2', [orderId, req.user.id], function(err) {
+  db.run('DELETE FROM orders WHERE id = $1 AND "organizationId" = $2', [orderId, req.user.organizationId], function(err) {
     if (err) {
       console.error('Error deleting order:', err.message);
       return res.status(500).json({ message: 'Failed to delete order.' });
@@ -488,8 +499,8 @@ const CLIENTS_SELECT_QUERY = `
 
 app.get('/api/clients', authenticateToken, (req, res) => {
     const search = req.query.search ? String(req.query.search) : null;
-    let query = `${CLIENTS_SELECT_QUERY} WHERE "userId" = $1`;
-    const params = [req.user.id];
+    let query = `${CLIENTS_SELECT_QUERY} WHERE "organizationId" = $1`;
+    const params = [req.user.organizationId];
 
     if (search) {
         query += ` AND ("fullName" LIKE $2 OR "cpfOrCnpj" LIKE $2)`;
@@ -508,8 +519,8 @@ app.get('/api/clients', authenticateToken, (req, res) => {
 });
 app.get('/api/clients/:id', authenticateToken, (req, res) => {
     const clientId = req.params.id;
-    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "userId" = $2`;
-    db.get(query, [clientId, req.user.id], (err, row) => {
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "organizationId" = $2`;
+    db.get(query, [clientId, req.user.organizationId], (err, row) => {
         if (err) {
           console.error(`Error fetching client ${clientId}:`, err.message);
           return res.status(500).json({ message: 'Failed to fetch client.' });
@@ -525,14 +536,14 @@ app.post('/api/clients', authenticateToken, (req, res) => {
   const registrationDate = data.registrationDate || new Date().toISOString();
   
   const sql = `INSERT INTO clients (
-      id, "userId", "fullName", "cpfOrCnpj", email, phone, address, cep, city, state, "clientType",
+      id, "userId", "organizationId", "fullName", "cpfOrCnpj", email, phone, address, cep, city, state, "clientType",
       "registrationDate", notes, "isDefaulter", "defaulterNotes"
   ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
   )`;
 
   const params = [
-      clientId, req.user.id, data.fullName, data.cpfOrCnpj, data.email, data.phone,
+      clientId, req.user.id, req.user.organizationId, data.fullName, data.cpfOrCnpj, data.email, data.phone,
       data.address, data.cep, data.city, data.state, data.clientType, registrationDate, data.notes,
       data.isDefaulter ? 1 : 0, data.defaulterNotes
   ];
@@ -543,8 +554,8 @@ app.post('/api/clients', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to save client.' });
     }
     
-    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "userId" = $2`;
-    db.get(query, [clientId, req.user.id], (err, row) => {
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "organizationId" = $2`;
+    db.get(query, [clientId, req.user.organizationId], (err, row) => {
         if (err || !row) {
             console.error("Error fetching client after save:", err ? err.message : "Row not found");
             return res.status(500).json({ message: 'Client saved, but failed to retrieve updated record.' });
@@ -561,12 +572,12 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
   const sql = `UPDATE clients SET
       "fullName"=$1, "cpfOrCnpj"=$2, email=$3, phone=$4, address=$5, cep=$6, city=$7, state=$8,
       "clientType"=$9, notes=$10, "isDefaulter"=$11, "defaulterNotes"=$12
-      WHERE id=$13 AND "userId"=$14`;
+      WHERE id=$13 AND "organizationId"=$14`;
 
   const params = [
       data.fullName, data.cpfOrCnpj, data.email, data.phone, data.address, data.cep, data.city, data.state,
       data.clientType, data.notes, data.isDefaulter ? 1 : 0, data.defaulterNotes,
-      clientId, req.user.id
+      clientId, req.user.organizationId
   ];
 
   db.run(sql, params, function(err) {
@@ -575,8 +586,8 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
       return res.status(500).json({ message: 'Failed to update client.' });
     }
 
-    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "userId" = $2`;
-    db.get(query, [clientId, req.user.id], (err, row) => {
+    const query = `${CLIENTS_SELECT_QUERY} WHERE id = $1 AND "organizationId" = $2`;
+    db.get(query, [clientId, req.user.organizationId], (err, row) => {
         if (err || !row) {
             console.error('Error fetching client after update:', err ? err.message : 'Row not found');
             return res.status(404).json({ message: 'Client not found after update.' });
@@ -589,7 +600,7 @@ app.put('/api/clients/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/clients/:id', authenticateToken, (req, res) => {
     const clientId = req.params.id;
-    db.run('DELETE FROM clients WHERE id = $1 AND "userId" = $2', [clientId, req.user.id], function(err) {
+    db.run('DELETE FROM clients WHERE id = $1 AND "organizationId" = $2', [clientId, req.user.organizationId], function(err) {
         if (err) {
             console.error('Error deleting client:', err.message);
             return res.status(500).json({ message: 'Failed to delete client.' });
@@ -600,14 +611,14 @@ app.delete('/api/clients/:id', authenticateToken, (req, res) => {
 
 // Suppliers
 app.get('/api/suppliers', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM suppliers WHERE "userId" = $1 ORDER BY name ASC', [req.user.id], (err, rows) => {
+    db.all('SELECT * FROM suppliers WHERE "organizationId" = $1 ORDER BY name ASC', [req.user.organizationId], (err, rows) => {
       if (err) return res.status(500).json({ message: 'Failed to fetch suppliers.' });
       res.json(rows);
     });
 });
 app.get('/api/suppliers/:id', authenticateToken, (req, res) => {
     const supplierId = req.params.id;
-    db.get('SELECT * FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], (err, row) => {
+    db.get('SELECT * FROM suppliers WHERE id = $1 AND "organizationId" = $2', [supplierId, req.user.organizationId], (err, row) => {
         if (err) return res.status(500).json({ message: 'Failed to fetch supplier.' });
         if (!row) return res.status(404).json({ message: 'Supplier not found.' });
         res.json(row);
@@ -619,12 +630,12 @@ app.post('/api/suppliers', authenticateToken, (req, res) => {
     const supplierId = data.id || uuidv4();
     const registrationDate = data.registrationDate || new Date().toISOString();
     const sql = `INSERT INTO suppliers (
-        id, "userId", name, "contactPerson", phone, email, notes, "registrationDate"
+        id, "userId", "organizationId", name, "contactPerson", phone, email, notes, "registrationDate"
     ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8
+        $1, $2, $3, $4, $5, $6, $7, $8, $9
     )`;
     const params = [
-        supplierId, req.user.id, data.name, data.contactPerson, data.phone,
+        supplierId, req.user.id, req.user.organizationId, data.name, data.contactPerson, data.phone,
         data.email, data.notes, registrationDate
     ];
     db.run(sql, params, function(err) {
@@ -632,7 +643,7 @@ app.post('/api/suppliers', authenticateToken, (req, res) => {
             console.error('Error saving supplier:', err.message);
             return res.status(500).json({ message: 'Failed to save supplier.' });
         }
-        db.get('SELECT * FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], (err2, row) => {
+        db.get('SELECT * FROM suppliers WHERE id = $1 AND "organizationId" = $2', [supplierId, req.user.organizationId], (err2, row) => {
             if (err2 || !row) {
                 console.error('Error fetching supplier after save:', err2 ? err2.message : 'Row not found');
                 return res.status(500).json({ message: 'Supplier saved, but failed to retrieve record.' });
@@ -647,14 +658,14 @@ app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const sql = `UPDATE suppliers SET
         name=$1, "contactPerson"=$2, phone=$3, email=$4, notes=$5
-        WHERE id=$6 AND "userId"=$7`;
-    const params = [data.name, data.contactPerson, data.phone, data.email, data.notes, supplierId, req.user.id];
+        WHERE id=$6 AND "organizationId"=$7`;
+    const params = [data.name, data.contactPerson, data.phone, data.email, data.notes, supplierId, req.user.organizationId];
     db.run(sql, params, function(err) {
         if (err) {
             console.error('Error updating supplier:', err.message);
             return res.status(500).json({ message: 'Failed to update supplier.' });
         }
-        db.get('SELECT * FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], (err2, row) => {
+        db.get('SELECT * FROM suppliers WHERE id = $1 AND "organizationId" = $2', [supplierId, req.user.organizationId], (err2, row) => {
             if (err2 || !row) {
                 return res.status(404).json({ message: 'Supplier not found.' });
             }
@@ -665,7 +676,7 @@ app.put('/api/suppliers/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/suppliers/:id', authenticateToken, (req, res) => {
     const supplierId = req.params.id;
-    db.run('DELETE FROM suppliers WHERE id = $1 AND "userId" = $2', [supplierId, req.user.id], function(err) {
+    db.run('DELETE FROM suppliers WHERE id = $1 AND "organizationId" = $2', [supplierId, req.user.organizationId], function(err) {
         if (err) {
             console.error('Error deleting supplier:', err.message);
             return res.status(500).json({ message: 'Failed to delete supplier.' });
