@@ -1,7 +1,7 @@
 
 
 import React, { useState, ReactNode, useEffect, useCallback } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate, Outlet } from 'react-router-dom';
 import { AuthProvider, LoginPage, AdminLoginPage, AuthGuard, AdminGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
 import OrderDetailsPage from './features/OrderDetailsPage';
@@ -380,14 +380,16 @@ const AdminHeader: React.FC<{onMenuButtonClick: () => void;}> = ({onMenuButtonCl
   </header>
 );
 
-const AdminLayout: React.FC<{children?: ReactNode}> = ({ children }) => {
+const AdminLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="min-h-screen flex">
       <AdminSidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       <div className="flex-1 flex flex-col lg:ml-64">
         <AdminHeader onMenuButtonClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
