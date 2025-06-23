@@ -20,11 +20,20 @@ import { UserManagementPage } from './features/UserManagementFeature';
 import ProductPricingDashboardPage from './features/ProductPricingDashboard';
 import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
 import AdminHomePage from './features/AdminHomeFeature';
+import AdminBillingPage from './features/AdminBillingFeature';
+import AdminOrdersPage from './features/AdminOrdersFeature';
+import AdminProductsPage from './features/AdminProductsFeature';
+import AdminReportsPage from './features/AdminReportsFeature';
+import AdminAIPage from './features/AdminAIFeature';
+import AdminBluLabsPage from './features/AdminBluLabsFeature';
+import AdminSettingsPage from './features/AdminAdvancedSettingsFeature';
+import AdminAuditLogsPage from './features/AdminAuditLogsFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
 import PendingOrdersWidget from './components/PendingOrdersWidget';
 import { 
-    APP_NAME, 
+    APP_NAME,
+    ADMIN_APP_NAME,
     getDashboardStatistics, formatCurrencyBRL, getTodaysTasks, formatDateBR, getOrderById, 
     getOrders, // Correctly use getOrders which points to backend
     addOrderCostItem, COST_TYPE_OPTIONS_SELECT, parseBRLCurrencyStringToNumber, 
@@ -46,6 +55,11 @@ import {
   Menu as MenuIcon,
   LogOut,
   Table,
+  Package,
+  BrainCog,
+  Beaker,
+  Settings,
+  FileText,
 } from 'lucide-react';
 
 
@@ -56,7 +70,7 @@ export const EyeIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="h
 export const EyeSlashIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}> <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L6.228 6.228" /> </svg> );
 
 
-interface NavItemWithExact extends NavItem { exact?: boolean; adminOnly?: boolean; }
+interface NavItemWithExact extends NavItem { exact?: boolean; }
 const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Painel Principal', path: '/', icon: Home, exact: true },
   { name: 'Clientes', path: '/clients', icon: Users },
@@ -70,8 +84,19 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
   { name: 'Calculadora Venda', path: '/sale-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
-  { name: 'Usuários', path: '/user-management', icon: Users, adminOnly: true },
-  { name: 'Clientes SAAS', path: '/manage-clients', icon: Cog6ToothIcon, adminOnly: true },
+];
+
+const ADMIN_NAV_ITEMS: NavItemWithExact[] = [
+  { name: 'Dashboard', path: '/admin', icon: Home, exact: true },
+  { name: 'Usuários/Clientes', path: '/admin/users', icon: Users },
+  { name: 'Planos e Faturamento', path: '/admin/billing', icon: BadgeDollarSign },
+  { name: 'Pedidos', path: '/admin/orders', icon: ShoppingBag },
+  { name: 'Produtos/Modelos', path: '/admin/products', icon: Package },
+  { name: 'Relatórios', path: '/admin/reports', icon: PieChart },
+  { name: 'IA / Automatizações', path: '/admin/ai', icon: BrainCog },
+  { name: 'Blu Labs', path: '/admin/labs', icon: Beaker },
+  { name: 'Configurações', path: '/admin/settings', icon: Settings },
+  { name: 'Auditoria & Logs', path: '/admin/audit', icon: FileText },
 ];
 
 // --- Modals (AddOrderCostModal, RegisterPaymentModal) ---
@@ -260,7 +285,7 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
           />
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {NAV_ITEMS.filter(i => !i.adminOnly || currentUser?.role === 'admin').map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
           ))}
         </nav>
@@ -309,6 +334,64 @@ const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => voi
   );
 };
 const DashboardLayout: React.FC<{ children: ReactNode }> = ({ children }) => { const [sidebarOpen, setSidebarOpen] = useState(false); const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false); const handleCostSaved = (costItem: OrderCostItem) => { console.log("Custo salvo:", costItem); /* Potentially refresh relevant dashboard data if needed */ }; return ( <div className="min-h-screen flex"> <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} /> <div className="flex-1 flex flex-col lg:ml-64"> <Header onMenuButtonClick={() => setSidebarOpen(true)} onAddCostClick={() => setIsAddCostModalOpen(true)} /> <main className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto"> {children} </main> </div> <AddOrderCostModal isOpen={isAddCostModalOpen} onClose={() => setIsAddCostModalOpen(false)} onSave={handleCostSaved} /> </div> ); };
+
+const AdminSidebar: React.FC<{isOpen: boolean; setIsOpen: (o: boolean) => void;}> = ({isOpen, setIsOpen}) => {
+  const location = useLocation();
+  const { logout } = useAuth();
+  const NavLink: React.FC<{item: NavItemWithExact; onClick?: () => void}> = ({ item, onClick }) => {
+    const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+    const IconComponent = item.icon;
+    return (
+      <Link to={item.path} onClick={onClick} className={`flex items-center px-3 py-3 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-blu-accent text-blu-primary' : 'text-white hover:bg-white/10'}`}> <IconComponent className="h-6 w-6 mr-3 flex-shrink-0" /> {item.name} </Link>
+    );
+  };
+  return (
+    <>
+      {isOpen && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsOpen(false)} />}
+      <div className={`fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-blu-primary text-white shadow-lg border-r border-blu-accent transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4">
+          <img src="https://bluimports.com.br/blu-branco.svg" alt="Blu Imports Logo" className="h-10 object-contain" />
+        </div>
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {ADMIN_NAV_ITEMS.map((item) => (
+            <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
+          ))}
+        </nav>
+        <div className="px-4 py-4 border-t border-blu-accent/50">
+          <button onClick={async () => { await logout(); setIsOpen(false); }} className="flex items-center w-full px-3 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors">
+            <LogOut className="h-6 w-6 mr-3 flex-shrink-0" />
+            Sair
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const AdminHeader: React.FC<{onMenuButtonClick: () => void;}> = ({onMenuButtonClick}) => (
+  <header className="sticky top-0 z-20 bg-white shadow-md lg:hidden">
+    <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <button onClick={onMenuButtonClick} className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden">
+        <span className="sr-only">Abrir menu</span>
+        <MenuIcon className="h-6 w-6" />
+      </button>
+      <div className="text-lg font-semibold text-blue-700">{ADMIN_APP_NAME}</div>
+    </div>
+  </header>
+);
+
+const AdminLayout: React.FC<{children?: ReactNode}> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  return (
+    <div className="min-h-screen flex">
+      <AdminSidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <div className="flex-1 flex flex-col lg:ml-64">
+        <AdminHeader onMenuButtonClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto">{children}</main>
+      </div>
+    </div>
+  );
+};
 
 const TodayTasksDisplay: React.FC = () => {
     const [tasks, setTasks] = useState<TodayTask[]>([]);
@@ -439,6 +522,20 @@ const App: React.FC<{}> = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
+          <Route path="/admin/*" element={<AdminGuard><AdminLayout /></AdminGuard>}>
+            <Route index element={<AdminHomePage />} />
+            <Route path="users" element={<UserManagementPage />} />
+            <Route path="clients" element={<SaaSClientsAdminPage />} />
+            <Route path="billing" element={<AdminBillingPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="products" element={<AdminProductsPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="ai" element={<AdminAIPage />} />
+            <Route path="labs" element={<AdminBluLabsPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="audit" element={<AdminAuditLogsPage />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Route>
           <Route
             path="/*"
             element={
@@ -460,9 +557,6 @@ const App: React.FC<{}> = () => {
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
                     <Route path="/product-pricing" element={<ProductPricingDashboardPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
-                    <Route path="/admin" element={<AdminGuard><AdminHomePage /></AdminGuard>} />
-                    <Route path="/user-management" element={<AdminGuard><UserManagementPage /></AdminGuard>} />
-                    <Route path="/manage-clients" element={<AdminGuard><SaaSClientsAdminPage /></AdminGuard>} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </DashboardLayout>
