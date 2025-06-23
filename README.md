@@ -41,6 +41,7 @@ Follow the steps below in order:
    cd server
    npm run init-db            # creates tables
    npm run seed-products      # populate productPricing
+   npm run assign-orgid       # fill organizationId in legacy data
    cd ..
    ```
 
