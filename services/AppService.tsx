@@ -8,7 +8,7 @@ import {
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
     ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
     PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem,
-    SaaSClient
+    SaaSClient, SubscriptionPlan, BillingClient, IntegrationStatus
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -676,6 +676,18 @@ export interface AdminReport {
 
 export const getAdminReport = async (): Promise<AdminReport> => {
     return apiClient<AdminReport>('/admin/report');
+};
+
+export const getSubscriptionPlans = async (): Promise<SubscriptionPlan[]> => {
+    return apiClient<SubscriptionPlan[]>('/plans');
+};
+
+export const getBillingClients = async (): Promise<BillingClient[]> => {
+    return apiClient<BillingClient[]>('/billing/clients');
+};
+
+export const getIntegrationStatuses = async (): Promise<IntegrationStatus[]> => {
+    return apiClient<IntegrationStatus[]>('/integrations');
 };
 
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.

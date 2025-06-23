@@ -310,6 +310,30 @@ function initializeDatabase() {
         signupDate TEXT NOT NULL
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS plans (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        orderLimit INTEGER,
+        userLimit INTEGER,
+        features TEXT,
+        monthlyPrice REAL
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS client_billing (
+        clientId TEXT PRIMARY KEY,
+        planName TEXT NOT NULL,
+        lastPaymentDate TEXT,
+        nextDueDate TEXT,
+        status TEXT NOT NULL,
+        FOREIGN KEY(clientId) REFERENCES saas_clients(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integrations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        status TEXT NOT NULL
+    )`);
+
     console.log('Database schema initialized/verified.');
   });
 }

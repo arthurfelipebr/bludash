@@ -1534,6 +1534,97 @@ app.delete('/api/saas/clients/:id', authenticateToken, authorizeAdmin, (req, res
   });
 });
 
+// --- Plans ---
+app.get('/api/plans', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all('SELECT * FROM plans ORDER BY monthlyPrice ASC', [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching plans:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch plans.' });
+    }
+    const formatted = rows.map(r => ({ ...r, features: r.features ? JSON.parse(r.features) : [] }));
+    res.json(formatted);
+  });
+});
+
+app.post('/api/plans', authenticateToken, authorizeAdmin, (req, res) => {
+  const data = req.body || {};
+  const id = data.id || uuidv4();
+  const features = JSON.stringify(data.features || []);
+  db.run(
+    'INSERT INTO plans (id,name,orderLimit,userLimit,features,monthlyPrice) VALUES ($1,$2,$3,$4,$5,$6)',
+    [id, data.name, data.orderLimit, data.userLimit, features, data.monthlyPrice],
+    function(err) {
+      if (err) {
+        console.error('Error saving plan:', err.message);
+        return res.status(500).json({ message: 'Failed to save plan.' });
+      }
+      db.get('SELECT * FROM plans WHERE id = $1', [id], (err2, row) => {
+        if (err2 || !row) return res.status(500).json({ message: 'Plan saved but retrieval failed.' });
+        row.features = row.features ? JSON.parse(row.features) : [];
+        res.status(201).json(row);
+      });
+    }
+  );
+});
+
+app.put('/api/plans/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  const id = req.params.id;
+  const data = req.body || {};
+  const features = JSON.stringify(data.features || []);
+  db.run(
+    'UPDATE plans SET name=$1, orderLimit=$2, userLimit=$3, features=$4, monthlyPrice=$5 WHERE id=$6',
+    [data.name, data.orderLimit, data.userLimit, features, data.monthlyPrice, id],
+    function(err) {
+      if (err) {
+        console.error('Error updating plan:', err.message);
+        return res.status(500).json({ message: 'Failed to update plan.' });
+      }
+      db.get('SELECT * FROM plans WHERE id = $1', [id], (err2, row) => {
+        if (err2 || !row) return res.status(404).json({ message: 'Plan not found.' });
+        row.features = row.features ? JSON.parse(row.features) : [];
+        res.json(row);
+      });
+    }
+  );
+});
+
+app.delete('/api/plans/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  const id = req.params.id;
+  db.run('DELETE FROM plans WHERE id = $1', [id], function(err) {
+    if (err) {
+      console.error('Error deleting plan:', err.message);
+      return res.status(500).json({ message: 'Failed to delete plan.' });
+    }
+    res.sendStatus(204);
+  });
+});
+
+// --- Billing Clients ---
+app.get('/api/billing/clients', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all(
+    'SELECT c.id as clientId, c.organizationName, b.planName, b.lastPaymentDate, b.nextDueDate, b.status FROM saas_clients c LEFT JOIN client_billing b ON b.clientId = c.id',
+    [],
+    (err, rows) => {
+      if (err) {
+        console.error('Error fetching billing data:', err.message);
+        return res.status(500).json({ message: 'Failed to fetch billing data.' });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// --- Integrations ---
+app.get('/api/integrations', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all('SELECT * FROM integrations', [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching integrations:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch integrations.' });
+    }
+    res.json(rows);
+  });
+});
+
 
 // Gemini AI Proxy
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
