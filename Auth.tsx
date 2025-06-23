@@ -4,8 +4,6 @@ import { AuthContextType, User } from './types';
 import { APP_NAME, ADMIN_APP_NAME } from './services/AppService';
 import { Button, Card, PageTitle, Alert, Spinner, Input } from './components/SharedComponents';
 
-const ADMIN_FIXED_EMAIL = 'arthur@centralmaker.com';
-const ADMIN_FIXED_PASSWORD = 'admin123';
 
 async function apiLogin(email: string, password: string): Promise<{ token: string; user: User }> {
   const response = await fetch('/api/auth/login', {
@@ -94,21 +92,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsAuthLoading(true);
     setAuthError(null);
     try {
-      if (email === ADMIN_FIXED_EMAIL && password === ADMIN_FIXED_PASSWORD) {
-        const user: User = {
-          id: 'admin-fixed',
-          email: ADMIN_FIXED_EMAIL,
-          name: 'Admin',
-          role: 'admin',
-          organizationId: 'admin',
-          registrationDate: new Date().toISOString(),
-        };
-        const token = 'admin-fixed-token';
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('authUser', JSON.stringify(user));
-        setCurrentUser(user);
-        return user;
-      }
       const { token, user } = await apiLogin(email, password);
       localStorage.setItem('authToken', token);
       localStorage.setItem('authUser', JSON.stringify(user));
