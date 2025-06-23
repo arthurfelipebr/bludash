@@ -1419,6 +1419,56 @@ app.get('/api/admin/summary', authenticateToken, authorizeAdmin, (req, res) => {
   });
 });
 
+// --- Admin Reports ---
+app.get('/api/admin/report', authenticateToken, authorizeAdmin, (req, res) => {
+  const report = {
+    organizations: 0,
+    users: 0,
+    clients: 0,
+    suppliers: 0,
+    orders: 0,
+    totalRevenue: 0,
+  };
+
+  db.get('SELECT COUNT(*) as count FROM organizations', [], (err, rowOrg) => {
+    if (err) {
+      console.error('Error counting organizations:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch report.' });
+    }
+    report.organizations = rowOrg?.count || 0;
+    db.get('SELECT COUNT(*) as count FROM users', [], (err2, rowUsers) => {
+      if (err2) {
+        console.error('Error counting users:', err2.message);
+        return res.status(500).json({ message: 'Failed to fetch report.' });
+      }
+      report.users = rowUsers?.count || 0;
+      db.get('SELECT COUNT(*) as count FROM clients', [], (err3, rowClients) => {
+        if (err3) {
+          console.error('Error counting clients:', err3.message);
+          return res.status(500).json({ message: 'Failed to fetch report.' });
+        }
+        report.clients = rowClients?.count || 0;
+        db.get('SELECT COUNT(*) as count FROM suppliers', [], (err4, rowSup) => {
+          if (err4) {
+            console.error('Error counting suppliers:', err4.message);
+            return res.status(500).json({ message: 'Failed to fetch report.' });
+          }
+          report.suppliers = rowSup?.count || 0;
+          db.get('SELECT COUNT(*) as count, IFNULL(SUM(sellingPrice),0) as revenue FROM orders', [], (err5, rowOrders) => {
+            if (err5) {
+              console.error('Error counting orders:', err5.message);
+              return res.status(500).json({ message: 'Failed to fetch report.' });
+            }
+            report.orders = rowOrders?.count || 0;
+            report.totalRevenue = rowOrders?.revenue || 0;
+            res.json(report);
+          });
+        });
+      });
+    });
+  });
+});
+
 // --- SaaS Clients Management ---
 app.get('/api/saas/clients', authenticateToken, authorizeAdmin, (req, res) => {
   db.all('SELECT * FROM saas_clients ORDER BY signupDate DESC', [], (err, rows) => {
