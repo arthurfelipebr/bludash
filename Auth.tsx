@@ -17,11 +17,11 @@ async function apiLogin(email: string, password: string): Promise<{ token: strin
   return response.json();
 }
 
-async function apiRegister(email: string, password: string, name?: string): Promise<{ token: string; user: User }> {
+async function apiRegister(email: string, password: string, name?: string, organizationName?: string): Promise<{ token: string; user: User }> {
   const response = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify({ email, password, name, organizationName }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Registration failed. Check server logs.' }));
@@ -120,11 +120,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name?: string): Promise<User> => {
+  const register = useCallback(async (email: string, password: string, name?: string, organizationName?: string): Promise<User> => {
     setIsAuthLoading(true);
     setAuthError(null);
     try {
-      const { token, user } = await apiRegister(email, password, name);
+      const { token, user } = await apiRegister(email, password, name, organizationName);
       localStorage.setItem('authToken', token);
       localStorage.setItem('authUser', JSON.stringify(user));
       setCurrentUser(user);
@@ -165,6 +165,7 @@ export const LoginPage: React.FC<{}> = () => {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState(''); // For registration
+  const [organizationName, setOrganizationName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState(''); // For registration
   const [pageError, setPageError] = useState<string | null>(null);
@@ -195,7 +196,7 @@ export const LoginPage: React.FC<{}> = () => {
     setAttemptingAuth(true);
     try {
       if (isRegisterMode) {
-        await register(email, password, name);
+        await register(email, password, name, organizationName);
       } else {
         await login(email, password);
       }
@@ -234,6 +235,18 @@ export const LoginPage: React.FC<{}> = () => {
               onChange={(e) => setName(e.target.value)}
               inputClassName="text-lg"
               placeholder="Seu nome"
+            />
+          )}
+          {isRegisterMode && (
+            <Input
+              label="Nome da Empresa"
+              id="organizationName"
+              type="text"
+              value={organizationName}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              inputClassName="text-lg"
+              placeholder="Minha Empresa"
+              required
             />
           )}
           <Input

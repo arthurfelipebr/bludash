@@ -7,18 +7,26 @@ const db = new sqlite3.Database(dbPath);
 
 function initializeDatabase() {
   db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS organizations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL
+    )`);
+
     db.run(`CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT,
       role TEXT NOT NULL DEFAULT 'user',
-      "registrationDate" TEXT NOT NULL
+      "organizationId" TEXT,
+      "registrationDate" TEXT NOT NULL,
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id)
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS clients (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,
+      "organizationId" TEXT NOT NULL,
       "fullName" TEXT NOT NULL,
       "cpfOrCnpj" TEXT NOT NULL,
       email TEXT NOT NULL,
@@ -32,16 +40,21 @@ function initializeDatabase() {
       notes TEXT,
       "isDefaulter" INTEGER DEFAULT 0,
       "defaulterNotes" TEXT,
-      FOREIGN KEY ("userId") REFERENCES users(id)
+      FOREIGN KEY ("userId") REFERENCES users(id),
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id)
     )`);
 
     // Ensure legacy databases have the new columns
     db.run('ALTER TABLE clients ADD COLUMN address TEXT', [], () => {});
     db.run('ALTER TABLE clients ADD COLUMN cep TEXT', [], () => {});
+    db.run('ALTER TABLE clients ADD COLUMN "organizationId" TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN watchSize TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN trackingCode TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN threeuToolsReport TEXT', [], () => {});
+    db.run('ALTER TABLE orders ADD COLUMN "organizationId" TEXT', [], () => {});
+    db.run('ALTER TABLE suppliers ADD COLUMN "organizationId" TEXT', [], () => {});
     db.run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'", [], () => {});
+    db.run('ALTER TABLE users ADD COLUMN "organizationId" TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN color TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN characteristics TEXT', [], () => {});
     db.run('ALTER TABLE historicalPrices ADD COLUMN originCountry TEXT', [], () => {});
@@ -55,13 +68,15 @@ function initializeDatabase() {
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,
+      "organizationId" TEXT NOT NULL,
       name TEXT NOT NULL,
       "contactPerson" TEXT,
       phone TEXT NOT NULL,
       email TEXT,
       notes TEXT,
       "registrationDate" TEXT NOT NULL,
-      FOREIGN KEY ("userId") REFERENCES users(id)
+      FOREIGN KEY ("userId") REFERENCES users(id),
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id)
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS historicalPrices (
@@ -86,6 +101,7 @@ function initializeDatabase() {
     db.run(`CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,
+      "organizationId" TEXT NOT NULL,
       "customerName" TEXT NOT NULL,
       "clientId" TEXT,
       "productName" TEXT NOT NULL,
@@ -128,6 +144,7 @@ function initializeDatabase() {
       "internalNotes" TEXT,
       "arrivalPhotos" TEXT,
       FOREIGN KEY ("userId") REFERENCES users(id),
+      FOREIGN KEY ("organizationId") REFERENCES organizations(id),
       FOREIGN KEY ("clientId") REFERENCES clients(id) ON DELETE SET NULL,
       FOREIGN KEY ("supplierId") REFERENCES suppliers(id) ON DELETE SET NULL
     )`);
