@@ -13,6 +13,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
 export const APP_NAME = "Blu Imports Dashboard";
+export const ADMIN_APP_NAME = "Blu Imports SaaS Admin";
 // API_KEY is no longer client-side
 
 export const ORDER_STATUS_OPTIONS: OrderStatus[] = Object.values(OrderStatus);

@@ -2,7 +2,7 @@
 
 import React, { useState, ReactNode, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { AuthProvider, LoginPage, AuthGuard, useAuth } from './Auth';
+import { AuthProvider, LoginPage, AdminLoginPage, AuthGuard, AdminGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
 import OrderDetailsPage from './features/OrderDetailsPage';
 import OrderEditPage from './features/OrderEditPage';
@@ -437,6 +437,7 @@ const App: React.FC<{}> = () => {
       <HashRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route
             path="/*"
             element={
@@ -458,8 +459,8 @@ const App: React.FC<{}> = () => {
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
                     <Route path="/product-pricing" element={<ProductPricingDashboardPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
-                    <Route path="/user-management" element={<UserManagementPage />} />
-                    <Route path="/manage-clients" element={<SaaSClientsAdminPage />} />
+                    <Route path="/user-management" element={<AdminGuard><UserManagementPage /></AdminGuard>} />
+                    <Route path="/manage-clients" element={<AdminGuard><SaaSClientsAdminPage /></AdminGuard>} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </DashboardLayout>
