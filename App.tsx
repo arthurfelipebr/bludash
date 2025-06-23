@@ -19,6 +19,7 @@ import { FinancialReportsPageContainer } from './features/FinancialReportsFeatur
 import { UserManagementPage } from './features/UserManagementFeature';
 import ProductPricingDashboardPage from './features/ProductPricingDashboard';
 import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
+import AdminHomePage from './features/AdminHomeFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
 import PendingOrdersWidget from './components/PendingOrdersWidget';
@@ -459,6 +460,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
                     <Route path="/product-pricing" element={<ProductPricingDashboardPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
+                    <Route path="/admin" element={<AdminGuard><AdminHomePage /></AdminGuard>} />
                     <Route path="/user-management" element={<AdminGuard><UserManagementPage /></AdminGuard>} />
                     <Route path="/manage-clients" element={<AdminGuard><SaaSClientsAdminPage /></AdminGuard>} />
                     <Route path="*" element={<Navigate to="/" replace />} />

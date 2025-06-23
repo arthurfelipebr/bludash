@@ -1387,6 +1387,38 @@ app.get('/api/dashboard/weekly-summary', authenticateToken, (req, res) => {
     });
 });
 
+// --- Admin Summary ---
+app.get('/api/admin/summary', authenticateToken, authorizeAdmin, (req, res) => {
+  const summary = {
+    activeOrganizations: 0,
+    ongoingOrders: 0,
+    totalRevenue: 0,
+  };
+
+  db.get('SELECT COUNT(*) as count FROM organizations', [], (err, row) => {
+    if (err) {
+      console.error('Error counting organizations:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch summary.' });
+    }
+    summary.activeOrganizations = row?.count || 0;
+    db.get("SELECT COUNT(*) as count FROM orders WHERE status NOT IN ('Entregue','Cancelado')", [], (err2, row2) => {
+      if (err2) {
+        console.error('Error counting orders:', err2.message);
+        return res.status(500).json({ message: 'Failed to fetch summary.' });
+      }
+      summary.ongoingOrders = row2?.count || 0;
+      db.get('SELECT IFNULL(SUM(sellingPrice),0) as total FROM orders', [], (err3, row3) => {
+        if (err3) {
+          console.error('Error calculating revenue:', err3.message);
+          return res.status(500).json({ message: 'Failed to fetch summary.' });
+        }
+        summary.totalRevenue = row3?.total || 0;
+        res.json(summary);
+      });
+    });
+  });
+});
+
 
 // Gemini AI Proxy
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {

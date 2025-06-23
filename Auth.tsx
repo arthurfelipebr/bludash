@@ -4,6 +4,7 @@ import { AuthContextType, User } from './types';
 import { APP_NAME, ADMIN_APP_NAME } from './services/AppService';
 import { Button, Card, PageTitle, Alert, Spinner, Input } from './components/SharedComponents';
 
+
 async function apiLogin(email: string, password: string): Promise<{ token: string; user: User }> {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
