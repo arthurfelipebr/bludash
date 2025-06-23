@@ -7,7 +7,8 @@ import {
     OrderOccurrence, OccurrenceStatus, OccurrenceType,
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
     ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
-    PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem
+    PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem,
+    SaaSClient
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -645,6 +646,22 @@ export const inviteUser = async (data: { email: string; password: string; name?:
 
 export const updateUserRole = async (userId: string, role: string): Promise<User> => {
     return apiClient<User>(`/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
+};
+
+// --- SaaS Clients Management ---
+export const getSaaSClients = async (): Promise<SaaSClient[]> => {
+    return apiClient<SaaSClient[]>('/saas/clients');
+};
+
+export const saveSaaSClient = async (client: Omit<SaaSClient, 'id'> | SaaSClient): Promise<SaaSClient> => {
+    if ('id' in client && client.id) {
+        return apiClient<SaaSClient>(`/saas/clients/${client.id}`, { method: 'PUT', body: JSON.stringify(client) });
+    }
+    return apiClient<SaaSClient>('/saas/clients', { method: 'POST', body: JSON.stringify(client) });
+};
+
+export const deleteSaaSClient = async (id: string): Promise<void> => {
+    return apiClient<void>(`/saas/clients/${id}`, { method: 'DELETE' });
 };
 
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.
