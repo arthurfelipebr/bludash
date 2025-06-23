@@ -287,6 +287,30 @@ export interface SaaSClient {
   signupDate: string; // ISO date string
 }
 
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  orderLimit: number;
+  userLimit: number;
+  features: string[];
+  monthlyPrice: number;
+}
+
+export interface BillingClient {
+  clientId: string;
+  organizationName: string;
+  planName: string;
+  lastPaymentDate?: string;
+  nextDueDate?: string;
+  status: 'ativo' | 'atrasado' | 'suspenso';
+}
+
+export interface IntegrationStatus {
+  id: string;
+  name: string;
+  status: 'connected' | 'disconnected';
+}
+
 export interface NavItem {
   name: string;
   path: string;
