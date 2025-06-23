@@ -300,6 +300,16 @@ function initializeDatabase() {
         FOREIGN KEY ("userId") REFERENCES users(id)
     )`);
 
+    // Table for SaaS client organizations managed via the admin panel
+    db.run(`CREATE TABLE IF NOT EXISTS saas_clients (
+        id TEXT PRIMARY KEY,
+        organizationName TEXT NOT NULL,
+        contactEmail TEXT NOT NULL,
+        subscriptionPlan TEXT NOT NULL,
+        subscriptionStatus TEXT NOT NULL,
+        signupDate TEXT NOT NULL
+    )`);
+
     console.log('Database schema initialized/verified.');
   });
 }

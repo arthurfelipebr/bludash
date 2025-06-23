@@ -1419,6 +1419,71 @@ app.get('/api/admin/summary', authenticateToken, authorizeAdmin, (req, res) => {
   });
 });
 
+// --- SaaS Clients Management ---
+app.get('/api/saas/clients', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all('SELECT * FROM saas_clients ORDER BY signupDate DESC', [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching SaaS clients:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch clients.' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/saas/clients', authenticateToken, authorizeAdmin, (req, res) => {
+  const data = req.body || {};
+  const clientId = data.id || uuidv4();
+  const signupDate = data.signupDate || new Date().toISOString();
+  db.run(
+    'INSERT INTO saas_clients (id, organizationName, contactEmail, subscriptionPlan, subscriptionStatus, signupDate) VALUES ($1,$2,$3,$4,$5,$6)',
+    [clientId, data.organizationName, data.contactEmail, data.subscriptionPlan, data.subscriptionStatus, signupDate],
+    function(err) {
+      if (err) {
+        console.error('Error saving SaaS client:', err.message);
+        return res.status(500).json({ message: 'Failed to save client.' });
+      }
+      db.get('SELECT * FROM saas_clients WHERE id = $1', [clientId], (err2, row) => {
+        if (err2 || !row) {
+          return res.status(500).json({ message: 'Client saved but retrieval failed.' });
+        }
+        res.status(201).json(row);
+      });
+    }
+  );
+});
+
+app.put('/api/saas/clients/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  const clientId = req.params.id;
+  const data = req.body || {};
+  db.run(
+    'UPDATE saas_clients SET organizationName=$1, contactEmail=$2, subscriptionPlan=$3, subscriptionStatus=$4, signupDate=$5 WHERE id=$6',
+    [data.organizationName, data.contactEmail, data.subscriptionPlan, data.subscriptionStatus, data.signupDate, clientId],
+    function(err) {
+      if (err) {
+        console.error('Error updating SaaS client:', err.message);
+        return res.status(500).json({ message: 'Failed to update client.' });
+      }
+      db.get('SELECT * FROM saas_clients WHERE id = $1', [clientId], (err2, row) => {
+        if (err2 || !row) {
+          return res.status(404).json({ message: 'Client not found.' });
+        }
+        res.json(row);
+      });
+    }
+  );
+});
+
+app.delete('/api/saas/clients/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  const clientId = req.params.id;
+  db.run('DELETE FROM saas_clients WHERE id = $1', [clientId], function(err) {
+    if (err) {
+      console.error('Error deleting SaaS client:', err.message);
+      return res.status(500).json({ message: 'Failed to delete client.' });
+    }
+    res.sendStatus(204);
+  });
+});
+
 
 // Gemini AI Proxy
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
