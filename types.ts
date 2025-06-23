@@ -278,6 +278,15 @@ export interface Organization {
   name: string;
 }
 
+export interface SaaSClient {
+  id: string;
+  organizationName: string;
+  contactEmail: string;
+  subscriptionPlan: string;
+  subscriptionStatus: 'active' | 'trial' | 'canceled';
+  signupDate: string; // ISO date string
+}
+
 export interface NavItem {
   name: string;
   path: string;
