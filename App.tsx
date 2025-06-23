@@ -20,6 +20,14 @@ import { UserManagementPage } from './features/UserManagementFeature';
 import ProductPricingDashboardPage from './features/ProductPricingDashboard';
 import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
 import AdminHomePage from './features/AdminHomeFeature';
+import AdminBillingPage from './features/AdminBillingFeature';
+import AdminOrdersPage from './features/AdminOrdersFeature';
+import AdminProductsPage from './features/AdminProductsFeature';
+import AdminReportsPage from './features/AdminReportsFeature';
+import AdminAIPage from './features/AdminAIFeature';
+import AdminBluLabsPage from './features/AdminBluLabsFeature';
+import AdminSettingsPage from './features/AdminAdvancedSettingsFeature';
+import AdminAuditLogsPage from './features/AdminAuditLogsFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
 import PendingOrdersWidget from './components/PendingOrdersWidget';
@@ -518,6 +526,14 @@ const App: React.FC<{}> = () => {
             <Route index element={<AdminHomePage />} />
             <Route path="users" element={<UserManagementPage />} />
             <Route path="clients" element={<SaaSClientsAdminPage />} />
+            <Route path="billing" element={<AdminBillingPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="products" element={<AdminProductsPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="ai" element={<AdminAIPage />} />
+            <Route path="labs" element={<AdminBluLabsPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="audit" element={<AdminAuditLogsPage />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
           <Route
