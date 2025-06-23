@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthContextType, User } from './types'; 
-import { APP_NAME } from './services/AppService'; 
+import { APP_NAME, ADMIN_APP_NAME } from './services/AppService';
 import { Button, Card, PageTitle, Alert, Spinner, Input } from './components/SharedComponents';
 
 async function apiLogin(email: string, password: string): Promise<{ token: string; user: User }> {
@@ -157,12 +157,15 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-export const LoginPage: React.FC<{}> = () => {
+interface LoginPageProps { adminMode?: boolean }
+
+export const LoginPage: React.FC<LoginPageProps> = ({ adminMode = false }) => {
   const { login, register, isAuthLoading, currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const registrationEnabled = !adminMode;
   const [email, setEmail] = useState('');
   const [name, setName] = useState(''); // For registration
   const [organizationName, setOrganizationName] = useState('');
@@ -218,15 +221,15 @@ export const LoginPage: React.FC<{}> = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-700 p-4">
       <Card className="w-full max-w-md bg-white shadow-2xl">
-        <PageTitle 
-          title={APP_NAME} 
-          subtitle={isRegisterMode ? "Criar Nova Conta" : "Acesso ao Painel Interno"} 
-          className="text-center mb-6 text-gray-800" 
+        <PageTitle
+          title={adminMode ? ADMIN_APP_NAME : APP_NAME}
+          subtitle={isRegisterMode ? "Criar Nova Conta" : adminMode ? "Acesso Admin" : "Acesso ao Painel Interno"}
+          className="text-center mb-6 text-gray-800"
         />
         <img src="https://bluimports.com.br/blu-branco.svg" alt="Blu Imports Logo" className="mx-auto mb-6 h-16 object-contain"/>
 
         <form onSubmit={handleAuthAction} className="space-y-4">
-          {isRegisterMode && (
+          {registrationEnabled && isRegisterMode && (
             <Input
               label="Nome (Opcional)"
               id="name"
@@ -237,7 +240,7 @@ export const LoginPage: React.FC<{}> = () => {
               placeholder="Seu nome"
             />
           )}
-          {isRegisterMode && (
+          {registrationEnabled && isRegisterMode && (
             <Input
               label="Nome da Empresa"
               id="organizationName"
@@ -269,7 +272,7 @@ export const LoginPage: React.FC<{}> = () => {
             inputClassName="text-lg"
             placeholder={isRegisterMode ? "Mínimo 6 caracteres" : "Sua senha"}
           />
-          {isRegisterMode && (
+          {registrationEnabled && isRegisterMode && (
             <Input
               label="Confirmar Senha"
               id="confirmPassword"
@@ -283,27 +286,31 @@ export const LoginPage: React.FC<{}> = () => {
           )}
           {pageError && <Alert type="error" message={pageError} onClose={() => setPageError(null)} />}
           <Button type="submit" fullWidth isLoading={attemptingAuth} disabled={attemptingAuth}>
-            {attemptingAuth ? (isRegisterMode ? 'Registrando...' : 'Entrando...') : (isRegisterMode ? 'Criar Conta' : 'Entrar')}
+            {registrationEnabled && isRegisterMode
+              ? attemptingAuth ? 'Registrando...' : 'Criar Conta'
+              : attemptingAuth ? 'Entrando...' : 'Entrar'}
           </Button>
         </form>
         
-        <p className="text-sm text-gray-600 mt-6 text-center">
-          {isRegisterMode ? (
-            <>
-              Já tem uma conta?{' '}
-              <button onClick={() => { setIsRegisterMode(false); setPageError(null); }} className="font-medium text-blue-600 hover:text-blue-500">
-                Entrar
-              </button>
-            </>
-          ) : (
-            <>
-              Não tem uma conta?{' '}
-              <button onClick={() => { setIsRegisterMode(true); setPageError(null); }} className="font-medium text-blue-600 hover:text-blue-500">
-                Criar conta
-              </button>
-            </>
-          )}
-        </p>
+        {registrationEnabled && (
+          <p className="text-sm text-gray-600 mt-6 text-center">
+            {isRegisterMode ? (
+              <>
+                Já tem uma conta?{' '}
+                <button onClick={() => { setIsRegisterMode(false); setPageError(null); }} className="font-medium text-blue-600 hover:text-blue-500">
+                  Entrar
+                </button>
+              </>
+            ) : (
+              <>
+                Não tem uma conta?{' '}
+                <button onClick={() => { setIsRegisterMode(true); setPageError(null); }} className="font-medium text-blue-600 hover:text-blue-500">
+                  Criar conta
+                </button>
+              </>
+            )}
+          </p>
+        )}
          {!isRegisterMode && (
             <p className="text-xs text-gray-500 mt-3 text-center">
              Esqueceu a senha? Contate o administrador.
@@ -328,6 +335,27 @@ export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children })
 
   return <>{children}</>;
 };
+
+export const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser, isAuthLoading } = useAuth();
+  const location = useLocation();
+
+  if (isAuthLoading) {
+    return <GlobalSpinner message="Carregando aplicação..." />;
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/admin-login" state={{ from: location }} replace />;
+  }
+
+  if (currentUser.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export const AdminLoginPage: React.FC = () => <LoginPage adminMode />;
 
 const GlobalSpinner: React.FC<{message?: string}> = ({message = "Carregando..."}) => (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex flex-col items-center justify-center z-[9999]">
