@@ -42,6 +42,7 @@ Follow the steps below in order:
    npm run init-db            # creates tables
    npm run seed-products      # populate productPricing
    npm run assign-orgid       # fill organizationId in legacy data
+   npm run migrate-multi-tenant # create initial tenant and update tables
    npm run create-admin       # add default admin account
    cd ..
    ```
