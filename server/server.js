@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const db = require('./database'); // SQLite database connection
 const { GoogleGenAI } = require('@google/genai');
 
@@ -38,15 +39,40 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef';
+const IV_LENGTH = 16;
+
+function encrypt(text) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(ENCRYPTION_KEY.substring(0,32)), iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decrypt(text) {
+  if (!text) return '';
+  const [ivHex, enc] = text.split(':');
+  if (!ivHex || !enc) return '';
+  const iv = Buffer.from(ivHex, 'hex');
+  const encryptedText = Buffer.from(enc, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(ENCRYPTION_KEY.substring(0,32)), iv);
+  const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+  return decrypted.toString('utf8');
+}
+
+function getTransporterForOrg(orgId, cb) {
+  db.get('SELECT smtpHost, smtpPort, smtpUser, smtpPassword, smtpFromEmail, smtpSecure FROM organizations WHERE id = $1', [orgId], (err, row) => {
+    if (err || !row || !row.smtpHost) return cb(new Error('SMTP not configured'));
+    const transporter = nodemailer.createTransport({
+      host: row.smtpHost,
+      port: row.smtpPort || 587,
+      secure: !!row.smtpSecure,
+      auth: row.smtpUser ? { user: row.smtpUser, pass: decrypt(row.smtpPassword || '') } : undefined,
+    });
+    cb(null, transporter, row.smtpFromEmail || row.smtpUser);
+  });
+}
 
 let correiosToken = null;
 let correiosTokenExpiry = 0; // epoch milliseconds
@@ -511,19 +537,24 @@ app.post('/api/orders/:orderId/send-invoices', authenticateToken, async (req, re
     try {
       const attachments = [ { filename: 'NF-Produto.pdf', path: row.notaProdutoUrl } ];
       if (row.notaServicoUrl) attachments.push({ filename: 'NF-Servico.pdf', path: row.notaServicoUrl });
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: row.clientEmail || '',
-        subject: 'Notas Fiscais da sua encomenda',
-        text: 'Olá,\n\nSeguem anexadas as notas fiscais referentes à sua encomenda.\nCaso tenha dúvidas, estamos à disposição.\n\nAtenciosamente,\nEquipe Blu Imports',
-        attachments
-      });
-      const sentAt = new Date().toISOString();
-      db.run('UPDATE orders SET notasEnviadasEm = $1 WHERE id = $2 AND "organizationId" = $3', [sentAt, orderId, req.user.organizationId], err2 => {
-        if (err2) {
-          console.error('Error updating send timestamp:', err2.message);
+      getTransporterForOrg(req.user.organizationId, async (errT, orgTransporter, fromEmail) => {
+        if (errT) {
+          return res.status(400).json({ message: 'Configure o SMTP da sua organização antes de usar esta função.' });
         }
-        res.json({ sentAt });
+        await orgTransporter.sendMail({
+          from: fromEmail,
+          to: row.clientEmail || '',
+          subject: 'Notas Fiscais da sua encomenda',
+          text: 'Olá,\n\nSeguem anexadas as notas fiscais referentes à sua encomenda.\nCaso tenha dúvidas, estamos à disposição.\n\nAtenciosamente,\nEquipe Blu Imports',
+          attachments
+        });
+        const sentAt = new Date().toISOString();
+        db.run('UPDATE orders SET notasEnviadasEm = $1 WHERE id = $2 AND "organizationId" = $3', [sentAt, orderId, req.user.organizationId], err2 => {
+          if (err2) {
+            console.error('Error updating send timestamp:', err2.message);
+          }
+          res.json({ sentAt });
+        });
       });
     } catch (e) {
       console.error('Error sending invoices:', e);
@@ -1914,6 +1945,58 @@ ${textList}
     console.error('Erro no backend ao chamar a API do Gemini:', error);
     res.status(500).json({ message: 'Falha ao processar a lista com a IA. Verifique o log do servidor.', details: error.message });
   }
+});
+
+// --- Organization SMTP Configuration ---
+app.get('/api/org/smtp-config', authenticateToken, authorizeAdmin, (req, res) => {
+  db.get('SELECT smtpHost, smtpPort, smtpUser, smtpFromEmail, smtpSecure, smtpPassword FROM organizations WHERE id = $1', [req.user.organizationId], (err, row) => {
+    if (err || !row) return res.status(500).json({ message: 'Failed to load config.' });
+    res.json({
+      smtpHost: row.smtpHost || '',
+      smtpPort: row.smtpPort || '',
+      smtpUser: row.smtpUser || '',
+      smtpFromEmail: row.smtpFromEmail || '',
+      smtpSecure: !!row.smtpSecure,
+      hasPassword: !!row.smtpPassword
+    });
+  });
+});
+
+app.put('/api/org/smtp-config', authenticateToken, authorizeAdmin, (req, res) => {
+  const { smtpHost, smtpPort, smtpUser, smtpPassword, smtpFromEmail, smtpSecure } = req.body;
+  if (!smtpHost || !smtpPort || isNaN(Number(smtpPort))) {
+    return res.status(400).json({ message: 'Host e porta são obrigatórios.' });
+  }
+  db.get('SELECT smtpPassword FROM organizations WHERE id = $1', [req.user.organizationId], (err,row) => {
+    if (err) return res.status(500).json({ message: 'Failed to update.' });
+    const finalPassword = smtpPassword ? encrypt(String(smtpPassword)) : row?.smtpPassword;
+    db.run('UPDATE organizations SET smtpHost=$1, smtpPort=$2, smtpUser=$3, smtpPassword=$4, smtpFromEmail=$5, smtpSecure=$6 WHERE id=$7',
+      [smtpHost, Number(smtpPort), smtpUser, finalPassword, smtpFromEmail, smtpSecure ? 1 : 0, req.user.organizationId],
+      function(err2){
+        if (err2) return res.status(500).json({ message: 'Failed to update.' });
+        res.sendStatus(204);
+      });
+  });
+});
+
+app.post('/api/org/smtp-test', authenticateToken, authorizeAdmin, (req, res) => {
+  getTransporterForOrg(req.user.organizationId, async (errT, orgTransporter, fromEmail) => {
+    if (errT) {
+      return res.status(400).json({ message: 'Configure o SMTP da sua organização antes de usar esta função.' });
+    }
+    try {
+      await orgTransporter.sendMail({
+        from: fromEmail,
+        to: req.user.email,
+        subject: 'Teste de SMTP',
+        text: 'Este é um e-mail de teste enviado a partir da configuração SMTP da organização.'
+      });
+      res.sendStatus(204);
+    } catch(e) {
+      console.error('SMTP test failed', e);
+      res.status(500).json({ message: 'Falha no envio de teste.' });
+    }
+  });
 });
 
 

@@ -281,6 +281,21 @@ export interface AuthContextType {
 export interface Organization {
   id: string;
   name: string;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpFromEmail?: string | null;
+  smtpSecure?: number | boolean | null;
+}
+
+export interface OrganizationSmtpConfig {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser?: string;
+  smtpPassword?: string;
+  smtpFromEmail?: string;
+  smtpSecure: boolean;
+  hasPassword?: boolean;
 }
 
 export interface SaaSClient {

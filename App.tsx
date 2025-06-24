@@ -28,6 +28,7 @@ import AdminBluLabsPage from './features/AdminBluLabsFeature';
 import AdminSettingsPage from './features/AdminAdvancedSettingsFeature';
 import AdminAuditLogsPage from './features/AdminAuditLogsFeature';
 import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
+import OrganizationEmailSettingsPage from './features/OrganizationEmailSettingsFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
 import PendingOrdersWidget from './components/PendingOrdersWidget';
@@ -60,6 +61,7 @@ import {
   Beaker,
   Settings,
   FileText,
+  Mail,
 } from 'lucide-react';
 
 
@@ -84,6 +86,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Calculadora Cartão', path: '/card-calculator', icon: Calculator },
   { name: 'Calculadora Venda', path: '/sale-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
+  { name: 'Configurações de E-mail', path: '/smtp-settings', icon: Mail },
 ];
 
 const ADMIN_NAV_ITEMS: NavItemWithExact[] = [
@@ -286,7 +289,7 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
           />
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {(currentUser?.role === 'admin' ? NAV_ITEMS : NAV_ITEMS.filter(i => i.path !== '/smtp-settings')).map((item) => (
             <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
           ))}
         </nav>
@@ -560,6 +563,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
                     <Route path="/product-pricing" element={<ProductPricingDashboardPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
+                    <Route path="/smtp-settings" element={<OrganizationEmailSettingsPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </DashboardLayout>
