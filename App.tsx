@@ -1,7 +1,7 @@
 
 
 import React, { useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate, Outlet } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate, Outlet } from 'react-router-dom';
 import { AuthProvider, LoginPage, AdminLoginPage, AuthGuard, AdminGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
 import OrderDetailsPage from './features/OrderDetailsPage';
@@ -30,19 +30,19 @@ import AdminAuditLogsPage from './features/AdminAuditLogsFeature';
 import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
 import OrganizationEmailSettingsPage from './features/OrganizationEmailSettingsFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
-import RemindersWidget from './components/RemindersWidget';
-import PendingOrdersWidget from './components/PendingOrdersWidget';
+
+import DashboardHomePage from './features/Dashboard/Home';
+import SidebarLayout, { SidebarItem } from './components/SidebarLayout';
 import { 
     APP_NAME,
     ADMIN_APP_NAME,
-    getDashboardStatistics, formatCurrencyBRL, getTodaysTasks, formatDateBR, getOrderById, 
+    getOrderById,
     getOrders, // Correctly use getOrders which points to backend
-    addOrderCostItem, COST_TYPE_OPTIONS_SELECT, parseBRLCurrencyStringToNumber, 
-    formatNumberToBRLCurrencyInput, getDashboardAlerts, getClientById as getClientByIdService, 
+    addOrderCostItem, COST_TYPE_OPTIONS_SELECT, parseBRLCurrencyStringToNumber,
+    formatNumberToBRLCurrencyInput, formatDateBR, getClientById as getClientByIdService,
     addClientPayment,
 } from './services/AppService';
-import { NavItem, TodayTask, Order, OrderCostItem, CostType, OrderStatus, DashboardAlert, ClientPayment, PaymentMethod } from './types';
-import { v4 as uuidv4 } from 'uuid';
+import { NavItem, Order, OrderCostItem, CostType, OrderStatus, ClientPayment, PaymentMethod } from './types';
 import {
   Home,
   Users,
@@ -330,47 +330,17 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({ orde
 };
 
 
-const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}> = ({isOpen, setIsOpen}) => {
-  const location = useLocation();
+const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}> = ({ isOpen, setIsOpen }) => {
   const { logout, currentUser } = useAuth();
-  const NavLink: React.FC<{item: NavItemWithExact; onClick?: () => void}> = ({ item, onClick }) => { const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path) && (location.pathname === item.path || location.pathname.startsWith(item.path + '/')); const IconComponent = item.icon; return ( <Link to={item.path} onClick={onClick} className={`flex items-center px-3 py-3 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-blu-accent text-blu-primary' : 'text-white hover:bg-white/10'}`} > <IconComponent className="h-6 w-6 mr-3 flex-shrink-0" /> {item.name} </Link> ); };
+  const items: SidebarItem[] = currentUser?.role === 'admin' ? NAV_ITEMS : NAV_ITEMS.filter(i => i.path !== '/smtp-settings');
   return (
-    <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setIsOpen(false)}
-        ></div>
-      )}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-blu-primary text-white shadow-lg border-r border-blu-accent transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4">
-          <img
-            src="https://bluimports.com.br/blu-branco.svg"
-            alt="Blu Imports Logo"
-            className="h-10 object-contain"
-          />
-        </div>
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {(currentUser?.role === 'admin' ? NAV_ITEMS : NAV_ITEMS.filter(i => i.path !== '/smtp-settings')).map((item) => (
-            <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
-          ))}
-        </nav>
-        <div className="px-4 py-4 border-t border-blu-accent/50">
-          <button
-            onClick={async () => {
-              await logout();
-              setIsOpen(false);
-            }}
-            className="flex items-center w-full px-3 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors"
-          >
-            <LogOut className="h-6 w-6 mr-3 flex-shrink-0" />
-            Sair
-          </button>
-        </div>
-      </div>
-    </>
+    <SidebarLayout
+      isOpen={isOpen}
+      setIsOpen={setIsOpen}
+      items={items}
+      logo="https://bluimports.com.br/blu-branco.svg"
+      logoutFn={logout}
+    />
   );
 };
 
@@ -418,36 +388,16 @@ const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => voi
 };
 const DashboardLayout: React.FC<{ children: ReactNode }> = ({ children }) => { const [sidebarOpen, setSidebarOpen] = useState(false); const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false); const handleCostSaved = (costItem: OrderCostItem) => { console.log("Custo salvo:", costItem); /* Potentially refresh relevant dashboard data if needed */ }; return ( <div className="min-h-screen flex"> <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} /> <div className="flex-1 flex flex-col lg:ml-64"> <Header onMenuButtonClick={() => setSidebarOpen(true)} onAddCostClick={() => setIsAddCostModalOpen(true)} /> <main className="flex-1 p-4 sm:p-6 bg-white overflow-y-auto"> {children} </main> </div> <AddOrderCostModal isOpen={isAddCostModalOpen} onClose={() => setIsAddCostModalOpen(false)} onSave={handleCostSaved} /> </div> ); };
 
-const AdminSidebar: React.FC<{isOpen: boolean; setIsOpen: (o: boolean) => void;}> = ({isOpen, setIsOpen}) => {
-  const location = useLocation();
+const AdminSidebar: React.FC<{isOpen: boolean; setIsOpen: (o: boolean) => void;}> = ({ isOpen, setIsOpen }) => {
   const { logout } = useAuth();
-  const NavLink: React.FC<{item: NavItemWithExact; onClick?: () => void}> = ({ item, onClick }) => {
-    const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
-    const IconComponent = item.icon;
-    return (
-      <Link to={item.path} onClick={onClick} className={`flex items-center px-3 py-3 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-blu-accent text-blu-primary' : 'text-white hover:bg-white/10'}`}> <IconComponent className="h-6 w-6 mr-3 flex-shrink-0" /> {item.name} </Link>
-    );
-  };
   return (
-    <>
-      {isOpen && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsOpen(false)} />}
-      <div className={`fixed inset-y-0 left-0 z-40 flex flex-col w-64 bg-blu-primary text-white shadow-lg border-r border-blu-accent transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between h-20 border-b border-blu-accent/50 px-4">
-          <img src="https://bluimports.com.br/blu-branco.svg" alt="Blu Imports Logo" className="h-10 object-contain" />
-        </div>
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {ADMIN_NAV_ITEMS.map((item) => (
-            <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
-          ))}
-        </nav>
-        <div className="px-4 py-4 border-t border-blu-accent/50">
-          <button onClick={async () => { await logout(); setIsOpen(false); }} className="flex items-center w-full px-3 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors">
-            <LogOut className="h-6 w-6 mr-3 flex-shrink-0" />
-            Sair
-          </button>
-        </div>
-      </div>
-    </>
+    <SidebarLayout
+      isOpen={isOpen}
+      setIsOpen={setIsOpen}
+      items={ADMIN_NAV_ITEMS}
+      logo="https://bluimports.com.br/blu-branco.svg"
+      logoutFn={logout}
+    />
   );
 };
 
@@ -478,131 +428,6 @@ const AdminLayout: React.FC = () => {
   );
 };
 
-const TodayTasksDisplay: React.FC = () => {
-    const [tasks, setTasks] = useState<TodayTask[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const navigate = useNavigate();
-    useEffect(() => { const fetchTasks = async () => { setIsLoading(true); try { setTasks(await getTodaysTasks()); } catch(e) { console.error("Failed to fetch today's tasks", e); } finally { setIsLoading(false); }}; fetchTasks(); }, []);
-    if (isLoading) return <div className="flex justify-center items-center p-6"><Spinner /> <span className="ml-2">Carregando tarefas...</span></div>;
-    if (tasks.length === 0) return <Card><p className="text-center text-gray-500 py-4">Nenhuma tarefa prioritária para hoje.</p></Card>;
-    const handleViewOrder = (orderId: string) => navigate(`/orders/${orderId}`);
-    return ( <div className="space-y-4"> {tasks.map(task => ( <Card key={task.id} className={`border-l-4 ${task.priority === 1 ? 'border-red-500' : 'border-yellow-500'}`}> <div className="flex justify-between items-start"> <div> <p className="font-semibold text-gray-800">{task.type}</p> <p className="text-sm text-gray-600">{task.description}</p> <p className="text-xs text-gray-500"> {task.type === 'Prazo de Entrega' || task.type === 'Chegou Hoje' ? `Data: ${formatDateBR(task.relevantDate)}` : `Status: ${task.relatedOrder.status}`} </p> </div> <Button variant="link" size="sm" onClick={() => handleViewOrder(task.relatedOrder.id)}> Ver Encomenda </Button> </div> </Card> ))} </div> );
-};
-
-const DolarHojeWidget: React.FC = () => { useEffect(() => { const scriptId = 'dolar-hoje-script'; let script = document.getElementById(scriptId) as HTMLScriptElement | null; if (!script) { script = document.createElement('script'); script.id = scriptId; script.src = 'https://dolarhoje.com/widgets/button/v1.js'; script.async = true; document.body.appendChild(script); } else { if (typeof (window as any).DollarMorennoModule?.init === 'function') (window as any).DollarMorennoModule.init(); } }, []); return ( <Card className="shadow-md mb-6"> <div className="flex items-center justify-between p-4"> <span className="text-xl font-semibold text-gray-700">💵 Dólar Hoje</span> <a href="https://dolarhoje.com/" className="dolar-hoje-button" data-currency="dolar" target="_blank" rel="noopener noreferrer" title="Cotação do Dólar Hoje" >Dólar Hoje</a> </div> </Card> ); };
-
-const DashboardHomePage: React.FC<{}> = () => {
-    const { currentUser } = useAuth(); 
-    const navigate = useNavigate();
-    const [stats, setStats] = useState({ totalActiveOrders: 0, totalOpenBluFacilita: 0, overdueBluFacilitaContracts: 0, productsDeliveredThisMonth: 0, totalClients: 0, totalSuppliers: 0, });
-    const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
-    const [isLoadingStats, setIsLoadingStats] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'today'>('today');
-    const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false);
-    
-    const refreshData = useCallback(async () => {
-        setIsLoadingStats(true);
-        try {
-            setStats(await getDashboardStatistics());
-            const fetchedAlerts = await getDashboardAlerts();
-            const orders = await getOrders();
-            const missingInvoice = orders.filter(o => !(o.documents?.some(d => /nota\s*fiscal|invoice/i.test(d.name || ''))));
-            let allAlerts = Array.isArray(fetchedAlerts) ? fetchedAlerts : [];
-            if (missingInvoice.length > 0) {
-                allAlerts = [
-                    ...allAlerts,
-                    {
-                        id: 'missing-invoice',
-                        type: 'warning',
-                        title: 'Pedidos sem Nota Fiscal',
-                        message: 'Existem pedidos sem nota fiscal anexada.',
-                        action: { label: 'Ver pedidos', path: '/orders' }
-                    }
-                ];
-            }
-            setAlerts(allAlerts);
-        } catch (error) {
-            console.error("Error refreshing dashboard data:", error);
-        } finally {
-            setIsLoadingStats(false);
-        }
-    }, []);
-    useEffect(() => {
-        if (currentUser !== null) {
-            refreshData();
-        }
-    }, [currentUser, refreshData]);
-    
-    const handleAlertAction = (alert: DashboardAlert) => { if (alert.action?.onClick) { alert.action.onClick(); } else if (alert.action?.path) { if (alert.action.orderId) { navigate(`${alert.action.path}/${alert.action.orderId}`); } else { navigate(alert.action.path); } } };
-    interface StatCardProps { title: string; value: string | number; colorClass: string; description: string; iconClass?: string; }
-    const StatCard: React.FC<StatCardProps> = ({title, value, colorClass, description, iconClass}) => (
-        <Card className="shadow-lg text-center">
-            <div className="flex items-center justify-center mb-1">
-                {iconClass && <i className={`h-6 w-6 mr-2 ${iconClass}`}></i>}
-                <h3 className="text-lg font-semibold text-gray-700">{title.toLocaleUpperCase()}</h3>
-            </div>
-            <p className={`text-4xl font-bold my-2 ${colorClass}`}>{value}</p>
-            <p className="text-sm text-gray-500 mt-1">{description}</p>
-        </Card>
-    );
-    
-    return ( <div> <PageTitle title="Painel Principal" subtitle={`Bem-vindo, ${currentUser?.email || 'Usuário'}!`} actions={<Button onClick={() => setIsAddCostModalOpen(true)} leftIcon={<PlusCircleIcon className="h-5 w-5"/>}>Registrar Custo</Button>} /> 
-        <DolarHojeWidget />
-        <RemindersWidget />
-        <PendingOrdersWidget />
-        <Tabs className="mb-6"> <Tab label="Para Hoje" isActive={activeTab === 'today'} onClick={() => setActiveTab('today')} /> <Tab label="Visão Geral" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} /> </Tabs>
-        {activeTab === 'overview' && (
-            <>
-                {isLoadingStats ? (
-                    <div className="text-center p-10">
-                        <Spinner size="lg" />
-                        <p>Carregando dados...</p>
-                    </div>
-                ) : (
-                    <>
-                        {alerts.length > 0 && (
-                            <Card title="Alertas Importantes" className="mb-6 bg-blu-accent text-blu-primary">
-                                <div className="space-y-3">
-                                    {alerts.map(alert => (
-                                        <Alert key={alert.id} type={alert.type} message={alert.title} details={alert.message} className="shadow-sm">
-                                            {alert.action && (
-                                                <Button variant="link" size="sm" onClick={() => handleAlertAction(alert)} className="mt-1 text-sm">
-                                                    {alert.action.label}
-                                                </Button>
-                                            )}
-                                        </Alert>
-                                    ))}
-                                </div>
-                            </Card>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                            <StatCard title="Clientes" iconClass="heroicons-outline-user-group" value={stats.totalClients} colorClass="text-indigo-600" description="Total de clientes na base." />
-                            <StatCard title="Fornecedores" iconClass="heroicons-outline-chat-bubble-left-right" value={stats.totalSuppliers} colorClass="text-purple-600" description="Total de fornecedores cadastrados." />
-                            <StatCard title="Encomendas Ativas" iconClass="heroicons-outline-archive-box-arrow-down" value={stats.totalActiveOrders} colorClass="text-blue-600" description="Pedidos em andamento." />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <StatCard title="Entregas no Mês" iconClass="heroicons-outline-archive-box-arrow-down" value={stats.productsDeliveredThisMonth} colorClass="text-green-600" description="Produtos entregues este mês." />
-                            <StatCard title="BluFacilita Aberto" iconClass="heroicons-outline-currency-dollar" value={formatCurrencyBRL(stats.totalOpenBluFacilita)} colorClass="text-amber-600" description="Valor de contratos não quitados." />
-                            <StatCard title="BluFacilita Atrasados" iconClass="heroicons-outline-exclamation-triangle" value={stats.overdueBluFacilitaContracts} colorClass="text-red-600" description="Contratos com status 'Atrasado'." />
-                        </div>
-                        <Card className="mt-8 shadow-lg">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-4">Avisos e Atalhos</h3>
-                            <p className="text-gray-600 mt-2">Use o menu lateral para navegar pelas seções do painel.</p>
-                            <div className="mt-4 space-x-0 space-y-2 sm:space-x-2 sm:space-y-0 flex flex-col sm:flex-row">
-                                <Link to="/clients" className="inline-block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-center">Gerenciar Clientes</Link>
-                                <Link to="/orders" className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center">Ver Encomendas</Link>
-                                <Link to="/suppliers" className="inline-block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-center">Fornecedores</Link>
-                                <Link to="/financial-reports" className="inline-block px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors text-center">Relatórios</Link>
-                            </div>
-                        </Card>
-                    </>
-                )}
-            </>
-        )}
-        {activeTab === 'today' && <TodayTasksDisplay />}
-        <AddOrderCostModal isOpen={isAddCostModalOpen} onClose={() => setIsAddCostModalOpen(false)} onSave={(item) => { console.log("Custo salvo (Home):", item); if(currentUser) refreshData(); }} />
-    </div> );
-};
 
 const App: React.FC<{}> = () => {
   return (
