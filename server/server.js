@@ -1407,7 +1407,7 @@ app.get('/api/admin/summary', authenticateToken, authorizeAdmin, (req, res) => {
         return res.status(500).json({ message: 'Failed to fetch summary.' });
       }
       summary.ongoingOrders = row2?.count || 0;
-      db.get('SELECT IFNULL(SUM(sellingPrice),0) as total FROM orders', [], (err3, row3) => {
+  db.get('SELECT IFNULL(SUM(sellingPrice),0) as total FROM orders', [], (err3, row3) => {
         if (err3) {
           console.error('Error calculating revenue:', err3.message);
           return res.status(500).json({ message: 'Failed to fetch summary.' });
@@ -1416,6 +1416,32 @@ app.get('/api/admin/summary', authenticateToken, authorizeAdmin, (req, res) => {
         res.json(summary);
       });
     });
+  });
+});
+
+// --- Admin Orders (Global) ---
+app.get('/api/admin/orders', authenticateToken, authorizeAdmin, (req, res) => {
+  const sql = `SELECT o.*, org.name as organizationName
+               FROM orders o
+               LEFT JOIN organizations org ON org.id = o."organizationId"
+               ORDER BY o."orderDate" DESC`;
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching admin orders:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch orders.' });
+    }
+    const orders = rows.map(order => ({
+      ...order,
+      documents: typeof order.documents === 'string' ? JSON.parse(order.documents || '[]') : order.documents || [],
+      trackingHistory: typeof order.trackingHistory === 'string' ? JSON.parse(order.trackingHistory || '[]') : order.trackingHistory || [],
+      bluFacilitaInstallments: typeof order.bluFacilitaInstallments === 'string' ? JSON.parse(order.bluFacilitaInstallments || '[]') : order.bluFacilitaInstallments || [],
+      internalNotes: typeof order.internalNotes === 'string' ? JSON.parse(order.internalNotes || '[]') : order.internalNotes || [],
+      arrivalPhotos: typeof order.arrivalPhotos === 'string' ? JSON.parse(order.arrivalPhotos || '[]') : order.arrivalPhotos || [],
+      imeiBlocked: Boolean(order.imeiBlocked),
+      readyForDelivery: Boolean(order.readyForDelivery),
+      bluFacilitaUsesSpecialRate: Boolean(order.bluFacilitaUsesSpecialRate),
+    }));
+    res.json(orders);
   });
 });
 
