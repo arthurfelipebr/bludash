@@ -691,6 +691,17 @@ export const getIntegrationStatuses = async (): Promise<IntegrationStatus[]> => 
     return apiClient<IntegrationStatus[]>('/integrations');
 };
 
+export const saveSubscriptionPlan = async (plan: Partial<SubscriptionPlan> & { id?: string }): Promise<SubscriptionPlan> => {
+    if (plan.id) {
+        return apiClient<SubscriptionPlan>(`/plans/${plan.id}`, { method: 'PUT', body: JSON.stringify(plan) });
+    }
+    return apiClient<SubscriptionPlan>('/plans', { method: 'POST', body: JSON.stringify(plan) });
+};
+
+export const deleteSubscriptionPlan = async (id: string): Promise<void> => {
+    return apiClient<void>(`/plans/${id}`, { method: 'DELETE' });
+};
+
 // --- Empresas & Usuários ---
 export const getEmpresas = async (): Promise<Empresa[]> => {
     return apiClient<Empresa[]>('/empresas');
