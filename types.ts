@@ -180,10 +180,12 @@ export interface BluFacilitaInstallment {
 }
 
 export interface Order {
-  id:string; 
+  id:string;
   userId?: string; // Associated with the user who created it
-  customerName: string; 
-  clientId?: string; 
+  organizationId?: string;
+  organizationName?: string;
+  customerName: string;
+  clientId?: string;
   productName: string; 
   model: string;
   capacity: string;

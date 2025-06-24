@@ -249,6 +249,10 @@ export const getOrders = async (): Promise<Order[]> => {
   return apiClient<Order[]>('/orders');
 };
 
+export const getAdminOrders = async (): Promise<Order[]> => {
+  return apiClient<Order[]>('/admin/orders');
+};
+
 export const getOrderById = async (orderId: string): Promise<Order | undefined> => {
   try {
     return await apiClient<Order>(`/orders/${orderId}`);
