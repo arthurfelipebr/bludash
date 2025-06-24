@@ -9,7 +9,7 @@ import {
     ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
     PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem,
     SaaSClient, SubscriptionPlan, BillingClient, IntegrationStatus,
-    Empresa, Plano, UsuarioEmpresa
+    Empresa, Plano, UsuarioEmpresa, OrganizationSmtpConfig
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -759,6 +759,19 @@ export const saveUsuarioEmpresa = async (empresaId: number, user: Partial<Usuari
 
 export const deleteUsuarioEmpresa = async (id: number): Promise<void> => {
     return apiClient<void>(`/usuarios_empresa/${id}`, { method: 'DELETE' });
+};
+
+// --- Organization SMTP Config ---
+export const getOrganizationSmtpConfig = async (): Promise<OrganizationSmtpConfig> => {
+    return apiClient<OrganizationSmtpConfig>('/org/smtp-config');
+};
+
+export const updateOrganizationSmtpConfig = async (config: OrganizationSmtpConfig): Promise<void> => {
+    await apiClient<void>('/org/smtp-config', { method: 'PUT', body: JSON.stringify(config) });
+};
+
+export const testOrganizationSmtp = async (): Promise<void> => {
+    await apiClient<void>('/org/smtp-test', { method: 'POST' });
 };
 
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.

@@ -9,7 +9,13 @@ function initializeDatabase() {
   db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS organizations (
       id TEXT PRIMARY KEY,
-      name TEXT NOT NULL
+      name TEXT NOT NULL,
+      smtpHost TEXT,
+      smtpPort INTEGER,
+      smtpUser TEXT,
+      smtpPassword TEXT,
+      smtpFromEmail TEXT,
+      smtpSecure INTEGER DEFAULT 1
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -67,6 +73,12 @@ function initializeDatabase() {
     db.run('ALTER TABLE orders ADD COLUMN notaProdutoUrl TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN notaServicoUrl TEXT', [], () => {});
     db.run('ALTER TABLE orders ADD COLUMN notasEnviadasEm TEXT', [], () => {});
+    db.run('ALTER TABLE organizations ADD COLUMN smtpHost TEXT', [], () => {});
+    db.run('ALTER TABLE organizations ADD COLUMN smtpPort INTEGER', [], () => {});
+    db.run('ALTER TABLE organizations ADD COLUMN smtpUser TEXT', [], () => {});
+    db.run('ALTER TABLE organizations ADD COLUMN smtpPassword TEXT', [], () => {});
+    db.run('ALTER TABLE organizations ADD COLUMN smtpFromEmail TEXT', [], () => {});
+    db.run('ALTER TABLE organizations ADD COLUMN smtpSecure INTEGER DEFAULT 1', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
