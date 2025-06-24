@@ -7,6 +7,7 @@ import { OrdersPage } from './features/OrdersFeature';
 import OrderDetailsPage from './features/OrderDetailsPage';
 import OrderEditPage from './features/OrderEditPage';
 import OrderOccurrencesPage from './features/OrderOccurrencesFeature';
+import { UserManagementPage } from './features/UserManagementFeature';
 import { CalendarPage } from './features/CalendarFeature';
 import { SuppliersPage } from './features/SuppliersFeature';
 import MarketAnalysisPage from './features/MarketAnalysisFeature';
@@ -71,7 +72,7 @@ export const EyeSlashIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg xml
 
 
 interface NavItemWithExact extends NavItem { exact?: boolean; }
-const NAV_ITEMS: NavItemWithExact[] = [
+const BASE_NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Painel Principal', path: '/', icon: Home, exact: true },
   { name: 'Clientes', path: '/clients', icon: Users },
   { name: 'Encomendas', path: '/orders', icon: ShoppingBag },
@@ -85,6 +86,8 @@ const NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Calculadora Venda', path: '/sale-calculator', icon: Calculator },
   { name: 'Avaliação de Troca', path: '/trade-in-evaluation', icon: Calculator },
 ];
+
+const ADMIN_USER_NAV_ITEM: NavItemWithExact = { name: 'Usuários', path: '/users', icon: Users };
 
 const ADMIN_NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Dashboard', path: '/admin', icon: Home, exact: true },
@@ -286,7 +289,7 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
           />
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {(currentUser?.role === 'admin' ? [...BASE_NAV_ITEMS, ADMIN_USER_NAV_ITEM] : BASE_NAV_ITEMS).map((item) => (
             <NavLink key={item.name} item={item} onClick={() => setIsOpen(false)} />
           ))}
         </nav>
@@ -559,6 +562,7 @@ const App: React.FC<{}> = () => {
                     <Route path="/sale-calculator" element={<SaleCalculatorPage />} />
                     <Route path="/trade-in-evaluation" element={<TradeInEvaluationPage />} />
                     <Route path="/product-pricing" element={<ProductPricingDashboardPage />} />
+                    <Route path="/users" element={<UserManagementPage />} />
                     <Route path="/financial-reports" element={<FinancialReportsPageContainer />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
