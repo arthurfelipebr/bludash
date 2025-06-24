@@ -324,12 +324,18 @@ interface AlertProps {
 }
 
 export const Alert: React.FC<AlertProps> = ({ message, type = 'info', onClose, className = '', details, children }) => {
-  const baseStyles = 'p-4 rounded-md flex items-start relative';
+  const baseStyles = 'p-4 rounded-md flex items-start relative border-l-4';
   const typeStyles = {
     success: 'bg-green-50 text-green-700',
     error: 'bg-red-50 text-red-700',
     warning: 'bg-yellow-50 text-yellow-700',
     info: 'bg-blue-50 text-blue-700',
+  };
+  const typeBorderStyles = {
+    success: 'border-green-600',
+    error: 'border-red-600',
+    warning: 'border-yellow-600',
+    info: 'border-blue-600',
   };
   const iconClasses = {
     success: 'heroicons-outline-check-circle',
@@ -339,9 +345,9 @@ export const Alert: React.FC<AlertProps> = ({ message, type = 'info', onClose, c
   }
 
   return (
-    <div className={`${baseStyles} ${typeStyles[type]} ${className}`} role="alert">
+    <div className={`${baseStyles} ${typeStyles[type]} ${typeBorderStyles[type]} ${className}`} role="alert">
       <div className="flex-shrink-0">
-        <i className={`h-5 w-5 ${iconClasses[type]}`}></i>
+        <i className={`h-6 w-6 ${iconClasses[type]}`}></i>
       </div>
       <div className="ml-3 flex-grow"> {/* Added flex-grow to allow children to take space */}
         <p className="text-sm font-medium">{message}</p>

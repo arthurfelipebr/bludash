@@ -1,6 +1,6 @@
 
 
-import React, { useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate, Outlet } from 'react-router-dom';
 import { AuthProvider, LoginPage, AdminLoginPage, AuthGuard, AdminGuard, useAuth } from './Auth';
 import { OrdersPage } from './features/OrdersFeature';
@@ -120,6 +120,7 @@ export const AddOrderCostModal: React.FC<AddOrderCostModalProps> = ({ isOpen, on
     const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => { 
         if (isOpen) { 
@@ -142,18 +143,21 @@ export const AddOrderCostModal: React.FC<AddOrderCostModalProps> = ({ isOpen, on
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => setAmountInput(e.target.value);
     const handleAmountBlur = () => setAmountInput(formatNumberToBRLCurrencyInput(parseBRLCurrencyStringToNumber(amountInput)));
     
-    const handleSubmit = async () => { 
-        const amount = parseBRLCurrencyStringToNumber(amountInput); 
-        if (!orderId) { setError("Selecione uma encomenda."); return; } 
-        if (amount <= 0) { setError("O valor do custo deve ser maior que zero."); return; } 
-        if (!description.trim() && type === CostType.OUTROS_CUSTOS) { setError("Descrição é obrigatória para 'Outros Custos'."); return; } 
-        const costItemData: Omit<OrderCostItem, 'id' | 'userId'> = { orderId, type, amount, description: description.trim() || type, date, }; 
+    const handleSubmit = async () => {
+        const amount = parseBRLCurrencyStringToNumber(amountInput);
+        if (!orderId) { setError("Selecione uma encomenda."); return; }
+        if (amount <= 0) { setError("O valor do custo deve ser maior que zero."); return; }
+        if (!description.trim() && type === CostType.OUTROS_CUSTOS) { setError("Descrição é obrigatória para 'Outros Custos'."); return; }
+        const costItemData: Omit<OrderCostItem, 'id' | 'userId'> = { orderId, type, amount, description: description.trim() || type, date, };
+        setIsSubmitting(true);
         try {
-            const savedCostItem = await addOrderCostItem(costItemData); 
-            onSave(savedCostItem); 
-            onClose(); 
+            const savedCostItem = await addOrderCostItem(costItemData);
+            onSave(savedCostItem);
+            onClose();
         } catch (err) {
             setError("Falha ao salvar custo: " + (err instanceof Error ? err.message : String(err)));
+        } finally {
+            setIsSubmitting(false);
         }
     };
     const orderOptions: Array<{ value: string | number; label: string }> = [
@@ -163,7 +167,7 @@ export const AddOrderCostModal: React.FC<AddOrderCostModalProps> = ({ isOpen, on
             label: `${o.productName} ${o.model} (${o.customerName || 'Cliente não especificado'}) - Pedido: ${formatDateBR(o.orderDate)}`
         }))
     ];
-    return ( <Modal isOpen={isOpen} onClose={onClose} title="Registrar Novo Custo de Encomenda" size="lg"> <div className="space-y-4"> {error && <Alert type="error" message={error} onClose={() => setError(null)} />} {isLoadingOrders ? <Spinner/> : <SharedSelect label="Encomenda Ativa" id="costOrderId" value={orderId} onChange={(e) => setOrderId(e.target.value)} options={orderOptions} required />} <SharedSelect label="Tipo de Custo" id="costType" value={type} onChange={(e) => setType(e.target.value as CostType)} options={COST_TYPE_OPTIONS_SELECT} required /> <SharedInput label="Valor do Custo (R$)" id="costAmount" value={amountInput} onChange={handleAmountChange} onBlur={handleAmountBlur} required /> <SharedTextarea label="Descrição do Custo" id="costDescription" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder={type !== CostType.OUTROS_CUSTOS ? "Opcional" : "Detalhe o custo"} /> <SharedInput label="Data do Custo" id="costDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /> <div className="flex justify-end space-x-2"> <Button variant="secondary" onClick={onClose}>Cancelar</Button> <Button onClick={handleSubmit}>Salvar Custo</Button> </div> </div> </Modal> );
+    return ( <Modal isOpen={isOpen} onClose={onClose} title="Registrar Novo Custo de Encomenda" size="lg"> <div className="space-y-4"> {error && <Alert type="error" message={error} onClose={() => setError(null)} />} {isLoadingOrders ? <Spinner/> : <SharedSelect label="Encomenda Ativa" id="costOrderId" value={orderId} onChange={(e) => setOrderId(e.target.value)} options={orderOptions} required />} <SharedSelect label="Tipo de Custo" id="costType" value={type} onChange={(e) => setType(e.target.value as CostType)} options={COST_TYPE_OPTIONS_SELECT} required /> <SharedInput label="Valor do Custo (R$)" id="costAmount" value={amountInput} onChange={handleAmountChange} onBlur={handleAmountBlur} required /> <SharedTextarea label="Descrição do Custo" id="costDescription" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder={type !== CostType.OUTROS_CUSTOS ? "Opcional" : "Detalhe o custo"} /> <SharedInput label="Data do Custo" id="costDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /> <div className="flex justify-end space-x-2"> <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isSubmitting}>Salvar Custo</Button> </div> </div> </Modal> );
 };
 
 // RegisterPaymentModal
@@ -313,6 +317,21 @@ const Sidebar: React.FC<{isOpen: boolean; setIsOpen: (isOpen: boolean) => void;}
 const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => void;}> = ({onMenuButtonClick, onAddCostClick}) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
   return (
     <header className="sticky top-0 z-20 bg-white shadow-md lg:hidden">
       <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
@@ -321,7 +340,7 @@ const Header: React.FC<{onMenuButtonClick: () => void; onAddCostClick: () => voi
           <MenuIcon className="h-6 w-6" />
         </button>
         <div className="text-lg font-semibold text-blue-700">{APP_NAME}</div>
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <Button variant="ghost" size="sm" onClick={() => setOpen(o => !o)} title="Ações Rápidas" className="lg:hidden">
             <PlusCircleIcon className="h-6 w-6 text-blue-600"/>
           </Button>
@@ -418,7 +437,7 @@ const DashboardHomePage: React.FC<{}> = () => {
     const [stats, setStats] = useState({ totalActiveOrders: 0, totalOpenBluFacilita: 0, overdueBluFacilitaContracts: 0, productsDeliveredThisMonth: 0, totalClients: 0, totalSuppliers: 0, });
     const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
     const [isLoadingStats, setIsLoadingStats] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'today'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'today'>('today');
     const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false);
     
     const refreshData = useCallback(async () => {
@@ -467,7 +486,7 @@ const DashboardHomePage: React.FC<{}> = () => {
         <DolarHojeWidget />
         <RemindersWidget />
         <PendingOrdersWidget />
-        <Tabs className="mb-6"> <Tab label="Visão Geral" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} /> <Tab label="Para Hoje" isActive={activeTab === 'today'} onClick={() => setActiveTab('today')} /> </Tabs>
+        <Tabs className="mb-6"> <Tab label="Para Hoje" isActive={activeTab === 'today'} onClick={() => setActiveTab('today')} /> <Tab label="Visão Geral" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} /> </Tabs>
         {activeTab === 'overview' && (
             <>
                 {isLoadingStats ? (
