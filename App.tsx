@@ -18,7 +18,7 @@ import { TradeInEvaluationPage } from './features/TradeInEvaluationFeature';
 import { FinancialReportsPageContainer } from './features/FinancialReportsFeature';
 import { UserManagementPage } from './features/UserManagementFeature';
 import ProductPricingDashboardPage from './features/ProductPricingDashboard';
-import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
+import AdminCompanyUsersPage from './features/AdminCompanyUsersFeature';
 import AdminHomePage from './features/AdminHomeFeature';
 import AdminBillingPage from './features/AdminBillingFeature';
 import AdminOrdersPage from './features/AdminOrdersFeature';
@@ -527,7 +527,7 @@ const App: React.FC<{}> = () => {
           <Route path="/admin/*" element={<AdminGuard><AdminLayout /></AdminGuard>}>
             <Route index element={<AdminHomePage />} />
             <Route path="users" element={<UserManagementPage />} />
-            <Route path="clients" element={<SaaSClientsAdminPage />} />
+            <Route path="clients" element={<AdminCompanyUsersPage />} />
             <Route path="billing" element={<AdminBillingPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="products" element={<AdminProductsPage />} />

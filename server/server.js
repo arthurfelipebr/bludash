@@ -1625,6 +1625,128 @@ app.get('/api/integrations', authenticateToken, authorizeAdmin, (req, res) => {
   });
 });
 
+// --- Empresas & Usuários (Admin) ---
+app.get('/api/empresas', authenticateToken, authorizeAdmin, (req, res) => {
+  const sql = `SELECT e.*, p.nome as planoNome FROM empresas e LEFT JOIN planos p ON e.plano_id = p.id ORDER BY e.nome`;
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching empresas:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch empresas.' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/empresas', authenticateToken, authorizeAdmin, (req, res) => {
+  const { nome, status, plano_id, email_responsavel } = req.body;
+  const sql = 'INSERT INTO empresas (nome,status,plano_id,email_responsavel,data_ultima_atividade) VALUES ($1,$2,$3,$4,$5)';
+  const params = [nome, status, plano_id || null, email_responsavel, new Date().toISOString()];
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Error creating empresa:', err.message);
+      return res.status(500).json({ message: 'Failed to create empresa.' });
+    }
+    db.get('SELECT e.*, p.nome as planoNome FROM empresas e LEFT JOIN planos p ON e.plano_id = p.id WHERE e.id = $1', [this.lastID], (err2, row) => {
+      if (err2) return res.status(500).json({ message: 'Empresa created, but retrieval failed.' });
+      res.status(201).json(row);
+    });
+  });
+});
+
+app.put('/api/empresas/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  const empresaId = req.params.id;
+  const { nome, status, plano_id, email_responsavel } = req.body;
+  const sql = 'UPDATE empresas SET nome=$1, status=$2, plano_id=$3, email_responsavel=$4 WHERE id=$5';
+  const params = [nome, status, plano_id || null, email_responsavel, empresaId];
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Error updating empresa:', err.message);
+      return res.status(500).json({ message: 'Failed to update empresa.' });
+    }
+    db.get('SELECT e.*, p.nome as planoNome FROM empresas e LEFT JOIN planos p ON e.plano_id = p.id WHERE e.id = $1', [empresaId], (err2, row) => {
+      if (err2 || !row) return res.status(404).json({ message: 'Empresa not found.' });
+      res.json(row);
+    });
+  });
+});
+
+app.patch('/api/empresas/:id/status', authenticateToken, authorizeAdmin, (req, res) => {
+  const empresaId = req.params.id;
+  const { status } = req.body;
+  db.run('UPDATE empresas SET status=$1 WHERE id=$2', [status, empresaId], function(err) {
+    if (err) {
+      console.error('Error updating empresa status:', err.message);
+      return res.status(500).json({ message: 'Failed to update status.' });
+    }
+    db.get('SELECT e.*, p.nome as planoNome FROM empresas e LEFT JOIN planos p ON e.plano_id = p.id WHERE e.id = $1', [empresaId], (err2, row) => {
+      if (err2 || !row) return res.status(404).json({ message: 'Empresa not found.' });
+      res.json(row);
+    });
+  });
+});
+
+app.get('/api/empresas/:id/usuarios', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all('SELECT * FROM usuarios_empresa WHERE empresa_id = $1 ORDER BY nome', [req.params.id], (err, rows) => {
+    if (err) {
+      console.error('Error fetching usuarios:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch usuarios.' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/empresas/:id/usuarios', authenticateToken, authorizeAdmin, (req, res) => {
+  const empresaId = req.params.id;
+  const { nome, email, nivel_acesso } = req.body;
+  const sql = 'INSERT INTO usuarios_empresa (empresa_id,nome,email,nivel_acesso) VALUES ($1,$2,$3,$4)';
+  db.run(sql, [empresaId, nome, email, nivel_acesso], function(err) {
+    if (err) {
+      console.error('Error creating usuario_empresa:', err.message);
+      return res.status(500).json({ message: 'Failed to create usuario.' });
+    }
+    db.get('SELECT * FROM usuarios_empresa WHERE id = $1', [this.lastID], (err2, row) => {
+      if (err2) return res.status(500).json({ message: 'User created but retrieval failed.' });
+      res.status(201).json(row);
+    });
+  });
+});
+
+app.put('/api/usuarios_empresa/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  const userId = req.params.id;
+  const { nome, email, nivel_acesso } = req.body;
+  const sql = 'UPDATE usuarios_empresa SET nome=$1, email=$2, nivel_acesso=$3 WHERE id=$4';
+  db.run(sql, [nome, email, nivel_acesso, userId], function(err) {
+    if (err) {
+      console.error('Error updating usuario_empresa:', err.message);
+      return res.status(500).json({ message: 'Failed to update usuario.' });
+    }
+    db.get('SELECT * FROM usuarios_empresa WHERE id = $1', [userId], (err2, row) => {
+      if (err2 || !row) return res.status(404).json({ message: 'Usuario not found.' });
+      res.json(row);
+    });
+  });
+});
+
+app.delete('/api/usuarios_empresa/:id', authenticateToken, authorizeAdmin, (req, res) => {
+  db.run('DELETE FROM usuarios_empresa WHERE id = $1', [req.params.id], function(err) {
+    if (err) {
+      console.error('Error deleting usuario_empresa:', err.message);
+      return res.status(500).json({ message: 'Failed to delete usuario.' });
+    }
+    res.sendStatus(204);
+  });
+});
+
+app.get('/api/planos', authenticateToken, authorizeAdmin, (req, res) => {
+  db.all('SELECT * FROM planos ORDER BY nome', [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching planos:', err.message);
+      return res.status(500).json({ message: 'Failed to fetch planos.' });
+    }
+    res.json(rows);
+  });
+});
+
 
 // Gemini AI Proxy
 app.post('/api/gemini/parse-supplier-list', authenticateToken, async (req, res) => {
