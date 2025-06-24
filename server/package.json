@@ -9,6 +9,7 @@
     "init-db": "node database.js",
     "seed-products": "node scripts/seedProducts.js",
     "assign-orgid": "node scripts/assignBluImportsOrgId.js",
+    "migrate-multi-tenant": "node scripts/migrateToMultitenant.js",
     "create-admin": "node scripts/createAdminUser.js"
   },
   "keywords": [
