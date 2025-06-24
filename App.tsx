@@ -167,7 +167,67 @@ export const AddOrderCostModal: React.FC<AddOrderCostModalProps> = ({ isOpen, on
             label: `${o.productName} ${o.model} (${o.customerName || 'Cliente não especificado'}) - Pedido: ${formatDateBR(o.orderDate)}`
         }))
     ];
-    return ( <Modal isOpen={isOpen} onClose={onClose} title="Registrar Novo Custo de Encomenda" size="lg"> <div className="space-y-4"> {error && <Alert type="error" message={error} onClose={() => setError(null)} />} {isLoadingOrders ? <Spinner/> : <SharedSelect label="Encomenda Ativa" id="costOrderId" value={orderId} onChange={(e) => setOrderId(e.target.value)} options={orderOptions} required />} <SharedSelect label="Tipo de Custo" id="costType" value={type} onChange={(e) => setType(e.target.value as CostType)} options={COST_TYPE_OPTIONS_SELECT} required /> <SharedInput label="Valor do Custo (R$)" id="costAmount" value={amountInput} onChange={handleAmountChange} onBlur={handleAmountBlur} required /> <SharedTextarea label="Descrição do Custo" id="costDescription" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder={type !== CostType.OUTROS_CUSTOS ? "Opcional" : "Detalhe o custo"} /> <SharedInput label="Data do Custo" id="costDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /> <div className="flex justify-end space-x-2"> <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancelar</Button> <Button onClick={handleSubmit} isLoading={isSubmitting}>Salvar Custo</Button> </div> </div> </Modal> );
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Registrar Novo Custo de Encomenda" size="lg">
+            <div className="space-y-4">
+                {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+                {isLoadingOrders ? (
+                    <Spinner />
+                ) : (
+                    <SharedSelect
+                        label="Encomenda Ativa"
+                        id="costOrderId"
+                        value={orderId}
+                        onChange={(e) => setOrderId(e.target.value)}
+                        options={orderOptions}
+                        required
+                    />
+                )}
+                <SharedSelect
+                    label="Tipo de Custo"
+                    id="costType"
+                    value={type}
+                    onChange={(e) => setType(e.target.value as CostType)}
+                    options={COST_TYPE_OPTIONS_SELECT}
+                    required
+                />
+                <SharedInput
+                    label="Valor do Custo (R$)"
+                    id="costAmount"
+                    value={amountInput}
+                    onChange={handleAmountChange}
+                    onBlur={handleAmountBlur}
+                    required
+                />
+                <SharedTextarea
+                    label={`Descrição do Custo${type === CostType.OUTROS_CUSTOS ? ' *' : ''}`}
+                    id="costDescription"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    placeholder={type !== CostType.OUTROS_CUSTOS ? 'Opcional' : 'Detalhe o custo'}
+                    required={type === CostType.OUTROS_CUSTOS}
+                    aria-required={type === CostType.OUTROS_CUSTOS}
+                />
+                <SharedInput
+                    label="Data do Custo"
+                    id="costDate"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                />
+                <div className="flex justify-end space-x-2">
+                    <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+                        Cancelar
+                    </Button>
+                    <Button onClick={handleSubmit} isLoading={isSubmitting}>
+                        Salvar Custo
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+    );
 };
 
 // RegisterPaymentModal
@@ -467,7 +527,11 @@ const DashboardHomePage: React.FC<{}> = () => {
             setIsLoadingStats(false);
         }
     }, []);
-    useEffect(() => { if(currentUser) refreshData(); }, [currentUser, refreshData]);
+    useEffect(() => {
+        if (currentUser !== null) {
+            refreshData();
+        }
+    }, [currentUser, refreshData]);
     
     const handleAlertAction = (alert: DashboardAlert) => { if (alert.action?.onClick) { alert.action.onClick(); } else if (alert.action?.path) { if (alert.action.orderId) { navigate(`${alert.action.path}/${alert.action.orderId}`); } else { navigate(alert.action.path); } } };
     interface StatCardProps { title: string; value: string | number; colorClass: string; description: string; iconClass?: string; }
