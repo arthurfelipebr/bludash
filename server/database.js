@@ -64,6 +64,9 @@ function initializeDatabase() {
     db.run('ALTER TABLE categories ADD COLUMN dustBag REAL', [], () => {});
     db.run('ALTER TABLE categories ADD COLUMN packaging REAL', [], () => {});
     db.run('ALTER TABLE productPricing ADD COLUMN usarLucroDaCategoria INTEGER DEFAULT 1', [], () => {});
+    db.run('ALTER TABLE orders ADD COLUMN notaProdutoUrl TEXT', [], () => {});
+    db.run('ALTER TABLE orders ADD COLUMN notaServicoUrl TEXT', [], () => {});
+    db.run('ALTER TABLE orders ADD COLUMN notasEnviadasEm TEXT', [], () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id TEXT PRIMARY KEY,
@@ -143,6 +146,9 @@ function initializeDatabase() {
       "bluFacilitaInstallments" TEXT,
       "internalNotes" TEXT,
       "arrivalPhotos" TEXT,
+      notaProdutoUrl TEXT,
+      notaServicoUrl TEXT,
+      notasEnviadasEm TEXT,
       FOREIGN KEY ("userId") REFERENCES users(id),
       FOREIGN KEY ("organizationId") REFERENCES organizations(id),
       FOREIGN KEY ("clientId") REFERENCES clients(id) ON DELETE SET NULL,

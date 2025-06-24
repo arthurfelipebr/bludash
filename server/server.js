@@ -8,6 +8,7 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const db = require('./database'); // SQLite database connection
 const { GoogleGenAI } = require('@google/genai');
 
@@ -37,6 +38,15 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 let correiosToken = null;
 let correiosTokenExpiry = 0; // epoch milliseconds
@@ -292,13 +302,14 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       "shippingCostSupplierToBlu", "shippingCostBluToClient", "whatsAppHistorySummary",
       trackingCode,
       "bluFacilitaUsesSpecialRate", "bluFacilitaSpecialAnnualRate",
-      documents, "trackingHistory", "bluFacilitaInstallments", "internalNotes", "arrivalPhotos"
+      documents, "trackingHistory", "bluFacilitaInstallments", "internalNotes", "arrivalPhotos",
+      notaProdutoUrl, notaServicoUrl, notasEnviadasEm
   ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
       $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
       $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
       $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
-      $42, $43, $44
+      $42, $43, $44, $45, $46, $47
   )`;
 
   const params = [
@@ -314,7 +325,8 @@ app.post('/api/orders', authenticateToken, (req, res) => {
       orderData.shippingCostBluToClient, orderData.whatsAppHistorySummary,
       orderData.trackingCode,
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
-      documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON, internalNotesJSON, arrivalPhotosJSON
+      documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON, internalNotesJSON, arrivalPhotosJSON,
+      orderData.notaProdutoUrl, orderData.notaServicoUrl, orderData.notasEnviadasEm
   ];
   
   db.run(sql, params, function(err) {
@@ -388,8 +400,9 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       "shippingCostSupplierToBlu"=$31, "shippingCostBluToClient"=$32,
       "whatsAppHistorySummary"=$33, trackingCode=$34, "bluFacilitaUsesSpecialRate"=$35,
       "bluFacilitaSpecialAnnualRate"=$36, documents=$37, "trackingHistory"=$38,
-      "bluFacilitaInstallments"=$39, "internalNotes"=$40, "arrivalPhotos"=$41
-      WHERE id=$42 AND "organizationId"=$43`;
+      "bluFacilitaInstallments"=$39, "internalNotes"=$40, "arrivalPhotos"=$41,
+      notaProdutoUrl=$42, notaServicoUrl=$43, notasEnviadasEm=$44
+      WHERE id=$45 AND "organizationId"=$46`;
 
   const params = [
       orderData.customerName, orderData.clientId, orderData.productName,
@@ -407,6 +420,7 @@ app.put('/api/orders/:id', authenticateToken, (req, res) => {
       orderData.bluFacilitaUsesSpecialRate ? 1 : 0, orderData.bluFacilitaSpecialAnnualRate,
       documentsJSON, trackingHistoryJSON, bluFacilitaInstallmentsJSON,
       internalNotesJSON, arrivalPhotosJSON,
+      orderData.notaProdutoUrl, orderData.notaServicoUrl, orderData.notasEnviadasEm,
       orderId, req.user.organizationId
   ];
 
@@ -461,6 +475,60 @@ app.post('/api/orders/:orderId/arrival-photos', authenticateToken, upload.single
       }
       res.json(doc);
     });
+  });
+});
+
+app.post('/api/orders/:orderId/invoices/:type', authenticateToken, upload.single('pdf'), (req, res) => {
+  const file = req.file;
+  const orderId = req.params.orderId;
+  const type = req.params.type;
+  if (!file) return res.status(400).json({ message: 'No file uploaded.' });
+  if (type !== 'produto' && type !== 'servico') {
+    return res.status(400).json({ message: 'Invalid invoice type.' });
+  }
+  const column = type === 'produto' ? 'notaProdutoUrl' : 'notaServicoUrl';
+  const relative = path.relative(UPLOADS_DIR, file.path).replace(/\\/g, '/');
+  const url = `/uploads/${relative}`;
+  const sql = `UPDATE orders SET "${column}" = $1 WHERE id = $2 AND "organizationId" = $3`;
+  db.run(sql, [url, orderId, req.user.organizationId], function(err) {
+    if (err) {
+      console.error('Error saving invoice file:', err.message);
+      return res.status(500).json({ message: 'Failed to save file.' });
+    }
+    res.json({ url });
+  });
+});
+
+app.post('/api/orders/:orderId/send-invoices', authenticateToken, async (req, res) => {
+  const orderId = req.params.orderId;
+  db.get(`SELECT o.*, c.email as clientEmail FROM orders o LEFT JOIN clients c ON o.clientId = c.id WHERE o.id = $1 AND o."organizationId" = $2`, [orderId, req.user.organizationId], async (err, row) => {
+    if (err || !row) {
+      return res.status(404).json({ message: 'Order not found.' });
+    }
+    if (!row.notaProdutoUrl) {
+      return res.status(400).json({ message: 'notaProdutoUrl missing' });
+    }
+    try {
+      const attachments = [ { filename: 'NF-Produto.pdf', path: row.notaProdutoUrl } ];
+      if (row.notaServicoUrl) attachments.push({ filename: 'NF-Servico.pdf', path: row.notaServicoUrl });
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: row.clientEmail || '',
+        subject: 'Notas Fiscais da sua encomenda',
+        text: 'Olá,\n\nSeguem anexadas as notas fiscais referentes à sua encomenda.\nCaso tenha dúvidas, estamos à disposição.\n\nAtenciosamente,\nEquipe Blu Imports',
+        attachments
+      });
+      const sentAt = new Date().toISOString();
+      db.run('UPDATE orders SET notasEnviadasEm = $1 WHERE id = $2 AND "organizationId" = $3', [sentAt, orderId, req.user.organizationId], err2 => {
+        if (err2) {
+          console.error('Error updating send timestamp:', err2.message);
+        }
+        res.json({ sentAt });
+      });
+    } catch (e) {
+      console.error('Error sending invoices:', e);
+      res.status(500).json({ message: 'Failed to send emails.' });
+    }
   });
 });
 

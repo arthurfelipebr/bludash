@@ -12,6 +12,8 @@ import {
   PRODUCT_CONDITION_OPTIONS,
   saveOrder,
   uploadArrivalPhoto,
+  uploadInvoice,
+  sendOrderInvoices,
   getClientById,
 } from '../services/AppService';
 import {
@@ -203,6 +205,9 @@ const OrderDetailsPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [clientInfo, setClientInfo] = useState<Client | null>(null);
   const [isInvoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const notaProdutoRef = useRef<HTMLInputElement>(null);
+  const notaServicoRef = useRef<HTMLInputElement>(null);
+  const [isSendNotasModalOpen, setSendNotasModalOpen] = useState(false);
 
   const hasInvoice = useMemo(() => {
     return order?.documents?.some(d => /nota\s*fiscal|invoice/i.test(d.name || '')) || false;
@@ -275,6 +280,30 @@ const OrderDetailsPage: React.FC = () => {
     setOrder(updated);
     await saveOrder(updated);
     e.target.value = '';
+  };
+
+  const handleNotaUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'produto' | 'servico') => {
+    if (!order) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { alert('Apenas arquivos PDF são aceitos'); return; }
+    const url = await uploadInvoice(order.id, type, file);
+    const updated = { ...order, [type === 'produto' ? 'notaProdutoUrl' : 'notaServicoUrl']: url } as Order;
+    setOrder(updated);
+    await saveOrder(updated);
+    e.target.value = '';
+  };
+
+  const handleSendNotas = async () => {
+    if (!order) return;
+    try {
+      const res = await sendOrderInvoices(order.id);
+      setOrder({ ...order, notasEnviadasEm: res.sentAt });
+      setToastMsg('Notas fiscais enviadas com sucesso');
+    } catch (err) {
+      console.error('Erro ao enviar notas', err);
+      setToastMsg('Falha ao enviar notas fiscais');
+    }
   };
 
   const parsedReport = useMemo(() => {
@@ -735,6 +764,42 @@ const OrderDetailsPage: React.FC = () => {
               <OrderStatusTimeline order={order} />
             </div>
           </Card>
+          <Card className="mt-4">
+            <h3 className="text-lg font-semibold mb-2">Envio de Notas Fiscais</h3>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="font-medium text-xs">NF Produto (PDF)*:</span>
+                {order.notaProdutoUrl ? (
+                  <span className="ml-1">{order.notaProdutoUrl.split('/').pop()}</span>
+                ) : (
+                  <span className="ml-1 text-red-600">Nenhum arquivo</span>
+                )}
+                <input type="file" accept="application/pdf" className="hidden" ref={notaProdutoRef} onChange={e => handleNotaUpload(e, 'produto')} />
+                <Button variant="ghost" size="sm" onClick={() => notaProdutoRef.current?.click()} className="ml-2">{order.notaProdutoUrl ? 'Substituir' : 'Enviar PDF'}</Button>
+              </div>
+              <div>
+                <span className="font-medium text-xs">NF Serviço (opcional):</span>
+                {order.notaServicoUrl ? (
+                  <span className="ml-1">{order.notaServicoUrl.split('/').pop()}</span>
+                ) : (
+                  <span className="ml-1 text-gray-500">Nenhum</span>
+                )}
+                <input type="file" accept="application/pdf" className="hidden" ref={notaServicoRef} onChange={e => handleNotaUpload(e, 'servico')} />
+                <Button variant="ghost" size="sm" onClick={() => notaServicoRef.current?.click()} className="ml-2">{order.notaServicoUrl ? 'Substituir' : 'Enviar PDF'}</Button>
+              </div>
+              <div>
+                <span className="font-medium text-xs">Estado de envio:</span>
+                {order.notasEnviadasEm ? (
+                  <span className="ml-1">Enviado em {formatDateBR(order.notasEnviadasEm, true)}</span>
+                ) : (
+                  <span className="ml-1">Ainda não enviado</span>
+                )}
+              </div>
+              <Button disabled={!order.notaProdutoUrl} onClick={() => { setSendNotasModalOpen(true); }}>
+                Enviar Notas por E-mail
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -855,6 +920,16 @@ const OrderDetailsPage: React.FC = () => {
           }}
         />
       )}
+      <Modal
+        isOpen={isSendNotasModalOpen}
+        onClose={() => setSendNotasModalOpen(false)}
+        title={`Tem certeza que deseja enviar as notas fiscais para o cliente ${clientInfo?.email || ''}?`}
+        footer={
+          <Button onClick={async () => { await handleSendNotas(); setSendNotasModalOpen(false); }}>Confirmar</Button>
+        }
+      >
+        <p className="text-sm">O envio incluirá a NF de Produto e a NF de Serviço (se houver).</p>
+      </Modal>
       <InvoiceInfoModal isOpen={isInvoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} client={clientInfo} order={order} />
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
     </div>
