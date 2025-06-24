@@ -12,7 +12,7 @@ const OrganizationEmailSettingsFeature: React.FC = () => {
     smtpUser: '',
     smtpPassword: '',
     smtpFromEmail: '',
-    smtpSecure: true,
+    smtpSecure: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,11 +26,11 @@ const OrganizationEmailSettingsFeature: React.FC = () => {
         const cfg = await getOrganizationSmtpConfig();
         setFormData({
           smtpHost: cfg.smtpHost || '',
-          smtpPort: Number(cfg.smtpPort) || 587,
+          smtpPort: 587,
           smtpUser: cfg.smtpUser || '',
           smtpPassword: '',
           smtpFromEmail: cfg.smtpFromEmail || '',
-          smtpSecure: !!cfg.smtpSecure,
+          smtpSecure: false,
         });
       } catch (e) {
         console.error(e);
@@ -50,17 +50,13 @@ const OrganizationEmailSettingsFeature: React.FC = () => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    if (!formData.smtpHost || !formData.smtpPort) {
-      setError('Host e porta são obrigatórios.');
-      return;
-    }
-    if (isNaN(Number(formData.smtpPort))) {
-      setError('Porta deve ser numérica.');
+    if (!formData.smtpHost) {
+      setError('Host é obrigatório.');
       return;
     }
     setSaving(true);
     try {
-      await updateOrganizationSmtpConfig(formData);
+      await updateOrganizationSmtpConfig({ ...formData, smtpPort: 587, smtpSecure: false });
       setSuccess('Configurações salvas com sucesso.');
       setFormData(f => ({ ...f, smtpPassword: '' }));
     } catch (e) {
@@ -76,9 +72,15 @@ const OrganizationEmailSettingsFeature: React.FC = () => {
     setTesting(true);
     try {
       await testOrganizationSmtp();
-      setSuccess('E-mail enviado com sucesso.');
-    } catch (e) {
-      setError('Falha no envio de teste.');
+      setSuccess('E-mail de teste enviado com sucesso.');
+    } catch (e: any) {
+      if (e?.code === 'ETIMEDOUT') {
+        setError('Não foi possível se conectar ao servidor SMTP (timeout). Verifique se a porta 587 está liberada.');
+      } else if (typeof e?.message === 'string' && e.message.includes('wrong version number')) {
+        setError('Erro de SSL: o servidor SMTP não aceita STARTTLS na porta 587. Verifique se o servidor está configurado corretamente.');
+      } else {
+        setError(e?.message || 'Falha no envio de teste.');
+      }
     } finally {
       setTesting(false);
     }
@@ -97,14 +99,9 @@ const OrganizationEmailSettingsFeature: React.FC = () => {
           {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
           {success && <Alert type="success" message={success} onClose={() => setSuccess(null)} />}
           <Input label="Servidor SMTP" id="smtpHost" name="smtpHost" value={formData.smtpHost} onChange={handleChange} required />
-          <Input label="Porta" id="smtpPort" name="smtpPort" value={formData.smtpPort.toString()} onChange={handleChange} required />
           <Input label="Usuário SMTP" id="smtpUser" name="smtpUser" value={formData.smtpUser || ''} onChange={handleChange} />
           <Input label="Senha SMTP" type="password" id="smtpPassword" name="smtpPassword" value={formData.smtpPassword || ''} onChange={handleChange} />
           <Input label="E-mail do remetente" id="smtpFromEmail" name="smtpFromEmail" value={formData.smtpFromEmail || ''} onChange={handleChange} />
-          <label className="flex items-center space-x-2">
-            <input type="checkbox" name="smtpSecure" checked={formData.smtpSecure} onChange={handleChange} className="h-4 w-4" />
-            <span>Conexão segura (SSL/TLS)</span>
-          </label>
           <div className="flex space-x-2">
             <Button type="submit" isLoading={saving}>Salvar</Button>
             <Button type="button" variant="secondary" onClick={handleTest} isLoading={testing}>Testar Envio</Button>
