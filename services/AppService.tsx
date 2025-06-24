@@ -676,7 +676,8 @@ export const updateUserRole = async (userId: string, role: string): Promise<User
 
 // --- SaaS Clients Management ---
 export const getSaaSClients = async (): Promise<SaaSClient[]> => {
-    return apiClient<SaaSClient[]>('/saas/clients');
+    const data = await apiClient<SaaSClient[] | undefined>('/saas/clients');
+    return Array.isArray(data) ? data : [];
 };
 
 export const saveSaaSClient = async (client: Omit<SaaSClient, 'id'> | SaaSClient): Promise<SaaSClient> => {
