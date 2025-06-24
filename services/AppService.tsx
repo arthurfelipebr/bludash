@@ -345,6 +345,26 @@ export const uploadArrivalPhoto = async (orderId: string, file: File): Promise<D
   return res.json();
 };
 
+export const uploadInvoice = async (orderId: string, type: 'produto' | 'servico', file: File): Promise<string> => {
+  const token = getAuthToken();
+  const formData = new FormData();
+  formData.append('pdf', file);
+  const res = await fetch(`/api/orders/${orderId}/invoices/${type}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error('Falha ao enviar nota fiscal');
+  }
+  const data = await res.json();
+  return data.url as string;
+};
+
+export const sendOrderInvoices = async (orderId: string): Promise<{ sentAt: string }> => {
+  return apiClient<{ sentAt: string }>(`/orders/${orderId}/send-invoices`, { method: 'POST' });
+};
+
 export const deleteOrder = async (orderId: string): Promise<void> => {
   return apiClient<void>(`/orders/${orderId}`, { method: 'DELETE' });
 };

@@ -225,6 +225,9 @@ export interface Order {
   shippingCostSupplierToBlu?: number;
   shippingCostBluToClient?: number;
   trackingCode?: string;
+  notaProdutoUrl?: string;
+  notaServicoUrl?: string;
+  notasEnviadasEm?: string;
   internalNotes?: InternalNote[];
   whatsAppHistorySummary?: string;
 
