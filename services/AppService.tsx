@@ -8,7 +8,8 @@ import {
     DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE as DEFAULT_BF_RATE_CONST,
     ClientPayment, User, HistoricalParsedProduct, CustomTableRow,
     PricingProduct, PricingHistoryEntry, PricingCategory, PricingGlobals, PricingListItem,
-    SaaSClient, SubscriptionPlan, BillingClient, IntegrationStatus
+    SaaSClient, SubscriptionPlan, BillingClient, IntegrationStatus,
+    Empresa, Plano, UsuarioEmpresa
 } from '../types'; // Updated User type
 import { v4 as uuidv4 } from 'uuid';
 // --- CONSTANTS ---
@@ -688,6 +689,41 @@ export const getBillingClients = async (): Promise<BillingClient[]> => {
 
 export const getIntegrationStatuses = async (): Promise<IntegrationStatus[]> => {
     return apiClient<IntegrationStatus[]>('/integrations');
+};
+
+// --- Empresas & Usuários ---
+export const getEmpresas = async (): Promise<Empresa[]> => {
+    return apiClient<Empresa[]>('/empresas');
+};
+
+export const saveEmpresa = async (empresa: Partial<Empresa> & { id?: number }): Promise<Empresa> => {
+    if (empresa.id) {
+        return apiClient<Empresa>(`/empresas/${empresa.id}`, { method: 'PUT', body: JSON.stringify(empresa) });
+    }
+    return apiClient<Empresa>('/empresas', { method: 'POST', body: JSON.stringify(empresa) });
+};
+
+export const updateEmpresaStatus = async (id: number, status: string): Promise<Empresa> => {
+    return apiClient<Empresa>(`/empresas/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+};
+
+export const getPlanosAdmin = async (): Promise<Plano[]> => {
+    return apiClient<Plano[]>('/planos');
+};
+
+export const getUsuariosEmpresa = async (empresaId: number): Promise<UsuarioEmpresa[]> => {
+    return apiClient<UsuarioEmpresa[]>(`/empresas/${empresaId}/usuarios`);
+};
+
+export const saveUsuarioEmpresa = async (empresaId: number, user: Partial<UsuarioEmpresa> & { id?: number }): Promise<UsuarioEmpresa> => {
+    if (user.id) {
+        return apiClient<UsuarioEmpresa>(`/usuarios_empresa/${user.id}`, { method: 'PUT', body: JSON.stringify(user) });
+    }
+    return apiClient<UsuarioEmpresa>(`/empresas/${empresaId}/usuarios`, { method: 'POST', body: JSON.stringify(user) });
+};
+
+export const deleteUsuarioEmpresa = async (id: number): Promise<void> => {
+    return apiClient<void>(`/usuarios_empresa/${id}`, { method: 'DELETE' });
 };
 
 // CREDIT_CARD_RATES_CONFIG and calculateCreditCardFees can remain client-side as they are pure utility functions.

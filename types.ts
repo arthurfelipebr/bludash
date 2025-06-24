@@ -311,6 +311,29 @@ export interface IntegrationStatus {
   status: 'connected' | 'disconnected';
 }
 
+export interface Empresa {
+  id: number;
+  nome: string;
+  status: 'ativo' | 'suspenso' | 'inativo';
+  plano_id?: number | null;
+  planoNome?: string;
+  email_responsavel: string;
+  data_ultima_atividade?: string;
+}
+
+export interface Plano {
+  id: number;
+  nome: string;
+}
+
+export interface UsuarioEmpresa {
+  id: number;
+  empresa_id: number;
+  nome: string;
+  email: string;
+  nivel_acesso: 'admin' | 'operador';
+}
+
 export interface NavItem {
   name: string;
   path: string;

@@ -334,6 +334,31 @@ function initializeDatabase() {
         status TEXT NOT NULL
     )`);
 
+    // --- Admin: Empresas / Planos / Usuários de Empresa ---
+    db.run(`CREATE TABLE IF NOT EXISTS planos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS empresas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        status TEXT NOT NULL,
+        plano_id INTEGER,
+        email_responsavel TEXT,
+        data_ultima_atividade TEXT,
+        FOREIGN KEY(plano_id) REFERENCES planos(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS usuarios_empresa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa_id INTEGER NOT NULL,
+        nome TEXT NOT NULL,
+        email TEXT NOT NULL,
+        nivel_acesso TEXT NOT NULL,
+        FOREIGN KEY(empresa_id) REFERENCES empresas(id)
+    )`);
+
     console.log('Database schema initialized/verified.');
   });
 }
