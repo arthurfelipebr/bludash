@@ -1471,7 +1471,13 @@ app.get('/api/admin/report', authenticateToken, authorizeAdmin, (req, res) => {
 
 // --- SaaS Clients Management ---
 app.get('/api/saas/clients', authenticateToken, authorizeAdmin, (req, res) => {
-  db.all('SELECT * FROM saas_clients ORDER BY signupDate DESC', [], (err, rows) => {
+  const sql = `
+    SELECT sc.*, cb.planName AS billingPlanName, cb.lastPaymentDate, cb.nextDueDate,
+           cb.status AS billingStatus
+    FROM saas_clients sc
+    LEFT JOIN client_billing cb ON cb.clientId = sc.id
+    ORDER BY sc.signupDate DESC`;
+  db.all(sql, [], (err, rows) => {
     if (err) {
       console.error('Error fetching SaaS clients:', err.message);
       return res.status(500).json({ message: 'Failed to fetch clients.' });

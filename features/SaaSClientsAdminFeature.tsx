@@ -25,8 +25,9 @@ const SaaSClientsAdminPage: React.FC = () => {
   const columns = [
     { header: 'Organização', accessor: (c: SaaSClient) => c.organizationName },
     { header: 'E-mail', accessor: (c: SaaSClient) => c.contactEmail },
-    { header: 'Plano', accessor: (c: SaaSClient) => c.subscriptionPlan },
-    { header: 'Status', accessor: (c: SaaSClient) => c.subscriptionStatus },
+    { header: 'Plano', accessor: (c: SaaSClient) => c.billingPlanName || c.subscriptionPlan },
+    { header: 'Status', accessor: (c: SaaSClient) => c.billingStatus || c.subscriptionStatus },
+    { header: 'Próximo Venc.', accessor: (c: SaaSClient) => c.nextDueDate ? formatDateBR(c.nextDueDate, true) : '-' },
     { header: 'Cadastro', accessor: (c: SaaSClient) => formatDateBR(c.signupDate, true) },
   ];
 

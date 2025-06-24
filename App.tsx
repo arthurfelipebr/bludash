@@ -18,7 +18,6 @@ import { TradeInEvaluationPage } from './features/TradeInEvaluationFeature';
 import { FinancialReportsPageContainer } from './features/FinancialReportsFeature';
 import { UserManagementPage } from './features/UserManagementFeature';
 import ProductPricingDashboardPage from './features/ProductPricingDashboard';
-import AdminCompanyUsersPage from './features/AdminCompanyUsersFeature';
 import AdminHomePage from './features/AdminHomeFeature';
 import AdminBillingPage from './features/AdminBillingFeature';
 import AdminOrdersPage from './features/AdminOrdersFeature';
@@ -28,6 +27,7 @@ import AdminAIPage from './features/AdminAIFeature';
 import AdminBluLabsPage from './features/AdminBluLabsFeature';
 import AdminSettingsPage from './features/AdminAdvancedSettingsFeature';
 import AdminAuditLogsPage from './features/AdminAuditLogsFeature';
+import SaaSClientsAdminPage from './features/SaaSClientsAdminFeature';
 import { PageTitle, Card, Tabs, Tab, ResponsiveTable, Spinner, Button, Modal, Select as SharedSelect, Alert, Input as SharedInput, Textarea as SharedTextarea } from './components/SharedComponents';
 import RemindersWidget from './components/RemindersWidget';
 import PendingOrdersWidget from './components/PendingOrdersWidget';
@@ -89,6 +89,7 @@ const NAV_ITEMS: NavItemWithExact[] = [
 const ADMIN_NAV_ITEMS: NavItemWithExact[] = [
   { name: 'Dashboard', path: '/admin', icon: Home, exact: true },
   { name: 'Usuários/Clientes', path: '/admin/users', icon: Users },
+  { name: 'Clientes SaaS', path: '/admin/clients', icon: Users },
   { name: 'Planos e Faturamento', path: '/admin/billing', icon: BadgeDollarSign },
   { name: 'Pedidos', path: '/admin/orders', icon: ShoppingBag },
   { name: 'Produtos/Modelos', path: '/admin/products', icon: Package },
@@ -527,7 +528,7 @@ const App: React.FC<{}> = () => {
           <Route path="/admin/*" element={<AdminGuard><AdminLayout /></AdminGuard>}>
             <Route index element={<AdminHomePage />} />
             <Route path="users" element={<UserManagementPage />} />
-            <Route path="clients" element={<AdminCompanyUsersPage />} />
+            <Route path="clients" element={<SaaSClientsAdminPage />} />
             <Route path="billing" element={<AdminBillingPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="products" element={<AdminProductsPage />} />

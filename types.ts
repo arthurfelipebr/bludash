@@ -285,6 +285,10 @@ export interface SaaSClient {
   subscriptionPlan: string;
   subscriptionStatus: 'active' | 'trial' | 'canceled';
   signupDate: string; // ISO date string
+  billingPlanName?: string;
+  lastPaymentDate?: string;
+  nextDueDate?: string;
+  billingStatus?: string;
 }
 
 export interface SubscriptionPlan {
