@@ -44,11 +44,29 @@ async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promis
   });
 
   if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ message: `API request failed: ${response.statusText}` }));
+    let errorData: any = {};
+    try {
+      errorData = await response.json();
+    } catch {
+      // ignore non-JSON body
+    }
+    let msg = errorData.message as string | undefined;
+    if (!msg) {
+      switch (response.status) {
+        case 401:
+          msg = 'Acesso não autorizado. Faça login novamente.';
+          break;
+        case 403:
+          msg = 'Token inválido ou acesso negado.';
+          break;
+        case 404:
+          msg = 'Recurso não encontrado.';
+          break;
+        default:
+          msg = `API request failed: ${response.statusText}`;
+      }
+    }
     const detailInfo = errorData.details ? ` (${errorData.details})` : '';
-    const msg = errorData.message || `API request failed: ${response.status}`;
     throw new Error(`${msg}${detailInfo}`);
   }
 
