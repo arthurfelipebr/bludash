@@ -5,7 +5,8 @@ import App from './App'; // App.tsx should have a default export: export default
 const renderApp = () => {
   const rootElement = document.getElementById('root');
   if (!rootElement) {
-    throw new Error('Elemento root não encontrado no DOM.');
+    console.error('Elemento root não encontrado no DOM.');
+    return;
   }
   const root = ReactDOM.createRoot(rootElement);
   root.render(
@@ -17,6 +18,7 @@ const renderApp = () => {
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', renderApp);
+  window.addEventListener('load', renderApp);
 } else {
   renderApp();
 }
