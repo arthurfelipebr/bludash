@@ -38,6 +38,11 @@ const ProductPricingDashboardPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [historyTab, setHistoryTab] = useState<'table' | 'chart'>('table');
   const [priceDetailsFor, setPriceDetailsFor] = useState<number | null>(null);
+  const [compactMode, setCompactMode] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+  const [filterMissingCost, setFilterMissingCost] = useState(false);
+  const [filterZeroProfit, setFilterZeroProfit] = useState(false);
+  const [filterRecentEdits, setFilterRecentEdits] = useState(false);
 
   useEffect(() => {
     getPricingProducts()
@@ -351,9 +356,26 @@ const ProductPricingDashboardPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [undoStack, redoStack, items]);
 
-  const filteredItems = categoryFilter === 'all'
+  let filteredItems = categoryFilter === 'all'
     ? items
     : items.filter(i => i.categoryName === categoryFilter);
+  if (filterMissingCost) {
+    filteredItems = filteredItems.filter(i => !i.custoBRL);
+  }
+  if (filterZeroProfit) {
+    filteredItems = filteredItems.filter(i => {
+      const profit = i.usarLucroDaCategoria
+        ? categories.find(c => c.name === i.categoryName)?.lucroPercent ?? 0
+        : i.lucroPercent ?? 0;
+      return profit === 0;
+    });
+  }
+  if (filterRecentEdits) {
+    filteredItems = filteredItems.filter(i => {
+      if (!i.updatedAt) return false;
+      return Date.now() - new Date(i.updatedAt).getTime() <= 7 * 24 * 60 * 60 * 1000;
+    });
+  }
   const groupedItems = filteredItems.reduce<Record<string, PricingListItem[]>>((acc, it) => {
     acc[it.categoryName] = acc[it.categoryName] || [];
     acc[it.categoryName].push(it);
@@ -401,6 +423,25 @@ const ProductPricingDashboardPage: React.FC = () => {
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
             </select>
+            <label className="text-sm flex items-center space-x-1">
+              <input type="checkbox" checked={filterMissingCost} onChange={e => setFilterMissingCost(e.target.checked)} />
+              <span>Sem custo</span>
+            </label>
+            <label className="text-sm flex items-center space-x-1">
+              <input type="checkbox" checked={filterZeroProfit} onChange={e => setFilterZeroProfit(e.target.checked)} />
+              <span>Lucro 0</span>
+            </label>
+            <label className="text-sm flex items-center space-x-1">
+              <input type="checkbox" checked={filterRecentEdits} onChange={e => setFilterRecentEdits(e.target.checked)} />
+              <span>Editados 7d</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setCompactMode(c => !c)}
+              className="p-1 rounded hover:bg-gray-100"
+            >
+              {compactMode ? 'Modo Completo' : 'Modo Compacto'}
+            </button>
           </div>
         )}
       />
@@ -424,20 +465,22 @@ const ProductPricingDashboardPage: React.FC = () => {
             </button>
             {expandedCategories[cat] && (
               <div className="space-y-2 mt-2 divide-y divide-gray-200">
-                {list.map(it => (
-                  <div
-                    key={it.productId}
-                    className={`p-3 rounded-xl shadow-sm border flex flex-col md:grid md:grid-cols-6 gap-2 ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
-                  >
-                    <div className="flex items-start space-x-2 md:col-span-2">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={selectedIds.includes(it.productId)}
-                        onChange={() => toggleSelect(it.productId)}
-                      />
-                      <span className="font-bold">{it.productName}</span>
-                    </div>
+                {list.map(it => {
+                  const expanded = !compactMode || expandedItems[it.productId];
+                  return expanded ? (
+                    <div
+                      key={it.productId}
+                      className={`p-3 rounded-xl shadow-sm border flex flex-col md:grid md:grid-cols-6 gap-2 ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
+                    >
+                      <div className="flex items-start space-x-2 md:col-span-2">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={selectedIds.includes(it.productId)}
+                          onChange={() => toggleSelect(it.productId)}
+                        />
+                        <span className="font-bold">{it.productName}</span>
+                      </div>
                     <div className="text-right md:col-span-1">
                       {editingCostId === it.productId ? (
                         <div className="flex items-center space-x-1">
@@ -559,15 +602,50 @@ const ProductPricingDashboardPage: React.FC = () => {
                       {savingId !== it.productId && editingId !== it.productId && editingCostId !== it.productId && (
                         <>
                           <Clock className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => { setHistoryFor(it.productId); loadHistory(it.productId); }} />
-                          <Info className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => setPriceDetailsFor(it.productId)} />
+                          <span title="Visualizar cálculo">
+                            <Info className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer" onClick={() => setPriceDetailsFor(it.productId)} />
+                          </span>
                         </>
                       )}
                     </div>
                     <div className="text-right text-sm text-gray-500 md:col-span-1">
                       {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString('pt-BR') : ''}
                     </div>
+                    {compactMode && (
+                      <button
+                        type="button"
+                        className="text-sm text-blue-600 underline md:col-span-6 text-right"
+                        onClick={() => setExpandedItems(prev => ({ ...prev, [it.productId]: false }))}
+                      >
+                        Fechar
+                      </button>
+                    )}
                   </div>
-                ))}
+                  ) : (
+                  <div
+                    key={it.productId}
+                    className={`p-3 rounded-xl shadow-sm border flex justify-between items-center ${highlightProductId === it.productId ? 'bg-green-50' : 'bg-white'}`}
+                  >
+                    <span className="font-bold">{it.productName}</span>
+                    <div className="flex items-center space-x-1">
+                      <span className="font-bold">{it.valorTabela?.toFixed(2)}</span>
+                      <span title="Visualizar cálculo">
+                        <Info
+                          className="inline ml-1 w-3 h-3 text-gray-500 cursor-pointer"
+                          onClick={() => setPriceDetailsFor(it.productId)}
+                        />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedItems(prev => ({ ...prev, [it.productId]: true }))}
+                        className="text-sm text-blue-600 underline"
+                      >
+                        Expandir
+                      </button>
+                    </div>
+                  </div>
+                  );
+                })}
               </div>
             )}
           </div>
