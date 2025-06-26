@@ -17,7 +17,8 @@ import {
 import { Button, Modal, Input, Select, Textarea, Card, PageTitle, Alert, ResponsiveTable, Spinner, WhatsAppIcon, ClipboardDocumentIcon, Stepper, Toast, OrderProgressBar, Tabs, Tab } from '../components/SharedComponents';
 import { ClientForm } from './ClientsFeature';
 import { v4 as uuidv4 } from 'uuid';
-import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
+import { EyeIcon, EyeSlashIcon } from '../App';
+import { RegisterPaymentModal } from '../components/modals/RegisterPaymentModal';
 import { Eye, Pencil, ArchiveRestore, Trash2, Download, PlusCircle } from 'lucide-react';
 import ClientProductStep from './orders/steps/ClientProductStep';
 import ValuesStep from './orders/steps/ValuesStep';

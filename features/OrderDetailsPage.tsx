@@ -37,7 +37,8 @@ import {
   Modal,
   Textarea,
 } from '../components/SharedComponents';
-import { EyeIcon, EyeSlashIcon, RegisterPaymentModal } from '../App';
+import { EyeIcon, EyeSlashIcon } from "../App";
+import { RegisterPaymentModal } from '../components/modals/RegisterPaymentModal';
 import { Pencil } from 'lucide-react';
 
 type ThreeuToolsStatus = 'ok' | 'warning' | 'problem' | 'unknown';
