@@ -33,7 +33,8 @@ const TodayTasksDisplay: React.FC = () => {
     const fetchTasks = async () => {
       setIsLoading(true);
       try {
-        setTasks(await getTodaysTasks());
+        const fetched = await getTodaysTasks();
+        setTasks(Array.isArray(fetched) ? fetched : []);
       } catch (e) {
         console.error("Failed to fetch today's tasks", e);
       } finally {
