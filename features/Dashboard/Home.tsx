@@ -22,7 +22,7 @@ import {
 import RemindersWidget from '../../components/RemindersWidget';
 import PendingOrdersWidget from '../../components/PendingOrdersWidget';
 import StatCard from '../../components/StatCard';
-import { AddOrderCostModal } from '../../App';
+import { AddOrderCostModal } from '../../components/modals/AddOrderCostModal';
 
 const TodayTasksDisplay: React.FC = () => {
   const [tasks, setTasks] = useState<TodayTask[]>([]);

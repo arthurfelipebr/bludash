@@ -13,7 +13,7 @@ import {
   DEFAULT_BLU_FACILITA_ANNUAL_INTEREST_RATE,
 } from '../services/AppService';
 import { Order, PaymentMethod, BluFacilitaContractStatus, BLU_FACILITA_CONTRACT_STATUS_OPTIONS, Client, BluFacilitaInstallment, ClientPayment } from '../types';
-import { RegisterPaymentModal } from '../App'; 
+import { RegisterPaymentModal } from '../components/modals/RegisterPaymentModal'; 
 
 
 interface SimulationResult {
