@@ -135,11 +135,21 @@ const DashboardHomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'today'>('today');
   const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false);
 
+  useEffect(() => {
+    console.log('DashboardHomePage mounted');
+  }, []);
+
   const refreshData = useCallback(async () => {
+    console.log('Refreshing dashboard data...');
     setIsLoadingStats(true);
     try {
-      setStats(await getDashboardStatistics());
+      const fetchedStats = await getDashboardStatistics();
+      setStats(fetchedStats);
+      console.log('Fetched stats:', fetchedStats);
+
       const fetchedAlerts = await getDashboardAlerts();
+      console.log('Fetched alerts:', fetchedAlerts);
+
       const orders = await getOrders();
       const missingInvoice = orders.filter(
         (o) => !(o.documents?.some((d) => /nota\s*fiscal|invoice/i.test(d.name || '')))
@@ -158,6 +168,7 @@ const DashboardHomePage: React.FC = () => {
         ];
       }
       setAlerts(allAlerts);
+      console.log('Final alerts list:', allAlerts);
     } catch (error) {
       console.error('Error refreshing dashboard data:', error);
     } finally {
