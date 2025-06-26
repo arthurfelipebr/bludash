@@ -375,7 +375,7 @@ export const Alert: React.FC<AlertProps> = ({ message, type = 'info', onClose, c
 
 interface ResponsiveTableProps<T> {
   columns: Array<{ header: string; accessor: keyof T | ((item: T, index: number) => ReactNode); className?: string, headerClassName?: string, cellClassName?: string }>; 
-  data: T[];
+  data?: T[];
   isLoading?: boolean;
   emptyStateMessage?: string;
   onRowClick?: (item: T) => void;
@@ -384,7 +384,7 @@ interface ResponsiveTableProps<T> {
 
 export const ResponsiveTable = <T extends object,>({
   columns,
-  data,
+  data = [],
   isLoading = false,
   emptyStateMessage = "Nenhum dado encontrado.",
   onRowClick,
@@ -398,7 +398,7 @@ export const ResponsiveTable = <T extends object,>({
     );
   }
 
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return <p className="text-center text-gray-500 py-10">{emptyStateMessage}</p>;
   }
 
